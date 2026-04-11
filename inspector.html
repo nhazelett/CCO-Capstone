@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCO Capstone — Inspector Whiteboard</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/inspector.css">
+</head>
+<body class="inspector-body theme-inspector">
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <div class="brand-mark">
+      <svg viewBox="0 0 40 40" fill="none">
+        <rect x="1" y="1" width="38" height="38" rx="4" stroke="#A8B050" stroke-width="1.5"/>
+        <path d="M12 20 L18 26 L28 14" stroke="#A8B050" stroke-width="2" stroke-linecap="square" fill="none"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="name">Inspector Whiteboard</div>
+      <div class="sub">Observation &amp; assessment</div>
+    </div>
+  </a>
+  <nav class="topbar-nav">
+    <a href="index.html">Overview</a>
+    <a href="trainer.html">Trainer</a>
+    <a href="student.html">Student</a>
+    <a href="inspector.html" class="active">Inspector</a>
+    <a href="mobile.html">Mobile</a>
+  </nav>
+  <div class="topbar-right">
+    <select id="inspector-select" class="inspector-select" title="Who's grading?">
+      <option value="">Pick inspector…</option>
+    </select>
+    <div class="status-pill live">
+      <div class="status-dot"></div>
+      <span id="exercise-status">Waiting for exercise</span>
+    </div>
+  </div>
+</div>
+
+<div class="inspector-main">
+
+  <!-- Header strip -->
+  <div class="inspector-header-strip">
+    <div class="ih-block">
+      <div class="micro">Exercise clock</div>
+      <div class="ih-value mono" id="ih-clock">—</div>
+    </div>
+    <div class="ih-block">
+      <div class="micro">Injects fired</div>
+      <div class="ih-value mono"><span id="ih-fired-count">0</span> / <span id="ih-total-count">0</span></div>
+    </div>
+    <div class="ih-block">
+      <div class="micro">Graded</div>
+      <div class="ih-value mono" id="ih-graded-count">0</div>
+    </div>
+    <div class="ih-block">
+      <div class="micro">Flags raised</div>
+      <div class="ih-value mono" id="ih-flag-count">0</div>
+    </div>
+    <div class="ih-block ih-actions">
+      <button class="btn btn-sm" id="btn-export">Export notes</button>
+      <button class="btn btn-sm btn-ghost" id="btn-reset">Reset notes</button>
+    </div>
+  </div>
+
+  <div class="inspector-grid">
+
+    <!-- LEFT: inject stream -->
+    <div class="panel inspect-stream-panel">
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <div class="micro">Inject stream</div>
+          <div class="title">Fired injects</div>
+        </div>
+        <div class="stream-filter">
+          <button class="chip-btn active" data-filter="all">All</button>
+          <button class="chip-btn" data-filter="ungraded">Ungraded</button>
+          <button class="chip-btn" data-filter="flagged">Flagged</button>
+        </div>
+      </div>
+      <div class="panel-body panel-body-tight">
+        <div class="inject-stream" id="inject-stream">
+          <div class="stream-empty">
+            <div class="micro">No injects yet</div>
+            <p>When the trainer fires an inject, it'll show up here for grading.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: grading panel -->
+    <div class="panel inspect-grade-panel">
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <div class="micro">Grading</div>
+          <div class="title" id="grade-title">Select an inject</div>
+        </div>
+        <div class="grade-status" id="grade-status"></div>
+      </div>
+      <div class="panel-body" id="grade-body">
+        <div class="grade-empty">
+          <svg viewBox="0 0 48 48" fill="none">
+            <rect x="6" y="8" width="36" height="32" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M14 18h20M14 26h20M14 34h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <div class="micro">Whiteboard ready</div>
+          <p>Pick a fired inject on the left to start grading. You can mark observations, flag incidents, and leave comments that appear in the hotwash export.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="content/content-bundle.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/inspector.js"></script>
+</body>
+</html>
