@@ -29,7 +29,29 @@ const Engine = (function () {
     // v0.2.6: resolved per-inject fire times (totalMinutes from exercise start).
     // Populated once at startExercise() so randomness is stable across ticks
     // and persists across page reloads via saveState/loadState.
-    _resolvedTriggers: {}
+    _resolvedTriggers: {},
+    // v0.2.8: fixed-role assignments for inject routing.
+    //   assignments — studentId -> role key. Role keys are one of:
+    //     'cco'           — Contingency Contracting Officer (worker, default)
+    //     'aco'           — Administrative CO (worker, gets cco + extra injects)
+    //     'team_lead'     — Team Lead (leadership, minimum floor)
+    //     'commander'     — Commander (top of leadership fall-through)
+    //     'sel'           — Senior Enlisted Leader
+    //     'flight_chief'  — Flight Chief
+    //
+    //   Each student holds ONE role. Leadership fall-through order for
+    //   "who's primary on a leadership inject" is:
+    //     commander -> sel -> flight_chief -> team_lead
+    //   If none are assigned at fire time, leadership items land as broadcast
+    //   (assigned_to = null) and all leaders will still see them once filled.
+    //
+    //   Filtering rules (applied client-side in student.js):
+    //     role=cco           -> sees broadcast + role_tag:'cco'
+    //     role=aco           -> sees broadcast + cco + aco
+    //     role=team_lead/... -> sees EVERYTHING (leadership has full visibility)
+    //
+    //   Delegation (v0.2.9) will let leaders forward an item to a subordinate.
+    team_roles: { assignments: {} }
   };
 
   // ----- Content loaders -----
@@ -136,6 +158,7 @@ const Engine = (function () {
     state.smsThreads = {};
     state.contacts.forEach((c) => { state.smsThreads[c.id] = []; });
     state.paused = false;
+    state.team_roles = { assignments: {} };
     resolveTriggers();
     saveState();
     if (state.clock.interval) clearInterval(state.clock.interval);
@@ -228,6 +251,16 @@ const Engine = (function () {
   function fireInject(inj) {
     state.fired.add(inj.id);
 
+    // v0.2.8: resolve who this inject's inbox items should land on.
+    //   role_tag unset / 'broadcast'  -> assigned_to = null (everyone sees)
+    //   role_tag 'cco' / 'aco'        -> assigned_to = null, filtered at render
+    //                                    (CCOs/ACOs both see cco; only ACO sees aco)
+    //   role_tag 'leadership'         -> assigned_to = top of fall-through chain
+    //                                    (commander -> sel -> flight_chief -> team_lead)
+    //                                    All leaders still SEE it; primary is the
+    //                                    one who's "on point."
+    const routing = resolveRouting(inj);
+
     // Inbox items -> student mail
     if (inj.inbox_items) {
       inj.inbox_items.forEach((item) => {
@@ -239,7 +272,10 @@ const Engine = (function () {
           subject: item.subject,
           body: item.body,
           time: getExerciseTime().displayString,
-          unread: true
+          unread: true,
+          // v0.2.8 routing fields
+          role_tag: routing.role_tag,         // 'cco'|'aco'|'leadership'|null
+          assigned_to: routing.assigned_to    // studentId (leadership primary) or null
         });
       });
     }
@@ -299,6 +335,112 @@ const Engine = (function () {
     if (resolved != null) return resolved;
     const t = inj.trigger || {};
     return (t.day - 1) * 1440 + (t.hour || 0) * 60 + (t.minute || 0);
+  }
+
+  // ----- v0.2.8: role-based routing -----
+  //
+  // Each student holds exactly one role. Role keys:
+  //   'cco'          — Contingency CO (default worker)
+  //   'aco'          — Administrative CO (worker + extras)
+  //   'team_lead'    — Team Lead (leadership floor — at least one required)
+  //   'commander'    — Commander
+  //   'sel'          — Senior Enlisted Leader
+  //   'flight_chief' — Flight Chief
+  //
+  // Leadership fall-through order (for leadership-tagged injects):
+  //   commander -> sel -> flight_chief -> team_lead
+  //
+  // Inject routing at fire time (resolveRouting reads inj.role_tag):
+  //
+  //   inj.role_tag        outcome
+  //   ──────────────      ─────────────────────────────────────────────────
+  //   unset/'broadcast'   { assigned_to: null, role_tag: null }
+  //                       Everyone sees it.
+  //   'cco'               { assigned_to: null, role_tag: 'cco' }
+  //                       CCOs, ACOs, and leaders see it. Filtered at render.
+  //   'aco'               { assigned_to: null, role_tag: 'aco' }
+  //                       ACOs and leaders see it. CCOs do NOT.
+  //   'leadership'        { assigned_to: <primary>, role_tag: 'leadership' }
+  //                       All leaders see it; <primary> is the fall-through
+  //                       top (whoever the team currently expects to own it).
+  //                       If no leader is assigned at fire time, assigned_to
+  //                       is null and retroactiveRouteRefresh() will re-stamp
+  //                       it once a leader takes a slot.
+  //
+  // Delegation (v0.2.9): a leader will be able to forward a specific inbox
+  // item to a CCO/ACO. That will stamp item.delegated_to on top of the
+  // role_tag filter so the subordinate sees it even though the role_tag
+  // wouldn't normally route to them.
+
+  const LEADERSHIP_ROLES = ['commander', 'sel', 'flight_chief', 'team_lead'];
+
+  function getRoleOf(studentId) {
+    if (!studentId) return null;
+    return (state.team_roles.assignments || {})[studentId] || null;
+  }
+
+  function getStudentsWithRole(role) {
+    const out = [];
+    const a = state.team_roles.assignments || {};
+    Object.keys(a).forEach((id) => { if (a[id] === role) out.push(id); });
+    return out;
+  }
+
+  function getLeadershipPrimary() {
+    // Walk the fall-through chain: commander -> sel -> flight_chief -> team_lead
+    // Return the studentId of the first role that has at least one holder.
+    for (const role of LEADERSHIP_ROLES) {
+      const holders = getStudentsWithRole(role);
+      if (holders.length > 0) return holders[0];
+    }
+    return null;
+  }
+
+  function resolveRouting(inj) {
+    const tag = inj.role_tag || null;
+    if (!tag || tag === 'broadcast') {
+      return { assigned_to: null, role_tag: null };
+    }
+    if (tag === 'leadership') {
+      return { assigned_to: getLeadershipPrimary(), role_tag: 'leadership' };
+    }
+    // 'cco' or 'aco' — no single primary; filter at render time
+    return { assigned_to: null, role_tag: tag };
+  }
+
+  function assignRole(studentId, roleKey) {
+    if (!studentId) return;
+    if (!state.team_roles.assignments) state.team_roles.assignments = {};
+    if (!roleKey) {
+      delete state.team_roles.assignments[studentId];
+    } else {
+      state.team_roles.assignments[studentId] = roleKey;
+    }
+    retroactiveRouteRefresh();
+    saveState();
+    dispatch('engine:team-roles-updated', { team_roles: state.team_roles });
+  }
+
+  function retroactiveRouteRefresh() {
+    // Re-stamp leadership-tagged inbox items to reflect the current
+    // fall-through top. Forward-only: if an item is already assigned and
+    // the primary shifts, we move it; but broadcasts and cco/aco-tagged
+    // items are filtered client-side and don't need re-stamping here.
+    const primary = getLeadershipPrimary();
+    state.inbox.forEach((m) => {
+      if (m.role_tag === 'leadership') {
+        m.assigned_to = primary;
+      }
+    });
+  }
+
+  function getTeamRoles() {
+    return state.team_roles;
+  }
+
+  function getAssignedPlayer(inj) {
+    // helper for UI: "if this inject fired right now, who would be primary?"
+    return resolveRouting(inj).assigned_to;
   }
 
   // ----- State controls -----
@@ -368,6 +510,7 @@ const Engine = (function () {
         smsThreads: state.smsThreads,
         _pendingSms: state._pendingSms || [],
         _resolvedTriggers: state._resolvedTriggers || {},
+        team_roles: state.team_roles || { assignments: {} },
         paused: state.paused,
         _lastUpdate: Date.now()
       };
@@ -393,6 +536,12 @@ const Engine = (function () {
       state.smsThreads = s.smsThreads || {};
       state._pendingSms = s._pendingSms || [];
       state._resolvedTriggers = s._resolvedTriggers || {};
+      // v0.2.8: accept both new shape and legacy {lead,duties} shape
+      // (legacy state is silently discarded — roles must be re-assigned).
+      const incoming = s.team_roles || {};
+      state.team_roles = incoming.assignments
+        ? { assignments: incoming.assignments }
+        : { assignments: {} };
       state.paused = s.paused || false;
 
       // Only start a local tick interval if NOT in read-only mode.
@@ -426,6 +575,7 @@ const Engine = (function () {
     state.inbox = [];
     state.smsThreads = {};
     state._pendingSms = [];
+    state.team_roles = { assignments: {} };
     state.paused = false;
   }
 
@@ -459,6 +609,10 @@ const Engine = (function () {
     markInboxRead, markSmsRead, sendCustomSms,
     getExerciseTime, loadState, resetState, enableSync,
     setReadOnly,
+    // v0.2.8 role-based routing
+    assignRole, getRoleOf, getStudentsWithRole,
+    getLeadershipPrimary, getTeamRoles, getAssignedPlayer,
+    LEADERSHIP_ROLES,
     getState: () => state,
     getContacts: () => state.contacts,
     getContact: (id) => state.contacts.find((c) => c.id === id),

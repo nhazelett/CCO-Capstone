@@ -27,6 +27,7 @@
     <a href="startex.html" class="active">STARTEX</a>
     <a href="trainer.html">Trainer</a>
     <a href="student.html">Student</a>
+    <a href="inspector.html">Inspector</a>
     <a href="mobile.html">Mobile</a>
   </nav>
   <div class="topbar-right">
@@ -140,46 +141,50 @@
     </div>
   </div>
 
-  <!-- Roster -->
+  <!-- Student roster -->
   <div class="panel startex-full">
     <div class="panel-header">
       <div class="panel-header-title">
         <div class="micro">§ 03</div>
         <div class="title">Student roster</div>
       </div>
-      <button class="btn btn-sm">+ Add student</button>
+      <button class="btn btn-sm" data-add-roster="students">+ Add student</button>
     </div>
     <div class="panel-body">
-      <div class="roster-grid">
-        <div class="roster-card">
-          <div class="avatar" style="background: #4FC3D7; color: var(--text-inverse);">RA</div>
-          <div>
-            <div class="roster-name">MSgt Ramirez</div>
-            <div class="roster-role">Primary CCO</div>
-          </div>
-        </div>
-        <div class="roster-card">
-          <div class="avatar" style="background: #8A7AB0; color: var(--text-bright);">CH</div>
-          <div>
-            <div class="roster-name">SSgt Chen</div>
-            <div class="roster-role">Assistant CCO</div>
-          </div>
-        </div>
-        <div class="roster-card">
-          <div class="avatar" style="background: #5BC98E; color: var(--text-inverse);">OK</div>
-          <div>
-            <div class="roster-name">TSgt Okafor</div>
-            <div class="roster-role">COR liaison</div>
-          </div>
-        </div>
-        <div class="roster-card">
-          <div class="avatar" style="background: #F5B845; color: var(--text-inverse);">BR</div>
-          <div>
-            <div class="roster-name">SrA Brooks</div>
-            <div class="roster-role">Backup / admin</div>
-          </div>
-        </div>
+      <div class="roster-grid" id="roster-students" data-roster="students"></div>
+      <div class="roster-empty" id="roster-students-empty" hidden>No students yet — use <strong>+ Add student</strong> to build the team.</div>
+    </div>
+  </div>
+
+  <!-- White Cell roster -->
+  <div class="panel startex-full">
+    <div class="panel-header">
+      <div class="panel-header-title">
+        <div class="micro">§ 03b</div>
+        <div class="title">White Cell</div>
       </div>
+      <button class="btn btn-sm" data-add-roster="whitecell">+ Add member</button>
+    </div>
+    <div class="panel-body">
+      <div class="muted" style="font-size: 11px; margin-bottom: 12px;">Trainers, role-players, and OPFOR voices driving the injects.</div>
+      <div class="roster-grid" id="roster-whitecell" data-roster="whitecell"></div>
+      <div class="roster-empty" id="roster-whitecell-empty" hidden>No white cell members yet.</div>
+    </div>
+  </div>
+
+  <!-- Inspectors roster -->
+  <div class="panel startex-full">
+    <div class="panel-header">
+      <div class="panel-header-title">
+        <div class="micro">§ 03c</div>
+        <div class="title">Inspectors</div>
+      </div>
+      <button class="btn btn-sm" data-add-roster="inspectors">+ Add inspector</button>
+    </div>
+    <div class="panel-body">
+      <div class="muted" style="font-size: 11px; margin-bottom: 12px;">Observers scoring the exercise via the inspector whiteboard.</div>
+      <div class="roster-grid" id="roster-inspectors" data-roster="inspectors"></div>
+      <div class="roster-empty" id="roster-inspectors-empty" hidden>No inspectors yet.</div>
     </div>
   </div>
 
@@ -253,7 +258,7 @@
       </div>
       <div class="panel-body">
         <div class="summary-list">
-          <div class="summary-row"><span class="summary-label">Base injects</span><span class="summary-value mono">2 loaded / 38 planned</span></div>
+          <div class="summary-row"><span class="summary-label">Base injects</span><span class="summary-value mono">53 loaded</span></div>
           <div class="summary-row"><span class="summary-label">Modifier injects</span><span class="summary-value mono">+7 conditional</span></div>
           <div class="summary-row"><span class="summary-label">Phone scripts</span><span class="summary-value mono">1 loaded</span></div>
           <div class="summary-row"><span class="summary-label">SMS contacts</span><span class="summary-value mono">5 personas + 1 group</span></div>
@@ -307,18 +312,209 @@ document.querySelectorAll('.toggle').forEach(t => {
   });
 });
 
+// ---------- Roster CRUD ----------
+const ROSTER_STORAGE_KEY = 'cco-capstone-roster-draft';
+const COLOR_PALETTE = [
+  '#4FC3D7', '#8A7AB0', '#5BC98E', '#F5B845',
+  '#E56B3D', '#C85A7A', '#6B90C8', '#A8B050',
+];
+
+const ROSTER_DEFAULTS = {
+  students: [
+    { id: 's-ra', name: 'MSgt Ramirez', role: 'Primary CCO',   color: '#4FC3D7' },
+    { id: 's-ch', name: 'SSgt Chen',    role: 'Assistant CCO', color: '#8A7AB0' },
+    { id: 's-ok', name: 'TSgt Okafor',  role: 'COR liaison',   color: '#5BC98E' },
+    { id: 's-br', name: 'SrA Brooks',   role: 'Backup / admin',color: '#F5B845' },
+  ],
+  whitecell: [
+    { id: 'w-dt', name: 'Lt Col Dooley',  role: 'OPFOR vendor voice',  color: '#E56B3D' },
+    { id: 'w-pr', name: 'Maj Perez',      role: 'COR / requirements',  color: '#6B90C8' },
+    { id: 'w-vl', name: 'CMSgt Villanueva', role: 'Finance / RM',      color: '#C85A7A' },
+  ],
+  inspectors: [
+    { id: 'i-hd', name: 'Col Haddad',     role: 'Senior observer',     color: '#A8B050' },
+    { id: 'i-rm', name: 'MSgt Ramsey',    role: 'Ethics evaluator',    color: '#4FC3D7' },
+  ],
+};
+
+function initials(name) {
+  if (!name) return '??';
+  const parts = name.trim().replace(/[^A-Za-z ]/g, '').split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  const first = parts[0][0] || '';
+  const last  = parts[parts.length - 1][0] || '';
+  return (first + last).toUpperCase();
+}
+
+function cid(prefix) {
+  return prefix + '-' + Math.random().toString(36).slice(2, 7);
+}
+
+function loadRosterDraft() {
+  try {
+    const raw = localStorage.getItem(ROSTER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.students && parsed.whitecell && parsed.inspectors) return parsed;
+  } catch (e) {}
+  return null;
+}
+
+function saveRosterDraft() {
+  const data = {
+    students:   serializeRoster('students'),
+    whitecell:  serializeRoster('whitecell'),
+    inspectors: serializeRoster('inspectors'),
+  };
+  try { localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+
+function buildCard(kind, person) {
+  const card = document.createElement('div');
+  card.className = 'roster-card roster-card-edit';
+  card.dataset.id = person.id;
+  card.dataset.color = person.color;
+
+  const avatar = document.createElement('button');
+  avatar.type = 'button';
+  avatar.className = 'avatar avatar-btn';
+  avatar.style.background = person.color;
+  avatar.style.color = 'var(--text-inverse)';
+  avatar.textContent = initials(person.name);
+  avatar.title = 'Cycle color';
+  avatar.addEventListener('click', () => {
+    const idx = COLOR_PALETTE.indexOf(card.dataset.color);
+    const next = COLOR_PALETTE[(idx + 1) % COLOR_PALETTE.length];
+    card.dataset.color = next;
+    avatar.style.background = next;
+    saveRosterDraft();
+  });
+
+  const body = document.createElement('div');
+  body.className = 'roster-card-body';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'roster-input roster-input-name';
+  nameInput.value = person.name;
+  nameInput.placeholder = 'Name / rank';
+  nameInput.addEventListener('input', () => {
+    avatar.textContent = initials(nameInput.value);
+    saveRosterDraft();
+  });
+
+  const roleInput = document.createElement('input');
+  roleInput.type = 'text';
+  roleInput.className = 'roster-input roster-input-role';
+  roleInput.value = person.role;
+  roleInput.placeholder = 'Role';
+  roleInput.addEventListener('input', saveRosterDraft);
+
+  body.appendChild(nameInput);
+  body.appendChild(roleInput);
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'roster-del';
+  del.title = 'Remove';
+  del.innerHTML = '&times;';
+  del.addEventListener('click', () => {
+    card.remove();
+    updateEmptyState(kind);
+    saveRosterDraft();
+  });
+
+  card.appendChild(avatar);
+  card.appendChild(body);
+  card.appendChild(del);
+  return card;
+}
+
+function addPerson(kind, person) {
+  const grid = document.getElementById('roster-' + kind);
+  if (!grid) return;
+  grid.appendChild(buildCard(kind, person));
+  updateEmptyState(kind);
+}
+
+function updateEmptyState(kind) {
+  const grid  = document.getElementById('roster-' + kind);
+  const empty = document.getElementById('roster-' + kind + '-empty');
+  if (!grid || !empty) return;
+  empty.hidden = grid.children.length > 0;
+}
+
+function serializeRoster(kind) {
+  const grid = document.getElementById('roster-' + kind);
+  if (!grid) return [];
+  return Array.from(grid.children).map(card => {
+    const name = card.querySelector('.roster-input-name').value.trim() || 'Unnamed';
+    const role = card.querySelector('.roster-input-role').value.trim() || '—';
+    return {
+      id: card.dataset.id,
+      name,
+      role,
+      initials: initials(name),
+      color: card.dataset.color,
+    };
+  });
+}
+
+function seedRoster(kind, people) {
+  const grid = document.getElementById('roster-' + kind);
+  grid.innerHTML = '';
+  people.forEach(p => grid.appendChild(buildCard(kind, p)));
+  updateEmptyState(kind);
+}
+
+// Seed from localStorage draft or defaults
+(function initRosters() {
+  const draft = loadRosterDraft();
+  const src = draft || ROSTER_DEFAULTS;
+  ['students', 'whitecell', 'inspectors'].forEach(kind => {
+    seedRoster(kind, src[kind] || []);
+  });
+})();
+
+// Add buttons
+document.querySelectorAll('[data-add-roster]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const kind = btn.dataset.addRoster;
+    const defaults = {
+      students:   { name: 'New student',  role: 'CCO trainee' },
+      whitecell:  { name: 'New member',   role: 'Role-player' },
+      inspectors: { name: 'New inspector',role: 'Observer'    },
+    }[kind];
+    const color = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
+    const prefix = kind === 'whitecell' ? 'w' : kind === 'inspectors' ? 'i' : 's';
+    addPerson(kind, { id: cid(prefix), name: defaults.name, role: defaults.role, color });
+    saveRosterDraft();
+    // Focus the new card's name input for immediate editing
+    const grid = document.getElementById('roster-' + kind);
+    const last = grid.lastElementChild;
+    if (last) last.querySelector('.roster-input-name').select();
+  });
+});
+
 // STARTEX launch
 document.getElementById('startex-btn').addEventListener('click', () => {
+  const students   = serializeRoster('students');
+  const whitecell  = serializeRoster('whitecell');
+  const inspectors = serializeRoster('inspectors');
+
+  if (students.length === 0) {
+    alert('Add at least one student before STARTEX.');
+    return;
+  }
+
   const config = {
     scenario: 'iron-meridian',
     difficulty: document.querySelector('input[name="difficulty"]:checked').value,
     length: document.querySelector('.length-btn.active').dataset.length,
-    roster: [
-      { id: 'ra', name: 'MSgt Ramirez', role: 'Primary CCO', initials: 'RA' },
-      { id: 'ch', name: 'SSgt Chen', role: 'Assistant CCO', initials: 'CH' },
-      { id: 'ok', name: 'TSgt Okafor', role: 'COR liaison', initials: 'OK' },
-      { id: 'br', name: 'SrA Brooks', role: 'Backup / admin', initials: 'BR' },
-    ],
+    roster: students,                // legacy key kept for engine compat
+    students,
+    whitecell,
+    inspectors,
     modifiers: Array.from(document.querySelectorAll('.toggle')).reduce((acc, t) => {
       acc[t.dataset.mod] = t.classList.contains('on');
       return acc;

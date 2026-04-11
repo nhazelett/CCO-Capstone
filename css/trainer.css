@@ -645,3 +645,198 @@ body.trainer-body .modal {
     0 20px 60px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 rgba(192, 201, 214, 0.08);
 }
+
+/* =========================================================================
+   v0.2.8: Team roles / delegation panel
+   ========================================================================= */
+body.trainer-body .team-roles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+body.trainer-body .role-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(79, 195, 215, 0.04);
+  border: 1px solid rgba(79, 195, 215, 0.18);
+  border-radius: 4px;
+}
+body.trainer-body .role-row.leader {
+  background: rgba(79, 195, 215, 0.08);
+  border-color: rgba(79, 195, 215, 0.4);
+}
+body.trainer-body .role-row.primary {
+  border-color: rgba(245, 184, 69, 0.65);
+  box-shadow: 0 0 0 1px rgba(245, 184, 69, 0.35) inset;
+}
+body.trainer-body .role-row.unfilled {
+  background: rgba(180, 180, 180, 0.03);
+  border-color: rgba(180, 180, 180, 0.18);
+  border-style: dashed;
+}
+/* Leadership fall-through summary block */
+body.trainer-body .leadership-summary {
+  padding: 10px 12px;
+  background: rgba(14, 20, 30, 0.55);
+  border: 1px solid rgba(79, 195, 215, 0.22);
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+body.trainer-body .leadership-summary-head {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silver);
+  margin-bottom: 6px;
+}
+body.trainer-body .leadership-summary-head .leadership-primary {
+  text-transform: none;
+  letter-spacing: 0;
+  color: #F5B845;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+body.trainer-body .leadership-summary-head .leadership-primary.none {
+  color: #E56B3D;
+  font-style: italic;
+  font-weight: 500;
+}
+body.trainer-body .leadership-chain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 10px;
+}
+body.trainer-body .chain-link {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  color: var(--silver);
+}
+body.trainer-body .chain-link.filled {
+  background: rgba(79, 195, 215, 0.15);
+  color: #4FC3D7;
+}
+body.trainer-body .chain-link.empty {
+  opacity: 0.45;
+}
+body.trainer-body .chain-sep {
+  color: var(--silver);
+  opacity: 0.4;
+  font-weight: 700;
+}
+body.trainer-body .leadership-warn {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #E56B3D;
+  font-weight: 600;
+}
+body.trainer-body .role-row-label {
+  flex: 1 1 auto;
+  min-width: 90px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-primary, #e8dcc0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.trainer-body .role-row.leader .role-row-label {
+  color: #4FC3D7;
+}
+body.trainer-body .role-row.unfilled .role-row-label {
+  color: var(--silver);
+  opacity: 0.7;
+}
+body.trainer-body .role-row-body {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-primary, #e8dcc0);
+  text-align: right;
+}
+body.trainer-body .role-row-body .role-name {
+  font-weight: 600;
+}
+body.trainer-body .role-row-body .role-title {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+body.trainer-body .role-row-body .role-unassigned {
+  font-size: 11px;
+  color: #E56B3D;
+  font-style: italic;
+}
+body.trainer-body .role-row select {
+  background: rgba(14, 20, 30, 0.8);
+  border: 1px solid var(--silver-line);
+  color: var(--text-primary, #e8dcc0);
+  font: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+body.trainer-body .role-row .btn-tiny {
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: transparent;
+  border: 1px solid var(--silver-line);
+  color: var(--silver);
+  cursor: pointer;
+}
+body.trainer-body .role-row .btn-tiny:hover {
+  background: rgba(229, 107, 61, 0.1);
+  border-color: #E56B3D;
+  color: #E56B3D;
+}
+
+/* Add-duty inline form */
+body.trainer-body .add-duty-form {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(245, 184, 69, 0.06);
+  border: 1px dashed rgba(245, 184, 69, 0.4);
+  border-radius: 4px;
+}
+body.trainer-body .add-duty-form input {
+  flex: 1;
+  background: rgba(14, 20, 30, 0.8);
+  border: 1px solid var(--silver-line);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 11px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Inbox mirror routing tag */
+body.trainer-body .inbox-mirror-item .routing-tag-mini {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 4px;
+  vertical-align: middle;
+  background: rgba(79, 195, 215, 0.14);
+  color: #4FC3D7;
+  border: 1px solid rgba(79, 195, 215, 0.4);
+}
+body.trainer-body .inbox-mirror-item .routing-tag-mini.needs {
+  background: rgba(229, 107, 61, 0.14);
+  color: #E56B3D;
+  border-color: rgba(229, 107, 61, 0.5);
+}

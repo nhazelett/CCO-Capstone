@@ -19,6 +19,83 @@ const STUDENT_RESPONSES_KEY = 'cco-capstone-student-responses';
 let studentResponses = loadStudentResponses();
 let saveHintTimer = null;
 
+// v0.2.8: persona picker — which roster member is seated at this laptop.
+// Per-laptop localStorage (not synced via main state key) so multiple
+// student workstations can all run against the same exercise without
+// colliding. 'observer' is a special value for the trainer's laptop that
+// sees everything unfiltered.
+const PERSONA_KEY = 'cco-capstone-student-persona';
+let currentPersona = loadPersona(); // { id, name, role, color, initials } or 'observer' or null
+
+function loadPersona() {
+  try {
+    const raw = localStorage.getItem(PERSONA_KEY);
+    if (!raw) return null;
+    if (raw === 'observer') return 'observer';
+    return JSON.parse(raw);
+  } catch (e) { return null; }
+}
+function savePersona(p) {
+  try {
+    if (p === 'observer') localStorage.setItem(PERSONA_KEY, 'observer');
+    else if (p) localStorage.setItem(PERSONA_KEY, JSON.stringify(p));
+    else localStorage.removeItem(PERSONA_KEY);
+  } catch (e) {}
+}
+function personaId() {
+  if (!currentPersona || currentPersona === 'observer') return null;
+  return currentPersona.id;
+}
+function isObserver() { return currentPersona === 'observer'; }
+
+// v0.2.8: What role does this persona currently hold? Reads team_roles
+// assignments from engine. Returns a role key ('cco'|'aco'|'team_lead'|
+// 'commander'|'sel'|'flight_chief') or null.
+function personaRole() {
+  if (!currentPersona || currentPersona === 'observer') return null;
+  if (!Engine.getRoleOf) return null;
+  return Engine.getRoleOf(currentPersona.id);
+}
+
+const LEADER_ROLE_KEYS = ['commander', 'sel', 'flight_chief', 'team_lead'];
+function isLeaderRole(role) { return LEADER_ROLE_KEYS.indexOf(role) !== -1; }
+function roleLabel(role) {
+  return ({
+    cco: 'cco', aco: 'aco', team_lead: 'team lead',
+    commander: 'commander', sel: 'SEL', flight_chief: 'flight chief'
+  })[role] || role || 'unassigned';
+}
+function ucfirst(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
+
+// Core filter: does this student see this inbox item?
+// Rules by role:
+//   - observer                      → see everything
+//   - no persona chosen              → fail-open (dev iteration)
+//   - no role assigned yet           → broadcasts only (role_tag null)
+//   - leader (Cmdr/SEL/FC/TL)        → see everything
+//   - aco                            → broadcasts + cco + aco
+//   - cco                            → broadcasts + cco (NOT aco, NOT leadership)
+//
+// Delegation (v0.2.9): if item.delegated_to === me, show regardless.
+function itemVisibleToMe(item) {
+  if (isObserver()) return true;
+  if (!currentPersona) return true; // fail-open in dev
+  const me = currentPersona.id;
+  // Future: delegated items bypass the role filter
+  if (item.delegated_to === me) return true;
+  const tag = item.role_tag || null;
+  const myRole = personaRole();
+  // No role assigned → broadcast only
+  if (!myRole) return tag == null;
+  // Leaders see everything (broadcasts, cco, aco, leadership)
+  if (isLeaderRole(myRole)) return true;
+  // ACO: broadcasts + cco + aco (not leadership)
+  if (myRole === 'aco') return tag == null || tag === 'cco' || tag === 'aco';
+  // CCO: broadcasts + cco only
+  if (myRole === 'cco') return tag == null || tag === 'cco';
+  return true;
+}
+
 function loadStudentResponses() {
   try {
     const raw = localStorage.getItem(STUDENT_RESPONSES_KEY);
@@ -65,15 +142,30 @@ function flashSaveHint() {
   Engine.loadState();
   Engine.enableSync();
 
+  // v0.2.8: show persona picker if nothing is stored yet
+  wirePersonaBar();
+  if (!currentPersona) {
+    showPersonaOverlay();
+  } else {
+    renderPersonaBar();
+  }
+
   renderAll();
 
   document.addEventListener('engine:tick', () => {
     renderClock();
     renderProgress();
   });
-  document.addEventListener('engine:sync', renderAll);
+  document.addEventListener('engine:sync', () => {
+    renderPersonaBar();
+    renderAll();
+  });
   document.addEventListener('engine:inject-fired', renderAll);
   document.addEventListener('engine:inbox-updated', renderAll);
+  document.addEventListener('engine:team-roles-updated', () => {
+    renderPersonaBar();
+    renderAll();
+  });
   document.addEventListener('engine:sms-received', renderNotifFeed);
   document.addEventListener('engine:sms-updated', renderNotifFeed);
 
@@ -96,11 +188,125 @@ function flashSaveHint() {
 function renderAll() {
   renderClock();
   renderProgress();
+  renderPersonaBar();
   renderMailList();
   renderMailDetail();
   renderResponsePanel();
   renderNotifFeed();
   renderDocList();
+}
+
+// v0.2.8: persona bar + overlay picker
+function wirePersonaBar() {
+  const switchBtn = document.getElementById('persona-switch-btn');
+  if (switchBtn) {
+    switchBtn.addEventListener('click', showPersonaOverlay);
+  }
+  const observeBtn = document.getElementById('persona-observe-btn');
+  if (observeBtn) {
+    observeBtn.addEventListener('click', () => {
+      currentPersona = 'observer';
+      savePersona('observer');
+      hidePersonaOverlay();
+      renderPersonaBar();
+      renderAll();
+    });
+  }
+}
+
+function configStudents() {
+  const s = Engine.getState();
+  return (s.config && (s.config.students || s.config.roster)) || [];
+}
+
+function showPersonaOverlay() {
+  const overlay = document.getElementById('persona-overlay');
+  const list = document.getElementById('persona-overlay-list');
+  if (!overlay || !list) return;
+  const students = configStudents();
+  if (students.length === 0) {
+    list.innerHTML = `
+      <div class="muted text-center" style="padding: 24px 8px; font-size: 12px;">
+        No roster loaded. Run STARTEX first, then return here.
+      </div>`;
+  } else {
+    list.innerHTML = students.map(st => `
+      <button class="persona-choice" data-id="${esc(st.id)}">
+        <div class="persona-choice-avatar" style="background: ${esc(st.color || '#8A7AB0')};">
+          ${esc(st.initials || initialsFromName(st.name))}
+        </div>
+        <div class="persona-choice-body">
+          <div class="persona-choice-name">${esc(st.name)}</div>
+          <div class="persona-choice-role">${esc(st.role || '—')}</div>
+        </div>
+      </button>
+    `).join('');
+    list.querySelectorAll('.persona-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        const picked = students.find(s => s.id === id);
+        if (picked) {
+          currentPersona = picked;
+          savePersona(picked);
+          hidePersonaOverlay();
+          renderPersonaBar();
+          renderAll();
+        }
+      });
+    });
+  }
+  overlay.hidden = false;
+}
+
+function hidePersonaOverlay() {
+  const overlay = document.getElementById('persona-overlay');
+  if (overlay) overlay.hidden = true;
+}
+
+function renderPersonaBar() {
+  const avatar = document.getElementById('persona-avatar');
+  const name = document.getElementById('persona-bar-name');
+  const micro = document.getElementById('persona-bar-micro');
+  const roles = document.getElementById('persona-bar-roles');
+  if (!avatar || !name || !roles) return;
+
+  if (isObserver()) {
+    avatar.textContent = 'OB';
+    avatar.style.background = '#A8B050';
+    micro.textContent = 'Trainer laptop';
+    name.textContent = 'Observing all students';
+    roles.innerHTML = '<span class="role-pill observer">Observer</span>';
+    return;
+  }
+  if (!currentPersona) {
+    avatar.textContent = '??';
+    avatar.style.background = '#8A7AB0';
+    micro.textContent = 'Not signed in';
+    name.textContent = 'Pick a persona';
+    roles.innerHTML = '';
+    return;
+  }
+  avatar.textContent = currentPersona.initials || initialsFromName(currentPersona.name);
+  avatar.style.background = currentPersona.color || '#8A7AB0';
+  micro.textContent = 'You are';
+  name.textContent = `${currentPersona.name} · ${currentPersona.role || 'CCO'}`;
+
+  const myRole = personaRole();
+  const ROLE_LABELS_S = {
+    cco: 'CCO', aco: 'ACO', team_lead: 'Team Lead',
+    commander: 'Commander', sel: 'SEL', flight_chief: 'Flight Chief'
+  };
+  if (!myRole) {
+    roles.innerHTML = '<span class="role-pill" style="opacity: 0.5;">Awaiting role assignment</span>';
+  } else {
+    const cls = isLeaderRole(myRole) ? 'lead' : '';
+    roles.innerHTML = `<span class="role-pill ${cls}">${esc(ROLE_LABELS_S[myRole] || myRole)}</span>`;
+    // Also show if I'm currently the leadership primary
+    const primary = Engine.getLeadershipPrimary && Engine.getLeadershipPrimary();
+    if (primary === currentPersona.id) {
+      roles.innerHTML += ' <span class="role-pill primary" style="background: #d9a400; color: #1a1a1a;">Primary</span>';
+    }
+  }
 }
 
 // v0.2.7: render the inline response form for the inject attached to the
@@ -221,11 +427,29 @@ function renderProgress() {
 function renderMailList() {
   const s = Engine.getState();
   const container = document.getElementById('mail-col-list');
-  document.getElementById('mail-count').textContent =
-    s.inbox.length === 1 ? '1 message' : `${s.inbox.length} messages`;
 
-  if (!s.inbox || s.inbox.length === 0) {
-    container.innerHTML = `
+  // v0.2.8: filter inbox by who this laptop belongs to
+  const visible = (s.inbox || []).filter(itemVisibleToMe);
+  const hiddenCount = (s.inbox || []).length - visible.length;
+
+  document.getElementById('mail-count').textContent =
+    visible.length === 1 ? '1 message' : `${visible.length} messages`;
+
+  // Build optional filter notice
+  let notice = '';
+  const myRole = personaRole();
+  if (isObserver()) {
+    notice = `<div class="inbox-filter-notice"><strong>Observer view</strong> — showing all inbox items across every student.</div>`;
+  } else if (currentPersona && !myRole) {
+    notice = `<div class="inbox-filter-notice">Awaiting role assignment — showing broadcasts only. Trainer assigns on the panel.</div>`;
+  } else if (currentPersona && isLeaderRole(myRole)) {
+    notice = `<div class="inbox-filter-notice"><strong>${ucfirst(roleLabel(myRole))} view</strong> — full visibility across the team.</div>`;
+  } else if (currentPersona && hiddenCount > 0) {
+    notice = `<div class="inbox-filter-notice">${hiddenCount} item${hiddenCount === 1 ? '' : 's'} routed to other roles (hidden).</div>`;
+  }
+
+  if (!visible || visible.length === 0) {
+    container.innerHTML = notice + `
       <div class="mail-empty-state">
         <div class="mail-empty-icon">
           <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="12" width="36" height="24" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 14l18 12L42 14" stroke="currentColor" stroke-width="1.5"/></svg>
@@ -237,14 +461,23 @@ function renderMailList() {
     return;
   }
 
-  container.innerHTML = s.inbox
+  container.innerHTML = notice + visible
     .map((m) => {
       const preview = (m.body || '').split('\n')[0].slice(0, 90);
       const isSelected = selectedMailId === m.id;
+      // v0.2.8 routing tag — based on role_tag
+      let tag = '';
+      if (m.role_tag === 'leadership') {
+        tag = `<span class="routing-tag lead">Leadership</span>`;
+      } else if (m.role_tag === 'aco') {
+        tag = `<span class="routing-tag duty">ACO</span>`;
+      } else if (m.role_tag === 'cco') {
+        tag = `<span class="routing-tag duty">CCO</span>`;
+      }
       return `
         <div class="s-mail-row ${m.unread ? 'unread' : ''} ${isSelected ? 'selected' : ''}" data-id="${esc(m.id)}">
           <div class="s-mail-head">
-            <div class="s-mail-from">${esc(m.from)}</div>
+            <div class="s-mail-from">${esc(m.from)}${tag}</div>
             <div class="s-mail-time">${esc(m.time)}</div>
           </div>
           <div class="s-mail-subject">${esc(m.subject)}</div>
@@ -304,7 +537,7 @@ function renderNotifFeed() {
   // Build a chronological feed of events: inbox items + SMS
   const events = [];
 
-  (s.inbox || []).forEach((m) => {
+  (s.inbox || []).filter(itemVisibleToMe).forEach((m) => {
     events.push({
       type: 'mail',
       name: m.from,

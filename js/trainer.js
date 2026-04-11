@@ -89,6 +89,9 @@ function bundleInjectIds() {
   document.getElementById('modal-backdrop').addEventListener('click', (e) => {
     if (e.target.id === 'modal-backdrop') closeModal();
   });
+
+  // v0.2.8: re-render when any role assignment changes
+  document.addEventListener('engine:team-roles-updated', () => renderAll());
 })();
 
 function renderAll() {
@@ -98,6 +101,114 @@ function renderAll() {
   renderInboxMirror();
   renderStats();
   renderCountdown();
+  renderTeamRoles();
+}
+
+// v0.2.8: Role assignments panel — shows every roster member with a role
+// dropdown so the trainer can tag each student as CCO / ACO / Team Lead /
+// Commander / SEL / Flight Chief. Role changes dispatch engine events so
+// student + inspector views re-render and leadership-tagged inbox items get
+// re-stamped to reflect the new fall-through primary.
+function rosterStudents() {
+  const s = Engine.getState();
+  return (s.config && (s.config.students || s.config.roster)) || [];
+}
+
+function findStudent(id) {
+  return rosterStudents().find(s => s.id === id);
+}
+
+// Role key -> display label
+const ROLE_LABELS = {
+  cco:          'CCO',
+  aco:          'ACO',
+  team_lead:    'Team Lead',
+  commander:    'Commander',
+  sel:          'SEL',
+  flight_chief: 'Flight Chief'
+};
+// Display order for the dropdown (workers first, then leadership top-down)
+const ROLE_ORDER = ['cco', 'aco', 'team_lead', 'flight_chief', 'sel', 'commander'];
+
+function renderTeamRoles() {
+  const container = document.getElementById('team-roles-list');
+  if (!container) return;
+  const tr = Engine.getTeamRoles();
+  const assignments = (tr && tr.assignments) || {};
+  const students = rosterStudents();
+
+  // Leadership coverage summary — which leadership slots are filled?
+  const leadershipCoverage = Engine.LEADERSHIP_ROLES.map(role => {
+    const holders = Engine.getStudentsWithRole(role);
+    return { role, filled: holders.length > 0, holders };
+  });
+  const primary = Engine.getLeadershipPrimary();
+  const primaryStudent = primary ? findStudent(primary) : null;
+
+  const teamLeadHolders = Engine.getStudentsWithRole('team_lead');
+  const teamLeadMissing = teamLeadHolders.length === 0;
+
+  const coverageHtml = `
+    <div class="leadership-summary">
+      <div class="leadership-summary-head">
+        Leadership fall-through
+        ${primaryStudent
+          ? `<span class="leadership-primary">→ <strong>${esc(primaryStudent.name)}</strong> (${esc(ROLE_LABELS[assignments[primary]] || '')})</span>`
+          : `<span class="leadership-primary none">→ none — leadership injects will broadcast</span>`}
+      </div>
+      <div class="leadership-chain">
+        ${leadershipCoverage.map(c => `
+          <span class="chain-link ${c.filled ? 'filled' : 'empty'}">
+            ${c.filled ? '●' : '○'} ${esc(ROLE_LABELS[c.role])}
+          </span>
+        `).join('<span class="chain-sep">›</span>')}
+      </div>
+      ${teamLeadMissing
+        ? `<div class="leadership-warn">⚠ Team Lead not assigned — minimum floor not met.</div>`
+        : ''}
+    </div>
+  `;
+
+  // Per-student rows
+  const optionsHtml = ['<option value="">— unassigned —</option>']
+    .concat(ROLE_ORDER.map(r => `<option value="${r}">${esc(ROLE_LABELS[r])}</option>`))
+    .join('');
+
+  const rowHtml = students.length === 0
+    ? `<div class="muted text-center" style="padding: 14px 8px; font-size: 11px;">
+         No roster loaded. Run STARTEX first.
+       </div>`
+    : students.map(st => {
+        const current = assignments[st.id] || '';
+        const selectOpts = optionsHtml.replace(
+          `value="${current}"`,
+          `value="${current}" selected`
+        );
+        const roleLabel = current ? ROLE_LABELS[current] : 'Unassigned';
+        const isLeader = current && Engine.LEADERSHIP_ROLES.indexOf(current) !== -1;
+        const isPrimary = primary === st.id;
+        return `
+          <div class="role-row ${current ? '' : 'unfilled'} ${isLeader ? 'leader' : ''} ${isPrimary ? 'primary' : ''}">
+            <div class="role-row-label">${esc(st.name)}</div>
+            <div class="role-row-body">
+              ${current
+                ? `<div class="role-name">${esc(roleLabel)}${isPrimary ? ' · <strong>primary</strong>' : ''}</div>`
+                : `<div class="role-unassigned">Pick a role</div>`}
+            </div>
+            <select data-student="${esc(st.id)}">${selectOpts}</select>
+          </div>
+        `;
+      }).join('');
+
+  container.innerHTML = coverageHtml + rowHtml;
+
+  // Wire change handlers
+  container.querySelectorAll('select[data-student]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      Engine.assignRole(sel.dataset.student, sel.value || null);
+      renderAll();
+    });
+  });
 }
 
 function renderClock() {

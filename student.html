@@ -39,6 +39,21 @@
 
 <div class="student-main">
 
+  <!-- v0.2.8: Persona bar — shows which roster member is at this workstation -->
+  <div class="persona-bar" id="persona-bar">
+    <div class="persona-bar-left">
+      <div class="persona-avatar" id="persona-avatar">??</div>
+      <div class="persona-bar-text">
+        <div class="micro" id="persona-bar-micro">You are</div>
+        <div class="persona-bar-name" id="persona-bar-name">—</div>
+      </div>
+    </div>
+    <div class="persona-bar-right">
+      <div class="persona-bar-roles" id="persona-bar-roles"></div>
+      <button class="btn btn-sm" id="persona-switch-btn">Switch persona</button>
+    </div>
+  </div>
+
   <!-- Top strip: ambient widgets -->
   <div class="ambient-strip">
     <div class="ambient-card">
@@ -172,6 +187,21 @@
 
     </div>
 
+  </div>
+</div>
+
+<!-- v0.2.8: Persona picker overlay — shown on first load when no persona is chosen -->
+<div class="persona-overlay" id="persona-overlay" hidden>
+  <div class="persona-overlay-card">
+    <div class="persona-overlay-head">
+      <div class="micro micro-accent">Pre-exercise · workstation sign-in</div>
+      <h2>Who's at this laptop?</h2>
+      <p class="muted" style="font-size: 13px;">Pick your name from the squadron roster. You'll only see inbox items routed to you (or to your additional duty) during the exercise.</p>
+    </div>
+    <div class="persona-overlay-list" id="persona-overlay-list"></div>
+    <div class="persona-overlay-foot">
+      <button class="btn btn-sm" id="persona-observe-btn">Observe all (trainer laptop)</button>
+    </div>
   </div>
 </div>
 

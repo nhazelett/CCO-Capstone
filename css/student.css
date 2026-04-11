@@ -854,3 +854,200 @@ body.student-body::after {
   letter-spacing: 0.05em;
   padding: 2px 0 0;
 }
+
+/* =========================================================================
+   v0.2.8: Persona bar + picker overlay
+   ========================================================================= */
+.persona-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  margin: 0 0 14px 0;
+  background: linear-gradient(90deg, rgba(245, 184, 69, 0.10), rgba(245, 184, 69, 0.03));
+  border: 1px solid rgba(245, 184, 69, 0.3);
+  border-radius: 6px;
+}
+.persona-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.persona-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #8A7AB0;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.persona-bar-text .micro {
+  color: var(--text-tertiary, #8a7a5c);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.persona-bar-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #e8dcc0);
+  margin-top: 2px;
+}
+.persona-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.persona-bar-roles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.role-pill {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: rgba(245, 184, 69, 0.14);
+  border: 1px solid rgba(245, 184, 69, 0.4);
+  color: #F5B845;
+}
+.role-pill.lead {
+  background: rgba(79, 195, 215, 0.14);
+  border-color: rgba(79, 195, 215, 0.5);
+  color: #4FC3D7;
+}
+.role-pill.observer {
+  background: rgba(168, 176, 80, 0.14);
+  border-color: rgba(168, 176, 80, 0.5);
+  color: #A8B050;
+}
+
+.persona-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 10, 4, 0.92);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.persona-overlay[hidden] { display: none; }
+.persona-overlay-card {
+  background: #1a1407;
+  border: 1px solid rgba(245, 184, 69, 0.35);
+  border-radius: 10px;
+  max-width: 560px;
+  width: 100%;
+  padding: 28px 32px 22px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+.persona-overlay-head h2 {
+  font-size: 24px;
+  margin: 6px 0 8px;
+  color: var(--text-primary, #e8dcc0);
+}
+.persona-overlay-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 20px 0 16px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.persona-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(245, 184, 69, 0.04);
+  border: 1px solid rgba(245, 184, 69, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 120ms ease;
+  text-align: left;
+  color: var(--text-primary, #e8dcc0);
+  font: inherit;
+}
+.persona-choice:hover {
+  background: rgba(245, 184, 69, 0.10);
+  border-color: rgba(245, 184, 69, 0.5);
+}
+.persona-choice-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+.persona-choice-body {
+  flex: 1;
+}
+.persona-choice-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.persona-choice-role {
+  font-size: 11px;
+  color: var(--text-tertiary, #8a7a5c);
+  margin-top: 2px;
+}
+.persona-overlay-foot {
+  border-top: 1px solid rgba(245, 184, 69, 0.15);
+  padding-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* v0.2.8: student mail items showing routing/duty tags */
+.s-mail-row .routing-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.routing-tag.lead {
+  background: rgba(79, 195, 215, 0.14);
+  color: #4FC3D7;
+  border: 1px solid rgba(79, 195, 215, 0.4);
+}
+.routing-tag.needs-duty {
+  background: rgba(229, 107, 61, 0.14);
+  color: #E56B3D;
+  border: 1px solid rgba(229, 107, 61, 0.5);
+}
+.routing-tag.duty {
+  background: rgba(168, 176, 80, 0.14);
+  color: #A8B050;
+  border: 1px solid rgba(168, 176, 80, 0.4);
+}
+
+.inbox-filter-notice {
+  font-size: 11px;
+  color: var(--text-tertiary, #8a7a5c);
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(245, 184, 69, 0.12);
+  background: rgba(245, 184, 69, 0.03);
+}
+.inbox-filter-notice strong { color: #F5B845; }
