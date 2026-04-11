@@ -2,15 +2,66 @@
    STUDENT WORKSTATION
    ========================================================================== */
 
-const STUDENT_INJECT_IDS = ['IM-01', 'IM-02'];
+// v0.2.7: load every inject present in the bundle so the read-only student
+// view has full metadata for anything the trainer might fire.
+function bundleInjectIds() {
+  return (window.__CCO_DATA && window.__CCO_DATA.injects)
+    ? Object.keys(window.__CCO_DATA.injects)
+    : ['IM-01', 'IM-02'];
+}
 let selectedMailId = null;
+
+// v0.2.7: student responses are persisted to a separate localStorage key
+// (NOT the main state key) so they survive read-only mode and don't race
+// the trainer's state writes. The inspector.js view reads this key during
+// grading to show what the student actually did in response to each inject.
+const STUDENT_RESPONSES_KEY = 'cco-capstone-student-responses';
+let studentResponses = loadStudentResponses();
+let saveHintTimer = null;
+
+function loadStudentResponses() {
+  try {
+    const raw = localStorage.getItem(STUDENT_RESPONSES_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch (e) { return {}; }
+}
+function saveStudentResponses() {
+  try { localStorage.setItem(STUDENT_RESPONSES_KEY, JSON.stringify(studentResponses)); }
+  catch (e) { console.error('student response save fail:', e); }
+}
+function responseFor(injectId) {
+  if (!studentResponses[injectId]) {
+    studentResponses[injectId] = {
+      injectId,
+      action: '',
+      authority: '',
+      rationale: '',
+      locked: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: null,
+    };
+  }
+  return studentResponses[injectId];
+}
+function flashSaveHint() {
+  const el = document.getElementById('response-hint');
+  if (!el) return;
+  el.textContent = 'Saved ✓';
+  el.classList.add('saved');
+  clearTimeout(saveHintTimer);
+  saveHintTimer = setTimeout(() => {
+    el.textContent = 'Autosaving';
+    el.classList.remove('saved');
+  }, 900);
+}
 
 (async function init() {
   // Student workstation is read-only. Only the trainer ticks.
   Engine.setReadOnly(true);
 
   await Engine.loadContacts();
-  await Engine.loadInjects(STUDENT_INJECT_IDS);
+  await Engine.loadInjects(bundleInjectIds());
   Engine.loadState();
   Engine.enableSync();
 
@@ -47,8 +98,102 @@ function renderAll() {
   renderProgress();
   renderMailList();
   renderMailDetail();
+  renderResponsePanel();
   renderNotifFeed();
   renderDocList();
+}
+
+// v0.2.7: render the inline response form for the inject attached to the
+// currently-selected mail. Each inject gets ONE response (multiple mails from
+// the same inject share the same form). Autosaves on every keystroke.
+function renderResponsePanel() {
+  const title = document.getElementById('response-title');
+  const body  = document.getElementById('response-body');
+  const hint  = document.getElementById('response-hint');
+  if (!body) return;
+
+  if (!selectedMailId) {
+    title.textContent = 'Select a message';
+    hint.textContent = '—';
+    hint.classList.remove('saved');
+    body.innerHTML = `
+      <div class="muted text-center" style="padding: 24px 16px; font-size: 12px;">
+        Click a message in your inbox to log your response. What you write here is visible to the inspector during grading.
+      </div>`;
+    return;
+  }
+
+  const s = Engine.getState();
+  const mail = s.inbox.find(m => m.id === selectedMailId);
+  if (!mail) {
+    title.textContent = 'Message not found';
+    body.innerHTML = '';
+    return;
+  }
+  const inj = s.injects.find(i => i.id === mail.injectId);
+  if (!inj) {
+    title.textContent = mail.injectId || '—';
+    body.innerHTML = '<div class="muted" style="padding: 12px; font-size: 11px;">Inject metadata not loaded.</div>';
+    return;
+  }
+
+  const r = responseFor(inj.id);
+  title.textContent = `${inj.id} · ${inj.title || ''}`;
+  hint.textContent = r.updatedAt ? 'Autosaving' : 'Draft';
+  hint.classList.remove('saved');
+
+  body.innerHTML = `
+    <div class="response-form ${r.locked ? 'locked' : ''}">
+      <div class="response-field">
+        <label class="field-label" for="rsp-action">Action taken</label>
+        <textarea id="rsp-action" class="tall" placeholder="What did you do? Who did you call, what did you sign, what did you refuse?">${esc(r.action)}</textarea>
+      </div>
+      <div class="response-field">
+        <label class="field-label" for="rsp-authority">Authority / citation</label>
+        <input type="text" id="rsp-authority" placeholder="e.g. FAR 6.302-2 urgent &amp; compelling, JER 5500.7-R §2-203b, 18 USC 208" value="${esc(r.authority)}" />
+      </div>
+      <div class="response-field">
+        <label class="field-label" for="rsp-rationale">Rationale</label>
+        <textarea id="rsp-rationale" class="tall" placeholder="Why this action? What was the trade-off you made?">${esc(r.rationale)}</textarea>
+      </div>
+      <label class="response-locked-toggle ${r.locked ? 'locked' : ''}">
+        <input type="checkbox" id="rsp-locked" ${r.locked ? 'checked' : ''} />
+        <span>${r.locked ? 'Submitted to inspector (unlock to edit)' : 'Submit to inspector'}</span>
+      </label>
+      ${r.updatedAt ? `<div class="response-meta">Last saved · ${formatTime(r.updatedAt)}</div>` : ''}
+    </div>
+  `;
+
+  const bind = (id, prop) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      r[prop] = el.value;
+      r.updatedAt = new Date().toISOString();
+      saveStudentResponses();
+      flashSaveHint();
+    });
+  };
+  bind('rsp-action', 'action');
+  bind('rsp-authority', 'authority');
+  bind('rsp-rationale', 'rationale');
+
+  const lockEl = document.getElementById('rsp-locked');
+  if (lockEl) {
+    lockEl.addEventListener('change', () => {
+      r.locked = lockEl.checked;
+      r.updatedAt = new Date().toISOString();
+      saveStudentResponses();
+      renderResponsePanel();
+    });
+  }
+}
+
+function formatTime(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) { return iso; }
 }
 
 function renderClock() {

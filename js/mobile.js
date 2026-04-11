@@ -2,7 +2,10 @@
    MOBILE VIEW — phone PWA
    ========================================================================== */
 
-const MOBILE_INJECT_IDS = ['IM-01', 'IM-02'];
+// v0.2.7: load every inject present in the bundle (was hardcoded 2).
+const MOBILE_INJECT_IDS = (window.__CCO_DATA && window.__CCO_DATA.injects)
+  ? Object.keys(window.__CCO_DATA.injects)
+  : ['IM-01', 'IM-02'];
 let currentView = 'home';
 let currentThreadContact = null;
 let currentMailItem = null;

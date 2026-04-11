@@ -172,6 +172,105 @@
   letter-spacing: 0.1em;
 }
 
+/* ----- Editable roster cards (v0.2.6 CRUD) ----- */
+
+.roster-card-edit {
+  position: relative;
+  padding-right: 34px;
+}
+
+.roster-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.avatar-btn {
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.avatar-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 2px var(--line-soft);
+}
+
+.roster-input {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-bright);
+  font-family: var(--font-body);
+  padding: 3px 6px;
+  border-radius: var(--r-xs);
+  width: 100%;
+  min-width: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.roster-input:hover {
+  border-color: var(--line-soft);
+}
+
+.roster-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-base);
+}
+
+.roster-input-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.roster-input-role {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.roster-del {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.roster-del:hover {
+  background: var(--bad, #c44);
+  color: #fff;
+  border-color: var(--bad, #c44);
+}
+
+.roster-empty {
+  padding: 14px 16px;
+  background: var(--bg-raised);
+  border: 1px dashed var(--line-soft);
+  border-radius: var(--r-md);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
+}
+
 /* ----- Modifier grid ----- */
 
 .modifier-grid {

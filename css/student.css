@@ -757,3 +757,100 @@ body.student-body::after {
   mix-blend-mode: multiply;
   opacity: 0.35;
 }
+
+/* ========================================================================
+   v0.2.7 · Student response panel
+   Inline action log the student fills in for each inject they receive.
+   Inspector reads these during grading.
+   ======================================================================== */
+.response-panel .panel-header {
+  background: linear-gradient(180deg, rgba(255, 180, 80, 0.08), rgba(255, 180, 80, 0.02));
+}
+.response-panel .title#response-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary, #e8dcc0);
+  font-family: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.autosave-hint {
+  font-size: 10px;
+  color: var(--text-tertiary, #8a7a5c);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 180ms;
+}
+.autosave-hint.saved { color: var(--good, #8fd18a); }
+.response-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+.response-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.response-field .field-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary, #8a7a5c);
+  font-weight: 600;
+}
+.response-field textarea,
+.response-field input[type="text"] {
+  background: rgba(40, 28, 14, 0.45);
+  border: 1px solid rgba(245, 184, 69, 0.18);
+  border-radius: 6px;
+  color: var(--text-primary, #e8dcc0);
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.45;
+  width: 100%;
+  resize: vertical;
+  transition: border-color 120ms, background 120ms;
+}
+.response-field textarea:focus,
+.response-field input[type="text"]:focus {
+  outline: none;
+  border-color: rgba(245, 184, 69, 0.6);
+  background: rgba(48, 34, 16, 0.65);
+}
+.response-field textarea {
+  min-height: 48px;
+}
+.response-field textarea.tall {
+  min-height: 70px;
+}
+.response-locked-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary, #bfae8a);
+  cursor: pointer;
+  padding: 6px 0 2px;
+}
+.response-locked-toggle input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--good, #8fd18a);
+}
+.response-locked-toggle.locked {
+  color: var(--good, #8fd18a);
+}
+.response-form.locked textarea,
+.response-form.locked input[type="text"] {
+  opacity: 0.65;
+  pointer-events: none;
+}
+.response-meta {
+  font-size: 10px;
+  color: var(--text-tertiary, #8a7a5c);
+  letter-spacing: 0.05em;
+  padding: 2px 0 0;
+}

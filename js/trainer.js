@@ -2,7 +2,14 @@
    TRAINER VIEW
    ========================================================================== */
 
-const INJECT_IDS = ['IM-01', 'IM-02'];
+// v0.2.7: load every inject present in the bundle rather than a hardcoded pair.
+// Previously this was ['IM-01', 'IM-02'] which meant IM-03..IM-50 silently
+// never loaded. The bundle is the source of truth for what ships.
+function bundleInjectIds() {
+  return (window.__CCO_DATA && window.__CCO_DATA.injects)
+    ? Object.keys(window.__CCO_DATA.injects)
+    : ['IM-01', 'IM-02'];
+}
 
 (async function init() {
   // Load config or redirect
@@ -18,7 +25,7 @@ const INJECT_IDS = ['IM-01', 'IM-02'];
 
   // Load content
   await Engine.loadContacts();
-  await Engine.loadInjects(INJECT_IDS);
+  await Engine.loadInjects(bundleInjectIds());
 
   // Resume or start
   if (!Engine.loadState()) {
@@ -150,11 +157,16 @@ function renderTimeline() {
     else if (isActive) cls = 'live';
     else if (diff >= 0 && diff <= 30) cls = 'next';
 
+    const tMinForDisplay = tMin;
+    const dispDay = Math.floor(tMinForDisplay / 1440) + 1;
+    const dispMin = tMinForDisplay % 1440;
+    const dispHour = Math.floor(dispMin / 60);
+    const dispMinute = dispMin % 60;
     return `
       <div class="timeline-item ${cls}" data-id="${inj.id}">
-        <div class="timeline-time">${pad(inj.trigger.hour)}:${pad(inj.trigger.minute)}</div>
+        <div class="timeline-time">${pad(dispHour)}:${pad(dispMinute)}</div>
         <div class="timeline-content">
-          <div class="timeline-id">${inj.id} · D${inj.trigger.day}</div>
+          <div class="timeline-id">${inj.id} · D${dispDay}</div>
           <div class="timeline-title">${esc(inj.title)}</div>
         </div>
       </div>
@@ -203,7 +215,7 @@ function renderActiveFeed() {
     <div class="inject-card">
       <div class="inject-card-meta">
         <div class="dot"></div>
-        <span>${inj.id} · LIVE · D${inj.trigger.day} ${pad(inj.trigger.hour)}:${pad(inj.trigger.minute)}</span>
+        <span>${inj.id} · LIVE · ${triggerDisplay(inj)}</span>
       </div>
       <div class="inject-card-title">${esc(inj.title)}</div>
       <div class="inject-card-body">${esc(inj.scenario_for_students || inj.description)}</div>
@@ -546,9 +558,28 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 2500);
 }
 
+// v0.2.7: prefer the engine's resolved trigger time (set once at startExercise
+// so window-type injects have a concrete minute). Fall back to the declared
+// absolute trigger for injects that don't have a resolved slot yet, and to
+// the window's earliest edge for un-resolved window triggers.
 function triggerMin(inj) {
-  const t = inj.trigger;
-  return (t.day - 1) * 1440 + t.hour * 60 + t.minute;
+  const resolved = Engine.getResolvedTriggerMinutes
+    ? Engine.getResolvedTriggerMinutes(inj.id)
+    : null;
+  if (resolved != null) return resolved;
+  const t = inj.trigger || {};
+  if (t.type === 'window') {
+    return (t.day - 1) * 1440 + (t.earliest_hour || 8) * 60 + (t.earliest_minute || 0);
+  }
+  return (t.day - 1) * 1440 + (t.hour || 0) * 60 + (t.minute || 0);
+}
+
+// v0.2.7: human label that handles both trigger types gracefully.
+function triggerDisplay(inj) {
+  const tm = triggerMin(inj);
+  const day = Math.floor(tm / 1440) + 1;
+  const minInDay = tm % 1440;
+  return `D${day} ${pad(Math.floor(minInDay / 60))}:${pad(minInDay % 60)}`;
 }
 
 function pad(n) { return String(n).padStart(2, '0'); }

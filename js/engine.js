@@ -25,7 +25,11 @@ const Engine = (function () {
     flagged: [],
     inbox: [],
     smsThreads: {},
-    paused: false
+    paused: false,
+    // v0.2.6: resolved per-inject fire times (totalMinutes from exercise start).
+    // Populated once at startExercise() so randomness is stable across ticks
+    // and persists across page reloads via saveState/loadState.
+    _resolvedTriggers: {}
   };
 
   // ----- Content loaders -----
@@ -132,10 +136,45 @@ const Engine = (function () {
     state.smsThreads = {};
     state.contacts.forEach((c) => { state.smsThreads[c.id] = []; });
     state.paused = false;
+    resolveTriggers();
     saveState();
     if (state.clock.interval) clearInterval(state.clock.interval);
     state.clock.interval = setInterval(tick, 1000);
     processInjects();
+  }
+
+  // v0.2.6: random inject timing.
+  // Each inject declares either:
+  //   trigger.type === 'absolute'  + day/hour/minute (+ optional jitter in min)
+  //   trigger.type === 'window'    + day + earliest_hour..latest_hour
+  // Both resolve to a concrete totalMinutes for this exercise run, stored in
+  // state._resolvedTriggers. Called at startExercise(). Results persist so
+  // reloading doesn't reshuffle the schedule mid-exercise.
+  function resolveTriggers() {
+    state._resolvedTriggers = {};
+    state.injects.forEach((inj) => {
+      const t = inj.trigger;
+      if (!t) return;
+      let minutes;
+      if (t.type === 'window') {
+        const eh = t.earliest_hour   != null ? t.earliest_hour   : 8;
+        const em = t.earliest_minute != null ? t.earliest_minute : 0;
+        const lh = t.latest_hour     != null ? t.latest_hour     : 17;
+        const lm = t.latest_minute   != null ? t.latest_minute   : 0;
+        const earliest = (t.day - 1) * 1440 + eh * 60 + em;
+        const latest   = (t.day - 1) * 1440 + lh * 60 + lm;
+        const range = Math.max(1, latest - earliest);
+        minutes = earliest + Math.floor(Math.random() * range);
+      } else {
+        const base = (t.day - 1) * 1440 + (t.hour || 0) * 60 + (t.minute || 0);
+        const jitter = t.jitter_minutes || 0;
+        const offset = jitter
+          ? (Math.floor(Math.random() * (2 * jitter + 1)) - jitter)
+          : 0;
+        minutes = Math.max(0, base + offset);
+      }
+      state._resolvedTriggers[inj.id] = minutes;
+    });
   }
 
   function tick() {
@@ -174,10 +213,16 @@ const Engine = (function () {
   }
 
   function shouldFire(inj, now) {
-    if (!inj.trigger || inj.trigger.type !== 'absolute') return false;
-    const t = inj.trigger;
-    const triggerMin = (t.day - 1) * 1440 + t.hour * 60 + t.minute;
-    return now.totalMinutes >= triggerMin;
+    const resolved = state._resolvedTriggers && state._resolvedTriggers[inj.id];
+    if (resolved == null) {
+      // Fallback: compute from absolute trigger (handles injects added after
+      // startExercise or loaded from state that predates _resolvedTriggers).
+      if (!inj.trigger || inj.trigger.type === 'window') return false;
+      const t = inj.trigger;
+      const base = (t.day - 1) * 1440 + (t.hour || 0) * 60 + (t.minute || 0);
+      return now.totalMinutes >= base;
+    }
+    return now.totalMinutes >= resolved;
   }
 
   function fireInject(inj) {
@@ -250,8 +295,10 @@ const Engine = (function () {
   }
 
   function triggerMinutes(inj) {
-    const t = inj.trigger;
-    return (t.day - 1) * 1440 + t.hour * 60 + t.minute;
+    const resolved = state._resolvedTriggers && state._resolvedTriggers[inj.id];
+    if (resolved != null) return resolved;
+    const t = inj.trigger || {};
+    return (t.day - 1) * 1440 + (t.hour || 0) * 60 + (t.minute || 0);
   }
 
   // ----- State controls -----
@@ -320,6 +367,7 @@ const Engine = (function () {
         inbox: state.inbox,
         smsThreads: state.smsThreads,
         _pendingSms: state._pendingSms || [],
+        _resolvedTriggers: state._resolvedTriggers || {},
         paused: state.paused,
         _lastUpdate: Date.now()
       };
@@ -344,6 +392,7 @@ const Engine = (function () {
       state.inbox = s.inbox || [];
       state.smsThreads = s.smsThreads || {};
       state._pendingSms = s._pendingSms || [];
+      state._resolvedTriggers = s._resolvedTriggers || {};
       state.paused = s.paused || false;
 
       // Only start a local tick interval if NOT in read-only mode.
@@ -412,6 +461,8 @@ const Engine = (function () {
     setReadOnly,
     getState: () => state,
     getContacts: () => state.contacts,
-    getContact: (id) => state.contacts.find((c) => c.id === id)
+    getContact: (id) => state.contacts.find((c) => c.id === id),
+    getResolvedTriggerMinutes: (id) => state._resolvedTriggers[id],
+    resolveTriggers
   };
 })();
