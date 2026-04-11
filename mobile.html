@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0E15">
+<title>CCO Capstone — Mobile</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/mobile.css">
+</head>
+<body class="mobile-body">
+
+<!-- Desktop chrome (hidden when installed as PWA) -->
+<div class="desk-chrome">
+  <a class="brand" href="index.html">
+    <div class="brand-mark">
+      <svg viewBox="0 0 40 40" fill="none">
+        <rect x="1" y="1" width="38" height="38" rx="4" stroke="#4FC3D7" stroke-width="1.5"/>
+        <path d="M12 20 L18 26 L28 14" stroke="#4FC3D7" stroke-width="2" stroke-linecap="square" fill="none"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="name">CCO Capstone</div>
+      <div class="sub">Mobile view · PWA</div>
+    </div>
+  </a>
+  <nav class="topbar-nav">
+    <a href="index.html">Overview</a>
+    <a href="trainer.html">Trainer</a>
+    <a href="student.html">Student</a>
+    <a href="mobile.html" class="active">Mobile</a>
+  </nav>
+  <div class="desk-chrome-hint">
+    <div class="micro">Preview</div>
+    <div class="desk-chrome-hint-text">This is the phone view. In the field, students install it to their home screen as a PWA.</div>
+  </div>
+</div>
+
+<!-- Phone frame -->
+<div class="phone-wrap">
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+
+    <!-- Status bar -->
+    <div class="phone-statusbar">
+      <div class="phone-statusbar-time mono" id="phone-time">--:--</div>
+      <div class="phone-statusbar-icons">
+        <div class="sync-dot" id="sync-dot" title="Engine sync status"></div>
+        <svg viewBox="0 0 20 14" fill="none"><path d="M1 7h2v6H1zM5 4h2v9H5zM9 1h2v12H9zM13 1h2v12h-2zM17 1h2v12h-2z" fill="currentColor"/></svg>
+        <svg viewBox="0 0 18 14" fill="none"><path d="M9 2C5.5 2 2.5 3.4 0 5.5l1.5 2C3.5 5.8 6.1 4.8 9 4.8s5.5 1 7.5 2.7L18 5.5C15.5 3.4 12.5 2 9 2zm0 4c-2.3 0-4.4.8-6 2.2L4.5 10C5.7 8.9 7.3 8.3 9 8.3s3.3.6 4.5 1.7L15 8.2C13.4 6.8 11.3 6 9 6zm0 4c-1.1 0-2 .4-2.8 1L9 13l2.8-2C11 10.4 10.1 10 9 10z" fill="currentColor"/></svg>
+        <div class="battery">
+          <div class="battery-inner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- App container — views swap in here -->
+    <div class="phone-screen" id="phone-screen">
+
+      <!-- HOME SCREEN -->
+      <div class="view view-home" id="view-home">
+        <div class="home-header">
+          <div class="home-greeting">
+            <div class="home-day mono" id="home-day">Day 1</div>
+            <div class="home-weather">
+              <span class="mono" id="home-temp">31°C</span>
+              <span class="home-weather-loc">Eagle Crest</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wing Ops widget -->
+        <div class="widget wing-widget">
+          <div class="widget-head">
+            <div class="micro">Wing Ops · 455 AEW (P)</div>
+            <div class="status-pill live"><div class="status-dot"></div><span>Live</span></div>
+          </div>
+          <div class="wing-stats">
+            <div class="wing-stat">
+              <div class="wing-stat-val mono">14</div>
+              <div class="wing-stat-lbl">Sorties today</div>
+            </div>
+            <div class="wing-stat">
+              <div class="wing-stat-val mono">2</div>
+              <div class="wing-stat-lbl">Open taskers</div>
+            </div>
+            <div class="wing-stat">
+              <div class="wing-stat-val mono">DEFCON 4</div>
+              <div class="wing-stat-lbl">Threat</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- App dock -->
+        <div class="app-dock">
+          <button class="app-icon" data-view="messages">
+            <div class="app-icon-mark app-messages">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="app-icon-label">Messages</div>
+            <div class="app-badge hidden" id="badge-messages">0</div>
+          </button>
+          <button class="app-icon" data-view="mail">
+            <div class="app-icon-mark app-mail">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="1.5" stroke="currentColor" stroke-width="2"/><path d="M3 7l9 6 9-6" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div class="app-icon-label">Mail</div>
+            <div class="app-badge hidden" id="badge-mail">0</div>
+          </button>
+          <button class="app-icon">
+            <div class="app-icon-mark app-calendar">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="1.5" stroke="currentColor" stroke-width="2"/><line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/><line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div class="app-icon-label">Calendar</div>
+          </button>
+          <button class="app-icon">
+            <div class="app-icon-mark app-docs">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 2v6h6" stroke="currentColor" stroke-width="2"/></svg>
+            </div>
+            <div class="app-icon-label">Files</div>
+          </button>
+        </div>
+
+        <!-- Recent notifications -->
+        <div class="notif-section">
+          <div class="micro">Recent</div>
+          <div id="notif-list" class="notif-list">
+            <div class="notif-empty">No notifications yet.<br>Exercise will push here as it runs.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MESSAGES LIST -->
+      <div class="view view-messages hidden" id="view-messages">
+        <div class="app-head">
+          <button class="back-btn" data-back="home">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="app-head-title">Messages</div>
+          <div class="app-head-spacer"></div>
+        </div>
+        <div class="thread-list" id="thread-list"></div>
+      </div>
+
+      <!-- MESSAGE THREAD -->
+      <div class="view view-thread hidden" id="view-thread">
+        <div class="app-head">
+          <button class="back-btn" data-back="messages">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="thread-head-info">
+            <div class="avatar-sm" id="thread-avatar">RR</div>
+            <div>
+              <div class="thread-head-name" id="thread-name">—</div>
+              <div class="thread-head-title" id="thread-title">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="thread-body" id="thread-body"></div>
+        <div class="thread-input">
+          <input type="text" placeholder="Reply not available in prototype" disabled>
+        </div>
+      </div>
+
+      <!-- MAIL LIST -->
+      <div class="view view-mail hidden" id="view-mail">
+        <div class="app-head">
+          <button class="back-btn" data-back="home">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="app-head-title">Inbox</div>
+          <div class="app-head-spacer"></div>
+        </div>
+        <div class="mail-list" id="mail-list"></div>
+      </div>
+
+      <!-- MAIL DETAIL -->
+      <div class="view view-mail-detail hidden" id="view-mail-detail">
+        <div class="app-head">
+          <button class="back-btn" data-back="mail">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="app-head-title">Message</div>
+          <div class="app-head-spacer"></div>
+        </div>
+        <div class="mail-detail" id="mail-detail"></div>
+      </div>
+
+    </div>
+
+    <!-- Home bar -->
+    <div class="phone-homebar"></div>
+  </div>
+</div>
+
+<!-- Notification toast that slides down from top of phone -->
+<div class="phone-toast hidden" id="phone-toast">
+  <div class="phone-toast-icon" id="toast-icon">M</div>
+  <div class="phone-toast-content">
+    <div class="phone-toast-name" id="toast-name">—</div>
+    <div class="phone-toast-text" id="toast-text">—</div>
+  </div>
+</div>
+
+<!-- Diagnostic debug drawer — toggled by the floating DBG button, or triple-tapping the sync dot -->
+<button class="debug-fab" id="debug-fab" title="Open debug drawer">DBG</button>
+<div class="debug-drawer hidden" id="debug-drawer">
+  <div class="debug-drawer-head">
+    <div class="debug-drawer-title">Mobile Debug &middot; v0.2.5</div>
+    <div class="debug-drawer-actions">
+      <button class="debug-btn" id="debug-reload">Reload state</button>
+      <button class="debug-btn" id="debug-copy">Copy JSON</button>
+      <button class="debug-btn" id="debug-close">Close</button>
+    </div>
+  </div>
+  <div class="debug-drawer-body">
+    <div class="debug-section">
+      <div class="debug-section-label">Engine flags</div>
+      <div class="debug-kv" id="debug-flags">&mdash;</div>
+    </div>
+    <div class="debug-section">
+      <div class="debug-section-label">Clock</div>
+      <div class="debug-kv" id="debug-clock">&mdash;</div>
+    </div>
+    <div class="debug-section">
+      <div class="debug-section-label">Counts</div>
+      <div class="debug-kv" id="debug-counts">&mdash;</div>
+    </div>
+    <div class="debug-section">
+      <div class="debug-section-label">smsThreads (raw)</div>
+      <pre class="debug-pre" id="debug-sms">{}</pre>
+    </div>
+    <div class="debug-section">
+      <div class="debug-section-label">inbox (raw)</div>
+      <pre class="debug-pre" id="debug-inbox">[]</pre>
+    </div>
+    <div class="debug-section">
+      <div class="debug-section-label">Event log (last 20)</div>
+      <div class="debug-log" id="debug-log"></div>
+    </div>
+    <div class="debug-section">
+      <div class="debug-section-label">localStorage snapshot</div>
+      <div class="debug-kv" id="debug-ls">&mdash;</div>
+    </div>
+  </div>
+</div>
+
+<script src="content/content-bundle.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/mobile.js"></script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCO Capstone — Student Workstation</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="student-body theme-deployed-amber">
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <div class="brand-mark">
+      <svg viewBox="0 0 40 40" fill="none">
+        <rect x="1" y="1" width="38" height="38" rx="4" stroke="#4FC3D7" stroke-width="1.5"/>
+        <path d="M12 20 L18 26 L28 14" stroke="#4FC3D7" stroke-width="2" stroke-linecap="square" fill="none"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="name">Eagle Crest · Student Workstation</div>
+      <div class="sub">455 AEW (P) · FOS Eagle Crest</div>
+    </div>
+  </a>
+  <nav class="topbar-nav">
+    <a href="index.html">Overview</a>
+    <a href="trainer.html">Trainer</a>
+    <a href="student.html" class="active">Student</a>
+    <a href="mobile.html">Mobile</a>
+  </nav>
+  <div class="topbar-right">
+    <div class="status-pill live">
+      <div class="status-dot"></div>
+      <span id="exercise-status">Exercise live</span>
+    </div>
+  </div>
+</div>
+
+<div class="student-main">
+
+  <!-- Top strip: ambient widgets -->
+  <div class="ambient-strip">
+    <div class="ambient-card">
+      <div class="ambient-label micro">Exercise clock · local</div>
+      <div class="ambient-value mono" id="ambient-clock">D1 08:00</div>
+      <div class="ambient-sub" id="ambient-sub">FOS Eagle Crest · GMT+4</div>
+    </div>
+    <div class="ambient-card">
+      <div class="ambient-label micro">Tarkana · Eagle Crest</div>
+      <div class="ambient-value">
+        <span class="mono">31°</span>
+        <span class="ambient-icon">☀</span>
+      </div>
+      <div class="ambient-sub">Clear · Wind 12 kt · Dust advisory</div>
+    </div>
+    <div class="ambient-card">
+      <div class="ambient-label micro">Wing Ops · 455 AEW (P)</div>
+      <div class="ambient-value">
+        <span style="color: var(--good); font-size: 18px;">●</span>
+        <span style="font-size: 16px; font-weight: 500;">Green</span>
+      </div>
+      <div class="ambient-sub">14 sorties · DEFCON 4</div>
+    </div>
+    <div class="ambient-card">
+      <div class="ambient-label micro">Day progress</div>
+      <div class="ambient-value mono" id="ambient-progress">08:00 / 17:00</div>
+      <div class="ambient-progress-bar">
+        <div class="ambient-progress-fill" id="progress-fill" style="width: 0%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main layout: mail + side rail -->
+  <div class="student-grid">
+
+    <!-- MAIL (Outlook-style) -->
+    <div class="panel mail-panel">
+      <div class="mail-panel-header">
+        <div class="mail-panel-title">
+          <div class="micro">Inbox · MSgt Ramirez</div>
+          <h3>Messages</h3>
+        </div>
+        <div class="mail-panel-meta">
+          <span id="mail-count" class="mono">0 messages</span>
+        </div>
+      </div>
+
+      <div class="mail-layout">
+        <!-- Left: list -->
+        <div class="mail-col-list" id="mail-col-list">
+          <div class="mail-empty-state">
+            <div class="mail-empty-icon">
+              <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="12" width="36" height="24" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 14l18 12L42 14" stroke="currentColor" stroke-width="1.5"/></svg>
+            </div>
+            <div class="mail-empty-title">No messages</div>
+            <div class="mail-empty-desc">Inbox will populate as the exercise runs.</div>
+          </div>
+        </div>
+        <!-- Right: detail -->
+        <div class="mail-col-detail" id="mail-col-detail">
+          <div class="mail-detail-empty">
+            <div class="micro">Select a message</div>
+            <p>Click a message from the list to read it here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right rail -->
+    <div class="student-rail">
+
+      <!-- Notifications feed -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <div class="micro">Notifications</div>
+            <div class="title">Activity feed</div>
+          </div>
+          <span class="mono muted" id="notif-count" style="font-size: 11px;">0</span>
+        </div>
+        <div class="panel-body panel-body-tight">
+          <div class="notif-feed" id="notif-feed">
+            <div class="muted text-center" style="padding: 32px 16px; font-size: 12px;">Quiet. Activity will appear here.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pushed documents -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <div class="micro">Pushed documents</div>
+            <div class="title">Reference tray</div>
+          </div>
+        </div>
+        <div class="panel-body panel-body-tight">
+          <div class="doc-list" id="doc-list">
+            <div class="muted text-center" style="padding: 24px 16px; font-size: 12px;">No documents pushed yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wing roster quick reference -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <div class="micro">Quick contacts</div>
+            <div class="title">Wing key personnel</div>
+          </div>
+        </div>
+        <div class="panel-body panel-body-tight">
+          <div class="qc-list" id="qc-list"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script src="content/content-bundle.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/student.js"></script>
+</body>
+</html>

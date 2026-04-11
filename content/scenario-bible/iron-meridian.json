@@ -1,0 +1,16 @@
+{
+  "scenario_id": "iron-meridian",
+  "operation_name": "Operation Iron Meridian",
+  "classification": "UNCLASSIFIED - FOR TRAINING USE ONLY",
+  "version": "0.2",
+  "setting": {
+    "location": "Forward Operating Site Eagle Crest, Republic of Tarkana (fictional)",
+    "base_type": "Bare base, recently transitioned from expeditionary to enduring presence",
+    "host_nation_posture": "Permissive - Tarkana is a treaty ally hosting US forces under a 10-year SOFA",
+    "supported_unit": "455th Air Expeditionary Wing (Provisional)",
+    "mission": "Air interdiction and close air support operations in support of Joint Task Force GRANITE CAPE",
+    "population": "Approximately 2,400 US personnel, 180 coalition, 320 host nation employees",
+    "established": "18 months ago"
+  },
+  "the_lie": "Outgoing CCO will brief that Al-Rashid Construction BPA is 'good to go' when in fact it expired 6 days ago. Students who don't verify will use an invalid vehicle when the runway repair inject hits on D2."
+}

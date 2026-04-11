@@ -1,0 +1,60 @@
+{
+  "id": "IM-01",
+  "title": "Shop inventory handoff",
+  "tlo": ["TLO-2-Predeployment", "TLO-3-Standup"],
+  "difficulty": ["green", "amber", "red"],
+  "trigger": {
+    "type": "absolute",
+    "day": 1,
+    "hour": 8,
+    "minute": 0
+  },
+  "duration_minutes": 90,
+  "description": "Students receive the inherited contract portfolio and must inventory what they have before the first real requirement drops.",
+  "scenario_for_students": "You have just arrived at FOS Eagle Crest and relieved the previous contracting team. The outgoing CCO, TSgt Morales, leaves in 20 minutes on the rotator. His office is a mess of half-labeled file folders, a desktop cluttered with Word docs, and a laminated org chart from 2 CCOs ago. Your first task: inventory what you inherited. What contracts are active? What is expiring? What is on fire? You have 90 minutes before the first customer walks through your door.",
+  "inbox_items": [
+    {
+      "id": "msg1",
+      "from": "TSgt Morales",
+      "from_email": "jt.morales.mil@mail.mil",
+      "subject": "Read before I leave - portfolio notes",
+      "body": "Team - welcome to the Eagle Crest shop. Quick notes before I catch my rotator:\n\n1. TFL BPA is your workhorse. Use it for anything facilities. Owner is well-connected.\n2. Crescent Star for consumables, they are solid.\n3. Al-Rashid Construction - good to go for any runway, concrete, or asphalt work. Used them for the MWR pad last month, no issues.\n4. Dining services is giving me heartburn. Performance mod is in legal.\n5. CE SMSgt Dooley has been blowing up my phone about a generator mod. Drafted it, never got it signed. Sorry.\n\nPortfolio is in the shared drive. Good luck. - Morales"
+    },
+    {
+      "id": "msg2",
+      "from": "Capt Perez",
+      "from_email": "alejandra.perez.mil@mail.mil",
+      "subject": "Welcome - Wing CC read file due EOD D2",
+      "body": "Welcome to Eagle Crest. Wing CC wants a read file on the shop by EOD Day 2. Include active contract summary, expiring actions, and any concerns. Standard format. - Perez, 455 AEW/CCX"
+    }
+  ],
+  "expected_actions": [
+    { "id": "a1", "description": "Inventory all active BPAs and IDIQs by expiration date", "objective": true, "priority": "critical" },
+    { "id": "a2", "description": "Identify Al-Rashid Construction BPA as EXPIRED (the trap)", "objective": true, "priority": "critical",
+      "notes": "Students who catch this before IM-02 phone call are exceptional. Students who catch it after the call but before D2 are passing. Students who never catch it will fail IM-07 on D2." },
+    { "id": "a3", "description": "Discover the debarred vendor flag (Mediterranean Supply Partners)", "objective": true, "priority": "high" },
+    { "id": "a4", "description": "Triage open modifications and flag the TFL generator mod as urgent", "objective": true, "priority": "high" },
+    { "id": "a5", "description": "Begin drafting the Wing CC read file", "objective": false, "priority": "medium" },
+    { "id": "a6", "description": "Assign roles across the 4-person team", "objective": false, "priority": "medium" }
+  ],
+  "trainer_prompts": [
+    "Do NOT lead students to the Al-Rashid expiration. Let them find it or not. This is the most important learning moment of Day 1.",
+    "If students ask about the debarred vendor, give them the 'huh, weird' response and move on.",
+    "Watch for team dynamics - is one person doing all the work while others wait? Flag for hotwash.",
+    "If they finish inventory in under 45 minutes, they rushed it. Note it and let IM-07 expose the gaps on D2."
+  ],
+  "teaching_point": "In real deployed contracting, you inherit someone else's mess. The outgoing CCO is tired, rushing, and will tell you what they WANT to be true, not what IS true. Verification is not optional. The single most important skill on Day 1 of a rotation is reading the files yourself and trusting nothing you are told verbally until you see it in writing. FAR 1.102(d) empowers you to make decisions - but only if you know what you are actually working with.",
+  "wrong_answer_walkthroughs": [
+    {
+      "answer": "Students accept Morales's verbal brief at face value and do not verify the portfolio against actual files",
+      "consequence": "They walk into D2 assuming Al-Rashid is valid. When IM-07 (runway repair emergency) hits, they attempt to use an expired vehicle, potentially creating an unauthorized commitment. This becomes the centerpiece of the hotwash.",
+      "teaching_moment": "You can only manage what you verify. The verbal brief from your predecessor is data, not truth."
+    },
+    {
+      "answer": "Students delegate the inventory to the most junior person and the seniors focus on 'strategic' matters",
+      "consequence": "The junior misses the debarment flag and the expired BPA. Seniors are blindsided when issues surface.",
+      "teaching_moment": "In a 4-person shop, everyone touches the files on Day 1. You will never have this much time to learn your shop again - use it."
+    }
+  ],
+  "what_really_happened": "This inject is based on a 2019 PSAB rotation where an incoming CCO discovered the outgoing team had been operating against an expired BPA for 11 days. The problem was not caught until a vendor walked into the office asking about payment for work authorized under the expired vehicle. The unauthorized commitment required a formal ratification package reviewed by the contracting squadron commander. The real CCO stayed calm, documented everything, got the ratification approved, and made the debrief to the next incoming team a permanent part of their turnover checklist. The lesson: trust what is in the files, not what you are told."
+}

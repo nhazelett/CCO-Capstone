@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCO Capstone — STARTEX</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/startex.css">
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html">
+    <div class="brand-mark">
+      <svg viewBox="0 0 40 40" fill="none">
+        <rect x="1" y="1" width="38" height="38" rx="4" stroke="#4FC3D7" stroke-width="1.5"/>
+        <path d="M12 20 L18 26 L28 14" stroke="#4FC3D7" stroke-width="2" stroke-linecap="square" fill="none"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="name">CCO Capstone</div>
+      <div class="sub">Exercise setup</div>
+    </div>
+  </a>
+  <nav class="topbar-nav">
+    <a href="index.html">Overview</a>
+    <a href="startex.html" class="active">STARTEX</a>
+    <a href="trainer.html">Trainer</a>
+    <a href="student.html">Student</a>
+    <a href="mobile.html">Mobile</a>
+  </nav>
+  <div class="topbar-right">
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      <span>Pre-exercise config</span>
+    </div>
+  </div>
+</div>
+
+<div class="container startex-container">
+
+  <div class="startex-header">
+    <div class="micro micro-accent">Pre-exercise · STARTEX configuration</div>
+    <h1 class="startex-title">Configure the exercise.<br><span class="display">Set conditions. Hit go.</span></h1>
+    <p class="startex-lede">Every decision here shapes the next three days. Difficulty, loadout, roster, length. The engine takes these inputs and generates the exercise. Once you hit STARTEX, the clock starts.</p>
+  </div>
+
+  <div class="startex-grid">
+
+    <!-- Scenario panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <div class="micro">§ 01</div>
+          <div class="title">Scenario</div>
+        </div>
+        <button class="btn btn-sm">Load preset</button>
+      </div>
+      <div class="panel-body">
+        <div class="spec-grid">
+          <div class="spec">
+            <div class="field-label">Operation</div>
+            <div class="spec-value">Iron Meridian</div>
+          </div>
+          <div class="spec">
+            <div class="field-label">Location</div>
+            <div class="spec-value">FOS Eagle Crest</div>
+          </div>
+          <div class="spec">
+            <div class="field-label">Host nation</div>
+            <div class="spec-value">Tarkana <span class="muted">(fictional)</span></div>
+          </div>
+          <div class="spec">
+            <div class="field-label">Supported unit</div>
+            <div class="spec-value">455 AEW (P)</div>
+          </div>
+          <div class="spec">
+            <div class="field-label">Threat posture</div>
+            <div class="spec-value">Permissive</div>
+          </div>
+          <div class="spec">
+            <div class="field-label">Classification</div>
+            <div class="spec-value">UNCLASSIFIED · Training</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field-label" style="margin-bottom: 12px;">Exercise length</div>
+        <div class="length-options">
+          <button class="length-btn" data-length="3">
+            <div class="length-num">3</div>
+            <div class="length-label">day · minimum</div>
+          </button>
+          <button class="length-btn active" data-length="4">
+            <div class="length-num">4</div>
+            <div class="length-label">day · recommended</div>
+          </button>
+          <button class="length-btn" data-length="5">
+            <div class="length-num">5</div>
+            <div class="length-label">day · deep rotation</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Difficulty panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <div class="micro">§ 02</div>
+          <div class="title">Difficulty</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="stack">
+          <label class="option-card">
+            <input type="radio" name="difficulty" value="green">
+            <div>
+              <div class="option-card-title">Green · new CCO pipeline</div>
+              <div class="option-card-desc">Clean requirements, cooperative vendors, obvious answers. Use for first exposure students fresh out of the schoolhouse.</div>
+            </div>
+          </label>
+          <label class="option-card selected">
+            <input type="radio" name="difficulty" value="amber" checked>
+            <div>
+              <div class="option-card-title">Amber · pre-deployment workup</div>
+              <div class="option-card-desc">Ambiguous requirements, funding traps, ethics bait. Default setting for squadron training.</div>
+            </div>
+          </label>
+          <label class="option-card">
+            <input type="radio" name="difficulty" value="red">
+            <div>
+              <div class="option-card-title">Red · seasoned operators</div>
+              <div class="option-card-desc">Hostile vendors, impossible timelines, red-team injects. Designed to break good CCOs so they know where their gaps are.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Roster -->
+  <div class="panel startex-full">
+    <div class="panel-header">
+      <div class="panel-header-title">
+        <div class="micro">§ 03</div>
+        <div class="title">Student roster</div>
+      </div>
+      <button class="btn btn-sm">+ Add student</button>
+    </div>
+    <div class="panel-body">
+      <div class="roster-grid">
+        <div class="roster-card">
+          <div class="avatar" style="background: #4FC3D7; color: var(--text-inverse);">RA</div>
+          <div>
+            <div class="roster-name">MSgt Ramirez</div>
+            <div class="roster-role">Primary CCO</div>
+          </div>
+        </div>
+        <div class="roster-card">
+          <div class="avatar" style="background: #8A7AB0; color: var(--text-bright);">CH</div>
+          <div>
+            <div class="roster-name">SSgt Chen</div>
+            <div class="roster-role">Assistant CCO</div>
+          </div>
+        </div>
+        <div class="roster-card">
+          <div class="avatar" style="background: #5BC98E; color: var(--text-inverse);">OK</div>
+          <div>
+            <div class="roster-name">TSgt Okafor</div>
+            <div class="roster-role">COR liaison</div>
+          </div>
+        </div>
+        <div class="roster-card">
+          <div class="avatar" style="background: #F5B845; color: var(--text-inverse);">BR</div>
+          <div>
+            <div class="roster-name">SrA Brooks</div>
+            <div class="roster-role">Backup / admin</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loadout modifiers -->
+  <div class="panel startex-full">
+    <div class="panel-header">
+      <div class="panel-header-title">
+        <div class="micro">§ 04</div>
+        <div class="title">Loadout modifiers</div>
+      </div>
+      <div class="muted" style="font-size: 11px;">Unchecked items generate additional injects</div>
+    </div>
+    <div class="panel-body">
+      <div class="modifier-grid" id="modifiers">
+        <div class="toggle on" data-mod="body-armor"><div class="toggle-dot"></div>Body armor &amp; IOTV</div>
+        <div class="toggle off" data-mod="gpc"><div class="toggle-dot"></div>GPC cards issued</div>
+        <div class="toggle on" data-mod="sipr"><div class="toggle-dot"></div>SIPR connectivity</div>
+        <div class="toggle off" data-mod="theater-bpa"><div class="toggle-dot"></div>Theater BPA inherited</div>
+        <div class="toggle on" data-mod="finance"><div class="toggle-dot"></div>Finance co-located</div>
+        <div class="toggle on" data-mod="warrant"><div class="toggle-dot"></div>Warranted CO on site</div>
+        <div class="toggle off" data-mod="linguist"><div class="toggle-dot"></div>Linguist support</div>
+        <div class="toggle on" data-mod="printer"><div class="toggle-dot"></div>Printer / file storage</div>
+      </div>
+
+      <div class="banner banner-warn" style="margin-top: 18px;">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 9v3m0 3h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div>
+          <strong style="color: var(--warn);">3 gaps detected</strong> — Engine will generate 7 additional injects across D1 and D2 to exercise workarounds for GPC, BPA inheritance, and linguist acquisition.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule + Summary -->
+  <div class="startex-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <div class="micro">§ 05</div>
+          <div class="title">Schedule</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="spec-grid">
+          <div class="spec">
+            <div class="field-label">STARTEX</div>
+            <div class="spec-value mono">D1 · 08:00L</div>
+          </div>
+          <div class="spec">
+            <div class="field-label">Overnight mode</div>
+            <div class="spec-value">Compressed 4:1</div>
+          </div>
+          <div class="spec">
+            <div class="field-label">ENDEX</div>
+            <div class="spec-value mono">D4 · 15:00L</div>
+          </div>
+          <div class="spec">
+            <div class="field-label">Hotwash</div>
+            <div class="spec-value">D4 · 15:30 – 17:00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <div class="micro">§ 06</div>
+          <div class="title">Exercise summary</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="summary-list">
+          <div class="summary-row"><span class="summary-label">Base injects</span><span class="summary-value mono">2 loaded / 38 planned</span></div>
+          <div class="summary-row"><span class="summary-label">Modifier injects</span><span class="summary-value mono">+7 conditional</span></div>
+          <div class="summary-row"><span class="summary-label">Phone scripts</span><span class="summary-value mono">1 loaded</span></div>
+          <div class="summary-row"><span class="summary-label">SMS contacts</span><span class="summary-value mono">5 personas + 1 group</span></div>
+          <div class="summary-row"><span class="summary-label">Ethics landmines</span><span class="summary-value mono">4 planned</span></div>
+          <div class="summary-row summary-row-total"><span class="summary-label">TLO coverage</span><span class="summary-value" style="color: var(--good);">All 5 · balanced</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Launch -->
+  <div class="launch-bar">
+    <div>
+      <div class="micro micro-accent">Ready to begin</div>
+      <div class="launch-title">Once you hit STARTEX, the exercise clock begins.</div>
+      <div class="launch-sub">Injects fire on schedule. Falling behind is part of the training.</div>
+    </div>
+    <div class="launch-actions">
+      <button class="btn btn-lg">Dry run</button>
+      <button class="btn btn-primary btn-xl" id="startex-btn">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>
+        STARTEX
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Length buttons
+document.querySelectorAll('.length-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.length-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// Option card selection
+document.querySelectorAll('.option-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+  });
+});
+
+// Toggle modifiers
+document.querySelectorAll('.toggle').forEach(t => {
+  t.addEventListener('click', () => {
+    t.classList.toggle('on');
+    t.classList.toggle('off');
+  });
+});
+
+// STARTEX launch
+document.getElementById('startex-btn').addEventListener('click', () => {
+  const config = {
+    scenario: 'iron-meridian',
+    difficulty: document.querySelector('input[name="difficulty"]:checked').value,
+    length: document.querySelector('.length-btn.active').dataset.length,
+    roster: [
+      { id: 'ra', name: 'MSgt Ramirez', role: 'Primary CCO', initials: 'RA' },
+      { id: 'ch', name: 'SSgt Chen', role: 'Assistant CCO', initials: 'CH' },
+      { id: 'ok', name: 'TSgt Okafor', role: 'COR liaison', initials: 'OK' },
+      { id: 'br', name: 'SrA Brooks', role: 'Backup / admin', initials: 'BR' },
+    ],
+    modifiers: Array.from(document.querySelectorAll('.toggle')).reduce((acc, t) => {
+      acc[t.dataset.mod] = t.classList.contains('on');
+      return acc;
+    }, {}),
+    startedAt: new Date().toISOString(),
+  };
+  localStorage.setItem('cco-capstone-config', JSON.stringify(config));
+  localStorage.removeItem('cco-capstone-state');
+  window.location.href = 'trainer.html';
+});
+</script>
+</body>
+</html>

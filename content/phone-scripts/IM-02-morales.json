@@ -1,0 +1,71 @@
+{
+  "id": "IM-02-morales",
+  "caller": "TSgt Morales (outgoing CCO)",
+  "caller_context": "Tired, distracted, calling from the PAX terminal. He is done. He wants to get on the rotator. He will be helpful on the things he remembers and vague on the things he does not want to think about.",
+  "delivery_notes": "Read this script verbatim. Speak faster than comfortable. Interrupt yourself occasionally. If students ask a question you do not have a scripted answer for, stay in character and deflect with 'look I am boarding in 5 minutes, check the files.'",
+  "opening": {
+    "speaker": "MORALES",
+    "line": "Hey, hey, is this the new CCO? Morales. Sorry I did not catch you at the handover in person - command bumped my flight. I am at the PAX terminal. Got maybe 20 minutes before they start calling zones. Can we do this by phone?"
+  },
+  "main_brief": [
+    { "speaker": "MORALES", "line": "Okay, look, quick brain dump. The shop is in okay shape. Not great. Okay. Here is what you need to know." },
+    { "speaker": "MORALES", "line": "TFL - Tarkana Facilities and Logistics - that is your workhorse BPA. You are going to use it for everything. Facilities, HVAC, plumbing, whatever. Owner is a guy named Haddad, he is related to the base liaison, just FYI. Not a problem, just know it." },
+    { "speaker": "MORALES", "line": "Crescent Star for water and consumables. They are solid. Boring. Do not worry about them." },
+    { "speaker": "MORALES", "line": "Al-Rashid Construction. That is your concrete and asphalt guy. Good to go. I used them for the MWR pad last month, no issues. If you need runway work, bunker repair, anything concrete, call them first." },
+    { "speaker": "MORALES", "line": "Dining services - Eagle Crest - they are giving me heartburn. Performance issues. There is a mod in legal review, it is stuck with JAG. I was not going to get it signed before I left. Sorry about that one." },
+    { "speaker": "MORALES", "line": "CE has been calling me every day about a generator mod on the TFL BPA. I drafted it, it is in my outbox, never got it signed. Dooley - that is the CE senior - he is going to be on your ass about it on Day 2. Just sign it, it is straightforward." }
+  ],
+  "branches": [
+    {
+      "trigger": "If student asks: 'When does Al-Rashid expire?' or 'Can you send me the current Al-Rashid basic agreement?'",
+      "response": {
+        "speaker": "MORALES",
+        "line": "Uhh... hold on, let me think... *rustling sound* ... look, it is in the files. I think it has a while. Check the spreadsheet on the shared drive. I am pretty sure we are good. Why, is there a problem?",
+        "post_note": "Evasive. Flag this student as someone who is asking the right questions."
+      }
+    },
+    {
+      "trigger": "If student directly asks: 'Is Al-Rashid currently a valid contract vehicle?'",
+      "response": {
+        "speaker": "MORALES",
+        "line": "I mean... *pause* ... look, the vendor is good. We have a relationship. The paperwork might need a refresh but I would not sweat it. Use them if you need to. They are reliable.",
+        "post_note": "This is the ethics pressure variant. Morales is now suggesting they use an expired vehicle. Flag the student's response."
+      }
+    },
+    {
+      "trigger": "If student asks about debarred vendors",
+      "response": {
+        "speaker": "MORALES",
+        "line": "Debarred? I do not think we have any debarment issues. I mean, I would check SAM before you award anything obviously. Standard practice. Why, did someone say something?",
+        "post_note": "Morales genuinely does not remember the Mediterranean Supply Partners flag."
+      }
+    },
+    {
+      "trigger": "If student asks about ethics concerns or gifts",
+      "response": {
+        "speaker": "MORALES",
+        "line": "Ethics? No, we are clean. The Haddad thing - TFL owner being related to the base liaison - I mentioned that already, that is just how small this country is. Not a big deal. Document it if you want but nobody here cares.",
+        "post_note": "Casual dismissal of a real ethics issue. Note whether students accept this framing."
+      }
+    },
+    {
+      "trigger": "If student asks about the Wing CC",
+      "response": {
+        "speaker": "MORALES",
+        "line": "Ramsey? Former F-16 guy. He is direct. Very direct. Do not try to be clever with him, just give him bottom line up front. He respects people who make decisions. He does NOT respect people who hide behind process. Brief him straight and he will leave you alone. Waffle and you are done."
+      }
+    }
+  ],
+  "closing": {
+    "speaker": "MORALES",
+    "line": "Okay, they are calling my zone. I gotta go. Email me if something catches fire, but honestly, you are going to be fine. The shop runs itself mostly. Good luck. Out."
+  },
+  "post_call_trainer_checklist": [
+    "Did the student take notes?",
+    "Did the student ask ANY clarifying question about Al-Rashid specifically?",
+    "Did the student ask for any document to be sent or verified in writing?",
+    "Did the student accept Morales's framing of the TFL/Haddad relationship without pushback?",
+    "Did the student ask about the Wing CC's expectations?",
+    "Flag any student who directly challenged Morales's verbal brief - that is the gold standard response."
+  ]
+}

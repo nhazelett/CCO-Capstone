@@ -1,0 +1,57 @@
+{
+  "id": "IM-02",
+  "title": "Outgoing CCO brief",
+  "tlo": ["TLO-1-Ethics", "TLO-3-Standup"],
+  "difficulty": ["green", "amber", "red"],
+  "trigger": {
+    "type": "absolute",
+    "day": 1,
+    "hour": 8,
+    "minute": 5
+  },
+  "duration_minutes": 20,
+  "description": "TSgt Morales has 20 minutes before his rotator. Phone call. He will brief what is on fire, what to ignore, and one thing that is a lie.",
+  "scenario_for_students": "Your desk phone rings. It is TSgt Morales, the outgoing CCO. He is already at the PAX terminal waiting on his rotator. He has about 20 minutes to give you the verbal turnover he did not have time for in person. Take the call. Ask questions. Figure out what matters.",
+  "phone_script_id": "IM-02-morales",
+  "sms_items": [
+    {
+      "id": "sms-ramsey-welcome",
+      "contact_id": "ramsey",
+      "delay_minutes": 3,
+      "messages": [
+        "You the new K shop SNCIC?",
+        "I need 10 minutes with you today. My office. Walk in, don't schedule.",
+        "Don't bring a brief. Bring answers."
+      ]
+    }
+  ],
+  "expected_actions": [
+    { "id": "a1", "description": "Take notes during the call", "objective": false, "priority": "medium" },
+    { "id": "a2", "description": "Ask clarifying questions about any BPA or contract mentioned", "objective": true, "priority": "critical",
+      "notes": "Good CCOs catch the lie. Morales claims Al-Rashid is 'good to go.' Students who ask 'when does it expire?' get a hedge. Students who ask for the doc get nothing." },
+    { "id": "a3", "description": "Verify anything Morales says against actual files before acting", "objective": true, "priority": "critical" },
+    { "id": "a4", "description": "Do not commit to any action based solely on the verbal brief", "objective": true, "priority": "high" },
+    { "id": "a5", "description": "Acknowledge Col Ramsey's text immediately — he is not patient", "objective": true, "priority": "high" }
+  ],
+  "trainer_prompts": [
+    "Read the phone script verbatim. Do not paraphrase - the exact wording is calibrated.",
+    "When students ask clarifying questions, stay in character as Morales: tired, distracted, 'look I am about to board.'",
+    "The lie is about Al-Rashid Construction BPA. Morales will say it is 'good to go.' It expired 6 days ago.",
+    "If a student directly asks when Al-Rashid expires: evasive response, 'check the files, my ride is here.'",
+    "Note which students caught the evasion."
+  ],
+  "teaching_point": "Not everyone who briefs you is reliable - and most of the time, it is not malice. It is exhaustion, optimism, or someone who stopped paying attention three weeks before their rotation. The skill is not detecting lies; it is recognizing that verbal information degrades and verification is cheap. Ask specific questions. Demand specific documents. Trust files, not voices.",
+  "wrong_answer_walkthroughs": [
+    {
+      "answer": "Students take notes but do not ask clarifying questions about any specific contract",
+      "consequence": "They walk away with Morales's narrative intact. Everything unravels on D2 when reality hits the fictional picture they built.",
+      "teaching_moment": "A turnover brief is a hypothesis, not a fact sheet. Treat it like intelligence from an untrusted source - useful as a starting point, requires corroboration."
+    },
+    {
+      "answer": "Students accept 'it is in the files' as a sufficient answer and never actually check the files",
+      "consequence": "They act on verbal information for the rest of Day 1. Any inject that depends on an assumption Morales planted will trip them up.",
+      "teaching_moment": "'It is in the files' is the most dangerous phrase in deployed contracting. Go look."
+    }
+  ],
+  "what_really_happened": "Every deployed CCO has had this phone call. The outgoing person is exhausted, the incoming person is overwhelmed, and both are pretending the turnover is going better than it is. The verbal brief pattern - with its mix of useful tips, optimistic assessments, and outright fictions - is so universal that multiple AETC and AFICC AARs have recommended written turnover protocols as a mitigation. They are not widely used. Verification remains the individual CCO's responsibility. This inject trains the habit."
+}

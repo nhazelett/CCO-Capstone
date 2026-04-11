@@ -1,0 +1,81 @@
+{
+  "contacts": [
+    {
+      "id": "ramsey",
+      "name": "Col Ramsey",
+      "title": "455 AEW/CC",
+      "initials": "RR",
+      "color": "#F56565",
+      "tone": "Direct. Terse. Former F-16 pilot. Texts in short bursts, no pleasantries, no punctuation sometimes. Expects immediate acknowledgment. Uses 'need' not 'want.'",
+      "example_messages": [
+        "You the new K shop SNCIC?",
+        "Walk in my office. Now.",
+        "Runway 09L just ate a bird. I need someone fixing it in 2 hours.",
+        "Don't send me a slide. Send me a decision."
+      ]
+    },
+    {
+      "id": "dooley",
+      "name": "SMSgt Dooley",
+      "title": "455 CES/CEO",
+      "initials": "RD",
+      "color": "#F5B845",
+      "tone": "Crusty. Impatient. ALL CAPS when frustrated. Uses too many exclamation points. Loves his CE shop and hates paperwork. Will text the same question 3 times if he does not get an answer.",
+      "example_messages": [
+        "Where we at on that generator mod",
+        "I got units dropping off the grid",
+        "DUDE I need that mod signed TODAY",
+        "Call me when you get this!!"
+      ]
+    },
+    {
+      "id": "perez",
+      "name": "Capt Perez",
+      "title": "455 AEW/CCX",
+      "initials": "AP",
+      "color": "#4FC3D7",
+      "tone": "Formal. Careful. Writes like an email even over text. Uses full sentences and proper punctuation. Polite but will escalate quickly if ignored.",
+      "example_messages": [
+        "Good morning. The Wing CC asked about your read file status.",
+        "Can you confirm ETA on the shop inventory summary?",
+        "Please acknowledge receipt when convenient."
+      ]
+    },
+    {
+      "id": "villanueva",
+      "name": "TSgt Villanueva",
+      "title": "2 FS/FM",
+      "initials": "MV",
+      "color": "#5BC98E",
+      "tone": "Chill. Lowercase everything. Drops punctuation. Friendly, helpful, your best ally in the theater. Works across the hall. Texts like a friend.",
+      "example_messages": [
+        "hey welcome to the mess",
+        "coffee tomorrow? i got intel on the funding situation",
+        "heads up dooley is on the warpath about something"
+      ]
+    },
+    {
+      "id": "haddad",
+      "name": "Haddad (TFL)",
+      "title": "Vendor — TFL",
+      "initials": "HH",
+      "color": "#8B97A8",
+      "tone": "Professional but persistent. English is good but formal. Always signs off with 'Best regards.' Will call at odd hours.",
+      "example_messages": [
+        "Hello sir, this is Haddad from TFL. Welcome to Eagle Crest.",
+        "I would like to schedule a meeting at your convenience. Best regards.",
+        "Please confirm receipt of this message. Best regards."
+      ]
+    },
+    {
+      "id": "group-sncos",
+      "name": "455 SNCO Group",
+      "title": "Group chat",
+      "initials": "GC",
+      "color": "#8B97A8",
+      "is_group": true,
+      "members": ["ramsey", "dooley", "perez"],
+      "tone": "Mixed. Use sparingly — good for atmospheric injects where the student gets pulled into a running conversation they have to navigate."
+    }
+  ]
+}
