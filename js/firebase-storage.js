@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CCO CAPSTONE — Firebase storage adapter  v0.2.13
+   CCO CAPSTONE — Firebase storage adapter  v0.2.14
    Mirrors localStorage state to Firebase Realtime Database so multiple
    devices can share an exercise session. Loaded dynamically by net-loader.js
    when the URL contains ?net=1.
@@ -21,119 +21,94 @@
 (function () {
   'use strict';
 
-  // Master try-catch: if ANYTHING throws, show it on the badge.
-  var _earlyBadge = document.getElementById('cco-net-badge');
-  try { _initFirebase(); } catch (err) {
-    console.error('[firebase-storage] Init crashed:', err);
-    if (_earlyBadge) {
-      _earlyBadge.textContent = '✗ NET: ' + (err.message || err);
-      _earlyBadge.style.borderColor = 'rgba(217, 85, 42, 0.7)';
-      _earlyBadge.style.color = '#D9552A';
-      _earlyBadge.style.background = 'rgba(217, 85, 42, 0.15)';
-      _earlyBadge.style.opacity = '1';
-    }
-    return;
-  }
+  // Badge helpers from net-loader (may not exist if loaded standalone)
+  var B = window._ccoNetBadge || {
+    ok:   function () {},
+    live: function () {},
+    fail: function (m) { console.warn('[firebase-storage] ' + m); }
+  };
 
-  function _initFirebase() {
-
-  // Guard: only run if Firebase SDK + config + Engine are all present.
-  // v0.2.14: update the net-loader badge with failure reason if a guard trips.
-  var _earlyBadge2 = _earlyBadge; // closure ref
-  function _guardFail(msg) {
-    console.warn('[firebase-storage] ' + msg);
-    if (_earlyBadge) {
-      _earlyBadge.textContent = '✗ NET: ' + msg;
-      _earlyBadge.style.borderColor = 'rgba(217, 85, 42, 0.7)';
-      _earlyBadge.style.color = '#D9552A';
-      _earlyBadge.style.background = 'rgba(217, 85, 42, 0.15)';
-      _earlyBadge.style.opacity = '1';
-    }
-  }
+  // ---- Guards ----
   if (!window.firebase || !window.firebase.database) {
-    _guardFail('Firebase SDK not loaded');
+    B.fail('NET: no Firebase SDK');
     return;
   }
   if (!window.CCOFirebaseConfig || window.CCOFirebaseConfig.apiKey === 'PASTE_YOUR_API_KEY') {
-    _guardFail('Firebase config not set');
+    B.fail('NET: no config');
     return;
   }
-  if (!window.Engine || !Engine.setNetworkHooks) {
-    _guardFail('Engine missing setNetworkHooks');
+  if (!window.Engine) {
+    B.fail('NET: no Engine');
+    return;
+  }
+  if (!Engine.setNetworkHooks) {
+    B.fail('NET: Engine missing hooks');
     return;
   }
 
   // ---- Initialize Firebase ----
-  var app = firebase.initializeApp(window.CCOFirebaseConfig);
-  var db  = firebase.database();
+  var app, db;
+  try {
+    app = firebase.initializeApp(window.CCOFirebaseConfig);
+    db  = firebase.database();
+  } catch (err) {
+    B.fail('NET init: ' + (err.message || err));
+    return;
+  }
 
   // ---- Session tracking ----
-  // The session may not be known yet (e.g., startex.html before the user
-  // clicks STARTEX). We install hooks and the badge immediately, and bind
-  // Firebase listeners once a real session is available. If the session IS
-  // already known (e.g., trainer.html#session=XYZ), we bind right away.
-  var _boundSession = null;  // the session code we're actively syncing
-  var _listeners = [];       // { ref, event, fn } — for cleanup if rebinding
+  var _boundSession = null;
+  var _listeners = [];
 
-  function stateRef()            { return db.ref('sessions/' + _boundSession + '/state'); }
-  function outboxRef()           { return db.ref('sessions/' + _boundSession + '/outbox'); }
-  function presenceRef(cid)      { return db.ref('sessions/' + _boundSession + '/presence/' + cid); }
-  function presenceRootRef()     { return db.ref('sessions/' + _boundSession + '/presence'); }
-  function configRef()           { return db.ref('sessions/' + _boundSession + '/config'); }
+  function stateRef()        { return db.ref('sessions/' + _boundSession + '/state'); }
+  function outboxRef()       { return db.ref('sessions/' + _boundSession + '/outbox'); }
+  function presenceRef(cid)  { return db.ref('sessions/' + _boundSession + '/presence/' + cid); }
+  function presenceRootRef() { return db.ref('sessions/' + _boundSession + '/presence'); }
+  function configRef()       { return db.ref('sessions/' + _boundSession + '/config'); }
 
-  // ---- Timestamp tracking to ignore own echoes ----
+  // ---- Echo prevention ----
   var _lastWrittenUpdate = 0;
 
   // ---- Outbound hooks (engine → Firebase) ----
-  // Installed immediately so the engine can relay writes the moment a
-  // session binds. If _boundSession is null, writes are silently skipped.
-
   Engine.setNetworkHooks({
-
     onStateWrite: function (sessionCode, snap) {
       if (!_boundSession) return;
       _lastWrittenUpdate = snap._lastUpdate || Date.now();
       stateRef().set(snap).catch(function (e) {
-        console.warn('[firebase-storage] state write failed:', e);
+        console.warn('[firebase] state write fail:', e);
       });
     },
-
     onOutboxWrite: function (sessionCode, list) {
       if (!_boundSession) return;
       outboxRef().set(list).catch(function (e) {
-        console.warn('[firebase-storage] outbox write failed:', e);
+        console.warn('[firebase] outbox write fail:', e);
       });
     },
-
     onPresenceWrite: function (sessionCode, clientId, payload) {
       if (!_boundSession) return;
       var ref = presenceRef(clientId);
       ref.set(payload).catch(function (e) {
-        console.warn('[firebase-storage] presence write failed:', e);
+        console.warn('[firebase] presence write fail:', e);
       });
       ref.onDisconnect().remove().catch(function () {});
     },
-
     onPresenceStop: function (sessionCode, clientId) {
       if (!_boundSession) return;
       presenceRef(clientId).remove().catch(function () {});
     }
-
   });
 
   // ---- Bind Firebase listeners for a session ----
   function bindSession(code) {
     if (!code || code === 'default') return;
-    if (code === _boundSession) return; // already bound
+    if (code === _boundSession) return;
 
-    // Tear down previous listeners if re-binding
     unbindListeners();
-
     _boundSession = code;
-    console.log('[firebase-storage] Binding to session: ' + code);
-    updateBadge();
+    console.log('[firebase] Binding session: ' + code);
+    B.live('● NET · ' + code);
 
-    // --- Inbound: state ---
+    // Inbound: state
     var stateCb = function (snapshot) {
       var val = snapshot.val();
       if (!val) return;
@@ -143,7 +118,7 @@
     stateRef().on('value', stateCb);
     _listeners.push({ ref: stateRef(), event: 'value', fn: stateCb });
 
-    // --- Inbound: outbox ---
+    // Inbound: outbox
     var outboxCb = function (snapshot) {
       var val = snapshot.val();
       if (!val || !Array.isArray(val) || val.length === 0) return;
@@ -155,27 +130,27 @@
     outboxRef().on('value', outboxCb);
     _listeners.push({ ref: outboxRef(), event: 'value', fn: outboxCb });
 
-    // --- Inbound: presence ---
-    var pAddCb = function (snap) {
+    // Inbound: presence
+    var pAdd = function (snap) {
       var p = snap.val();
       if (p && p.clientId) Engine.applyRemotePresence(p.clientId, p);
     };
-    var pChangeCb = function (snap) {
+    var pChange = function (snap) {
       var p = snap.val();
       if (p && p.clientId) Engine.applyRemotePresence(p.clientId, p);
     };
-    var pRemoveCb = function (snap) {
+    var pRemove = function (snap) {
       var p = snap.val();
       if (p && p.clientId) Engine.removeRemotePresence(p.clientId);
     };
-    presenceRootRef().on('child_added',   pAddCb);
-    presenceRootRef().on('child_changed', pChangeCb);
-    presenceRootRef().on('child_removed', pRemoveCb);
-    _listeners.push({ ref: presenceRootRef(), event: 'child_added',   fn: pAddCb });
-    _listeners.push({ ref: presenceRootRef(), event: 'child_changed', fn: pChangeCb });
-    _listeners.push({ ref: presenceRootRef(), event: 'child_removed', fn: pRemoveCb });
+    presenceRootRef().on('child_added', pAdd);
+    presenceRootRef().on('child_changed', pChange);
+    presenceRootRef().on('child_removed', pRemove);
+    _listeners.push({ ref: presenceRootRef(), event: 'child_added', fn: pAdd });
+    _listeners.push({ ref: presenceRootRef(), event: 'child_changed', fn: pChange });
+    _listeners.push({ ref: presenceRootRef(), event: 'child_removed', fn: pRemove });
 
-    // --- Inbound: config ---
+    // Inbound: config
     var configCb = function (snapshot) {
       var val = snapshot.val();
       if (!val) return;
@@ -188,7 +163,7 @@
     configRef().on('value', configCb);
     _listeners.push({ ref: configRef(), event: 'value', fn: configCb });
 
-    // --- Initial state sync ---
+    // Initial state sync — take newer of local vs remote
     stateRef().once('value').then(function (snapshot) {
       var val = snapshot.val();
       if (val && val._lastUpdate) {
@@ -198,13 +173,13 @@
           try { localUpdate = JSON.parse(localRaw)._lastUpdate || 0; } catch (e) {}
         }
         if (val._lastUpdate > localUpdate) {
-          console.log('[firebase-storage] Remote state is newer — applying.');
+          console.log('[firebase] Remote state is newer — applying.');
           Engine.applyRemoteState(val);
         }
       }
     });
 
-    // --- Seed config to Firebase ---
+    // Seed config to Firebase
     var localConfig = null;
     try {
       var raw = localStorage.getItem('cco-capstone-config:' + code) ||
@@ -213,7 +188,7 @@
     } catch (e) {}
     if (localConfig) {
       configRef().set(localConfig).catch(function (e) {
-        console.warn('[firebase-storage] config seed failed:', e);
+        console.warn('[firebase] config seed fail:', e);
       });
     }
   }
@@ -225,47 +200,16 @@
     _listeners = [];
   }
 
-  // ---- Visual indicator ----
-  // Reuse the badge net-loader.js already created, or make a new one.
-  var badge = document.getElementById('cco-net-badge');
-  if (!badge) {
-    badge = document.createElement('div');
-    badge.id = 'cco-net-badge';
-    badge.style.cssText = [
-      'position:fixed', 'bottom:8px', 'right:8px', 'z-index:99999',
-      'background:rgba(79,195,215,0.18)', 'border:1px solid rgba(79,195,215,0.5)',
-      'color:#4FC3D7', 'font-size:10px', 'font-family:monospace',
-      'padding:3px 8px', 'border-radius:4px', 'letter-spacing:1px',
-      'pointer-events:none'
-    ].join(';');
-    document.body.appendChild(badge);
-  }
+  // ---- Show standby badge ----
+  B.ok('● NET (standby)');
 
-  function updateBadge() {
-    if (_boundSession) {
-      badge.textContent = '● NET';
-      badge.title = 'Firebase relay active — session ' + _boundSession;
-      badge.style.opacity = '1';
-    } else {
-      badge.textContent = '● NET (standby)';
-      badge.title = 'Firebase loaded — waiting for session';
-      badge.style.opacity = '0.5';
-    }
-  }
-  updateBadge();
-
-  // ---- Auto-bind if session is already known ----
+  // ---- Auto-bind if session already known ----
   var currentSession = Engine.getSession();
   if (currentSession && currentSession !== 'default') {
     bindSession(currentSession);
   }
 
   // ---- Watch for session changes ----
-  // When startex.html creates a new session via Engine.setSession(), or
-  // when the user clicks a launch link and opens trainer.html, the
-  // session code becomes available. We poll Engine.getSession() briefly
-  // to catch the transition. Also listen for engine:prelaunch which fires
-  // after startex creates the session.
   if (!_boundSession) {
     var pollCount = 0;
     var pollTimer = setInterval(function () {
@@ -275,11 +219,9 @@
         bindSession(s);
         clearInterval(pollTimer);
       }
-      // Stop polling after 5 minutes — if no session by then, give up.
       if (pollCount > 300) clearInterval(pollTimer);
     }, 1000);
 
-    // Also catch the prelaunch event (fired by startex after session is set)
     document.addEventListener('engine:prelaunch', function () {
       var s = Engine.getSession();
       if (s && s !== 'default' && s !== _boundSession) {
@@ -289,11 +231,13 @@
     });
   }
 
-  // ---- Expose bindSession globally so startex can trigger it ----
+  // ---- Expose for manual binding ----
   window.CCOFirebaseBind = bindSession;
 
-  console.log('[firebase-storage] Adapter loaded. Hooks installed.' +
+  // ---- Signal to net-loader that we finished OK ----
+  window._ccoFirebaseAdapterReady = true;
+
+  console.log('[firebase] Adapter ready.' +
     (_boundSession ? ' Bound to ' + _boundSession + '.' : ' Waiting for session.'));
 
-  } // end _initFirebase
 })();

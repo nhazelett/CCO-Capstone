@@ -11,17 +11,16 @@
 (function () {
   'use strict';
 
-  // Check for net=1 in query string OR hash (hash is easier to pass around
-  // when the session code is already in the hash).
+  // Check for net=1 in query string OR hash
   var search = location.search || '';
   var hash   = location.hash   || '';
-  var netOn  = /[?&]net=1/.test(search) || /[&?]net=1/.test(hash);
+  var netOn  = /[?&]net=1/.test(search) || /[?&]net=1/.test(hash);
 
-  if (!netOn) return; // Local mode — do nothing.
+  if (!netOn) return;
 
   console.log('[net-loader] Network mode requested. Loading Firebase...');
 
-  // -- Immediate visual badge so we know net-loader ran --
+  // -- Badge: visible immediately so we know net-loader ran --
   var badge = document.createElement('div');
   badge.id = 'cco-net-badge';
   badge.style.cssText = [
@@ -32,29 +31,68 @@
     'pointer-events:none', 'opacity:0.5'
   ].join(';');
   badge.textContent = '● NET loading…';
-  badge.title = 'net-loader detected ?net=1 — loading Firebase SDK';
   document.body.appendChild(badge);
 
-  // Firebase compat SDK v10 (compat = works with firebase.database() etc.)
-  var FIREBASE_VERSION = '10.12.2';
-  var CDN = 'https://www.gstatic.com/firebasejs/' + FIREBASE_VERSION;
+  function badgeOk(msg)   {
+    badge.textContent = msg;
+    badge.style.opacity = '0.5';
+    badge.style.color = '#4FC3D7';
+    badge.style.borderColor = 'rgba(79,195,215,0.5)';
+    badge.style.background = 'rgba(79,195,215,0.18)';
+  }
+  function badgeLive(msg)  {
+    badge.textContent = msg;
+    badge.style.opacity = '1';
+    badge.style.color = '#4FC3D7';
+    badge.style.borderColor = 'rgba(79,195,215,0.5)';
+    badge.style.background = 'rgba(79,195,215,0.18)';
+  }
+  function badgeFail(msg) {
+    badge.textContent = '✗ ' + msg;
+    badge.style.opacity = '1';
+    badge.style.color = '#D9552A';
+    badge.style.borderColor = 'rgba(217,85,42,0.7)';
+    badge.style.background = 'rgba(217,85,42,0.15)';
+  }
+
+  // Expose badge helpers globally so firebase-storage.js can use them
+  window._ccoNetBadge = { ok: badgeOk, live: badgeLive, fail: badgeFail };
+
+  // Firebase compat SDK v10
+  var CDN = 'https://www.gstatic.com/firebasejs/10.12.2';
 
   var scripts = [
     { src: CDN + '/firebase-app-compat.js',      label: 'firebase-app' },
     { src: CDN + '/firebase-database-compat.js',  label: 'firebase-db' },
-    { src: 'js/firebase-config.js',               label: 'firebase-config' },
-    { src: 'js/firebase-storage.js',              label: 'firebase-storage' }
+    { src: 'js/firebase-config.js',               label: 'config' },
+    { src: 'js/firebase-storage.js',              label: 'adapter' }
   ];
 
-  // Load scripts sequentially (each depends on the previous one).
   function loadNext(i) {
     if (i >= scripts.length) {
-      console.log('[net-loader] All Firebase scripts loaded.');
-      // firebase-storage.js handles badge from here — update or remove ours
-      // only if firebase-storage.js didn't create its own (it replaces ours).
+      console.log('[net-loader] All scripts loaded.');
+
+      // Verify firebase-storage.js actually ran by checking for its flag
+      setTimeout(function () {
+        if (!window._ccoFirebaseAdapterReady) {
+          // Adapter script loaded but IIFE didn't finish — something crashed.
+          // Try to diagnose what's available:
+          var diag = [];
+          if (!window.firebase)                   diag.push('no firebase global');
+          else if (!window.firebase.database)     diag.push('no firebase.database');
+          if (!window.CCOFirebaseConfig)           diag.push('no config');
+          if (!window.Engine)                      diag.push('no Engine');
+          else if (!Engine.setNetworkHooks)        diag.push('Engine missing hooks');
+          if (diag.length === 0)                   diag.push('unknown — check console');
+          badgeFail('adapter init failed: ' + diag.join(', '));
+        }
+      }, 500);
+
       return;
     }
-    badge.textContent = '● NET ' + scripts[i].label + '…';
+
+    badgeOk('● NET ' + scripts[i].label + '…');
+
     var s = document.createElement('script');
     s.src = scripts[i].src;
     s.onload = function () {
@@ -62,18 +100,13 @@
       loadNext(i + 1);
     };
     s.onerror = function () {
-      console.error('[net-loader] FAILED to load: ' + scripts[i].src);
-      badge.textContent = '✗ NET fail: ' + scripts[i].label;
-      badge.style.borderColor = 'rgba(217, 85, 42, 0.7)';
-      badge.style.color = '#D9552A';
-      badge.style.background = 'rgba(217, 85, 42, 0.15)';
-      badge.style.opacity = '1';
-      // Stop the chain — can't proceed without dependencies.
+      console.error('[net-loader] FAILED: ' + scripts[i].src);
+      badgeFail('NET fail: ' + scripts[i].label);
     };
     document.head.appendChild(s);
   }
 
-  // Wait for Engine to be defined (it's in engine.js which loads before us).
+  // Wait for Engine
   if (window.Engine) {
     loadNext(0);
   } else {
@@ -83,7 +116,9 @@
       if (window.Engine || tries > 50) {
         clearInterval(poll);
         if (!window.Engine) {
-          console.error('[net-loader] Engine never appeared after 2.5s — loading anyway.');
+          console.error('[net-loader] Engine not found after 2.5s.');
+          badgeFail('NET: Engine not found');
+          return;
         }
         loadNext(0);
       }
