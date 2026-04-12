@@ -333,13 +333,15 @@ let _presenceTickInterval = null;
 
         // Find any unfired inject with an alarm field (IM-29 is the primary)
         const alarmInject = s.injects.find(i => i.alarm && !s.fired.has(i.id));
+        let firedId;
         if (alarmInject) {
-          Engine.fireInjectById(alarmInject.id);
+          firedId = alarmInject.id;
+          Engine.fireInjectById(firedId);
         } else {
           // All alarm injects already fired — create an ad-hoc one
-          const adHocId = 'ADHOC-ALARM-' + Date.now();
+          firedId = 'ADHOC-ALARM-' + Date.now();
           s.injects.push({
-            id: adHocId,
+            id: firedId,
             title: 'Ad-hoc ALARM RED',
             alarm: {
               title: 'ALARM RED',
@@ -352,13 +354,17 @@ let _presenceTickInterval = null;
             sms_items: [],
             expected_actions: []
           });
-          Engine.fireInjectById(adHocId);
+          Engine.fireInjectById(firedId);
         }
+
+        // Register alarm fired for response tracking
+        Engine.registerAlarmFired(firedId);
 
         // Start cooldown
         setBombCooldown();
         updateBombBtn();
         renderAll();
+        renderKIAPanel();
       });
 
       document.getElementById('bomb-confirm-no').addEventListener('click', () => {
@@ -447,6 +453,7 @@ function renderAll() {
   renderActionQueue();
   renderInjectFocus();
   renderObserverStrip();
+  renderKIAPanel();
 }
 
 // v0.2.9: Observer strip — a persistent reminder at the top of the trainer
@@ -1465,3 +1472,202 @@ function esc(s) {
 
 // expose for inline onclick
 window.closeModal = closeModal;
+
+/* ==========================================================================
+   v0.2.14: KIA / ALARM RESPONSE PANEL
+   Always-visible personnel status panel. Shows every player with a KILL
+   button so white cell / observer can remove anyone at any time (e.g.
+   someone carrying the team). Also shows alarm response tracking when
+   an alarm is active.
+   ========================================================================== */
+
+let _kiaRefreshTimer = null;
+
+function renderKIAPanel() {
+  const panel = document.getElementById('kia-panel');
+  const body = document.getElementById('kia-panel-body');
+  if (!panel || !body) return;
+
+  const s = Engine.getState();
+  const responses = s.alarm_responses || {};
+  const kiaRoster = s.kia_roster || {};
+  const students = (s.config && s.config.students) || [];
+
+  // Always show the panel once the exercise has students
+  if (students.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = '';
+
+  // Find the most recent alarm (if any)
+  const alarmIds = Object.keys(responses);
+  let latestAlarmId = null;
+  let latestFired = 0;
+  alarmIds.forEach(id => {
+    const r = responses[id];
+    if (r.firedAtWall > latestFired) { latestFired = r.firedAtWall; latestAlarmId = id; }
+  });
+
+  const nowWall = Date.now();
+  const DEATH_MS = 240000; // 4 minutes
+
+  let html = '';
+
+  // Alarm banner (only if an alarm is active)
+  if (latestAlarmId) {
+    const alarm = responses[latestAlarmId];
+    const elapsed = nowWall - alarm.firedAtWall;
+    const elapsedStr = formatElapsed(elapsed);
+
+    html += `<div style="padding:8px 12px;border-bottom:1px solid #2a0a0a;font-size:11px;color:#FF6B6B;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;display:flex;justify-content:space-between;align-items:center;">
+      <span>ALARM RED ACTIVE</span>
+      <span style="font-family:monospace;color:#FFCDD2;">${elapsedStr} elapsed</span>
+    </div>`;
+  }
+
+  // Build player rows — always shown
+  students.forEach(st => {
+    const isKIA = !!kiaRoster[st.id];
+    const kiaInfo = kiaRoster[st.id];
+
+    // Check alarm response if alarm is active
+    const alarmResp = latestAlarmId && responses[latestAlarmId].responses
+      ? responses[latestAlarmId].responses[st.id]
+      : null;
+
+    let statusColor, statusText, statusIcon, actions;
+
+    if (isKIA) {
+      if (kiaInfo.replacedBy) {
+        statusColor = '#666';
+        statusIcon = '&#x1F480;';
+        statusText = `KIA — replaced by ${esc(kiaInfo.replacedBy)}`;
+        actions = `<button class="kia-action-btn kia-revive" data-player="${esc(st.id)}" title="Undo KIA">Revive</button>`;
+      } else {
+        statusColor = '#FF1744';
+        statusIcon = '&#x1F480;';
+        statusText = 'KIA — awaiting replacement';
+        actions = `
+          <button class="kia-action-btn kia-replace" data-player="${esc(st.id)}" title="Assign replacement">Replace</button>
+          <button class="kia-action-btn kia-revive" data-player="${esc(st.id)}" title="Undo KIA">Revive</button>
+        `;
+      }
+    } else if (alarmResp && alarmResp.acked) {
+      statusColor = '#4CAF50';
+      statusIcon = '&#x2713;';
+      statusText = `Ack'd alarm${alarmResp.ackedAtExercise ? ' @ ' + alarmResp.ackedAtExercise : ''}`;
+      actions = `<button class="kia-action-btn kia-kill" data-player="${esc(st.id)}" title="Kill this player">Kill</button>`;
+    } else if (alarmResp && alarmResp.dead) {
+      statusColor = '#FF6B35';
+      statusIcon = '&#x26A0;';
+      statusText = 'Failed alarm response (4min)';
+      actions = `<button class="kia-action-btn kia-mark" data-player="${esc(st.id)}" data-alarm="${esc(latestAlarmId)}" title="Mark as KIA">Mark KIA</button>`;
+    } else if (latestAlarmId) {
+      // Alarm active, no response yet
+      const alarm = responses[latestAlarmId];
+      const remaining = Math.max(0, DEATH_MS - (nowWall - alarm.firedAtWall));
+      if (remaining > 0) {
+        const remainStr = formatElapsed(remaining);
+        statusColor = remaining < 60000 ? '#FF6B35' : '#FFC107';
+        statusIcon = '&#x23F3;';
+        statusText = `No response — ${remainStr} to KIA`;
+      } else {
+        statusColor = '#FF6B35';
+        statusIcon = '&#x26A0;';
+        statusText = 'Failed alarm response (4min)';
+      }
+      actions = `<button class="kia-action-btn kia-mark" data-player="${esc(st.id)}" data-alarm="${esc(latestAlarmId)}" title="Mark as KIA">Mark KIA</button>`;
+    } else {
+      // No alarm — normal state, just show a kill button
+      statusColor = '#4CAF50';
+      statusIcon = '&#x25CF;';
+      statusText = 'Active';
+      actions = `<button class="kia-action-btn kia-kill" data-player="${esc(st.id)}" title="Kill this player">Kill</button>`;
+    }
+
+    html += `
+      <div class="kia-player-row" style="border-bottom:1px solid #1a0808;">
+        <div class="kia-player-info">
+          <span class="kia-player-dot" style="background:${st.color || '#888'};"></span>
+          <span class="kia-player-name">${esc(st.name)}</span>
+        </div>
+        <div class="kia-player-status" style="color:${statusColor};">
+          <span class="kia-status-icon">${statusIcon}</span>
+          <span class="kia-status-text">${statusText}</span>
+        </div>
+        <div class="kia-player-actions">${actions || ''}</div>
+      </div>
+    `;
+  });
+
+  body.innerHTML = html;
+
+  // Wire event handlers
+  body.querySelectorAll('.kia-mark').forEach(btn => {
+    btn.addEventListener('click', () => {
+      Engine.markKIA(btn.dataset.player, btn.dataset.alarm);
+      renderKIAPanel();
+    });
+  });
+
+  body.querySelectorAll('.kia-kill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pid = btn.dataset.player;
+      const st = students.find(s => s.id === pid);
+      const confirmed = confirm(`Kill ${st ? st.name : pid}? Their screen will go black.`);
+      if (confirmed) {
+        Engine.markKIA(pid, null);
+        renderKIAPanel();
+      }
+    });
+  });
+
+  body.querySelectorAll('.kia-revive').forEach(btn => {
+    btn.addEventListener('click', () => {
+      Engine.revivePlayer(btn.dataset.player);
+      renderKIAPanel();
+    });
+  });
+
+  body.querySelectorAll('.kia-replace').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pid = btn.dataset.player;
+      const st = students.find(s => s.id === pid);
+      const name = prompt(`Enter replacement name for ${st ? st.name : pid}:`);
+      if (name && name.trim()) {
+        Engine.replacePlayer(pid, name.trim());
+        renderKIAPanel();
+      }
+    });
+  });
+
+  // Auto-refresh every second while an alarm is active (for live countdown)
+  if (latestAlarmId && !_kiaRefreshTimer) {
+    _kiaRefreshTimer = setInterval(() => {
+      const s2 = Engine.getState();
+      const r2 = s2.alarm_responses || {};
+      if (Object.keys(r2).length > 0) {
+        renderKIAPanel();
+      } else {
+        clearInterval(_kiaRefreshTimer);
+        _kiaRefreshTimer = null;
+      }
+    }, 1000);
+  }
+}
+
+function formatElapsed(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// Wire alarm response events
+document.addEventListener('engine:alarm-response', renderKIAPanel);
+document.addEventListener('engine:kia-updated', renderKIAPanel);
+document.addEventListener('engine:sync', () => {
+  Engine.outboxDrain();
+  renderKIAPanel();
+});

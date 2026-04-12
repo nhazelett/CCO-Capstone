@@ -236,7 +236,19 @@ const Engine = (function () {
     // Shape: [{ injectId, inboxItemId, role_tag, firedAtMinutes,
     //           firedAtDisplay, resolvedAtMinutes, resolvedAtDisplay,
     //           resolvedByStudentId }]
-    unclaimedInjects: []
+    unclaimedInjects: [],
+
+    // v0.2.14: alarm response tracking + KIA system.
+    // alarm_responses — per-alarm, per-player acknowledgement log.
+    // Shape: { [alarmInjectId]: { firedAtWall: ms, responses: {
+    //   [playerId]: { acked: bool, ackedAtWall: ms, ackedAtExercise: str,
+    //                 deadAtWall: ms (set after 4min unack) } } } }
+    alarm_responses: {},
+
+    // kia_roster — players marked killed-in-action by white cell.
+    // Shape: { [playerId]: { markedAt: ms, markedAtExercise: str,
+    //   alarmId: str|null, replacedBy: str|null, replacedAt: ms|null } }
+    kia_roster: {}
   };
 
   // ----- Content loaders -----
@@ -1067,6 +1079,8 @@ const Engine = (function () {
         paused: state.paused,
         session: state.session || { phase: 'pre-exercise', phaseStartedAt: null, launchedAt: null },
         unclaimedInjects: state.unclaimedInjects || [],
+        alarm_responses: state.alarm_responses || {},
+        kia_roster: state.kia_roster || {},
         _lastUpdate: Date.now()
       };
       localStorage.setItem(stateKey(), JSON.stringify(snap));
@@ -1120,6 +1134,9 @@ const Engine = (function () {
         : { phase: 'pre-exercise', phaseStartedAt: null, launchedAt: null };
       // v0.2.12: unclaimed injects tray (empty on legacy state blobs)
       state.unclaimedInjects = Array.isArray(s.unclaimedInjects) ? s.unclaimedInjects : [];
+      // v0.2.14: alarm response tracking + KIA roster
+      state.alarm_responses = (s.alarm_responses && typeof s.alarm_responses === 'object') ? s.alarm_responses : {};
+      state.kia_roster = (s.kia_roster && typeof s.kia_roster === 'object') ? s.kia_roster : {};
 
       // Only start a local tick interval if NOT in read-only mode.
       // Read-only consumers (phone, student) should never run the clock
@@ -1221,6 +1238,28 @@ const Engine = (function () {
           });
           appliedCount++;
           dispatch('engine:trainer-queue-updated', { entry: state.trainer_queue[0] });
+        }
+      } else if (entry.kind === 'alarm-ack') {
+        // Student/mobile reporting alarm acknowledgement (or 4-min death)
+        const aId = entry.alarmInjectId;
+        const pId = entry.playerId;
+        if (aId && pId) {
+          if (!state.alarm_responses[aId]) {
+            state.alarm_responses[aId] = { firedAtWall: entry.firedAtWall || Date.now(), responses: {} };
+          }
+          const resp = state.alarm_responses[aId].responses;
+          if (!resp[pId]) resp[pId] = {};
+          if (entry.acked) {
+            resp[pId].acked = true;
+            resp[pId].ackedAtWall = entry.ackedAtWall || Date.now();
+            resp[pId].ackedAtExercise = entry.ackedAtExercise || '';
+          }
+          if (entry.dead) {
+            resp[pId].dead = true;
+            resp[pId].deadAtWall = entry.deadAtWall || Date.now();
+          }
+          appliedCount++;
+          dispatch('engine:alarm-response', { alarmInjectId: aId, playerId: pId });
         }
       } else if (entry.kind === 'sms-out') {
         // Student replying to a text thread. Push as an outbound bubble on
@@ -1486,6 +1525,84 @@ const Engine = (function () {
     return out;
   }
 
+  // ----- v0.2.14: Alarm response + KIA management -----
+
+  // Write an alarm-ack entry to the outbox (safe from read-only student/mobile).
+  function alarmAckOut(payload) {
+    if (!payload || !payload.alarmInjectId || !payload.playerId) return;
+    const entry = {
+      kind: 'alarm-ack',
+      alarmInjectId: payload.alarmInjectId,
+      playerId: payload.playerId,
+      acked: !!payload.acked,
+      dead: !!payload.dead,
+      ackedAtWall: payload.ackedAtWall || Date.now(),
+      ackedAtExercise: payload.ackedAtExercise || '',
+      firedAtWall: payload.firedAtWall || Date.now(),
+      deadAtWall: payload.deadAtWall || null
+    };
+    try {
+      const raw = localStorage.getItem(outboxKey());
+      const arr = raw ? JSON.parse(raw) : [];
+      arr.push(entry);
+      localStorage.setItem(outboxKey(), JSON.stringify(arr));
+    } catch (e) { console.warn('alarmAckOut write fail:', e); }
+    // If we happen to be the trainer (not read-only), drain immediately.
+    if (!state.readOnly) outboxDrain();
+  }
+
+  // Register that an alarm inject has fired (trainer calls this so the
+  // response tracker knows when the clock started).
+  function registerAlarmFired(alarmInjectId) {
+    if (state.readOnly) return;
+    if (!state.alarm_responses[alarmInjectId]) {
+      state.alarm_responses[alarmInjectId] = {
+        firedAtWall: Date.now(),
+        responses: {}
+      };
+    }
+    saveState();
+  }
+
+  // Trainer marks a player as KIA.
+  function markKIA(playerId, alarmId) {
+    if (state.readOnly) return;
+    if (!state.kia_roster) state.kia_roster = {};
+    state.kia_roster[playerId] = {
+      markedAt: Date.now(),
+      markedAtExercise: getExerciseTime().displayString || '',
+      alarmId: alarmId || null,
+      replacedBy: null,
+      replacedAt: null
+    };
+    saveState();
+    dispatch('engine:kia-updated', { playerId });
+  }
+
+  // Trainer revives a KIA'd player (undo).
+  function revivePlayer(playerId) {
+    if (state.readOnly) return;
+    if (state.kia_roster && state.kia_roster[playerId]) {
+      delete state.kia_roster[playerId];
+      saveState();
+      dispatch('engine:kia-updated', { playerId });
+    }
+  }
+
+  // Trainer replaces a KIA'd player with a new name.
+  function replacePlayer(deadPlayerId, replacementName) {
+    if (state.readOnly) return;
+    if (!state.kia_roster || !state.kia_roster[deadPlayerId]) return;
+    state.kia_roster[deadPlayerId].replacedBy = replacementName;
+    state.kia_roster[deadPlayerId].replacedAt = Date.now();
+    saveState();
+    dispatch('engine:kia-updated', { playerId: deadPlayerId, replacedBy: replacementName });
+  }
+
+  function getAlarmResponses() { return state.alarm_responses || {}; }
+  function getKIARoster() { return state.kia_roster || {}; }
+  function isPlayerKIA(playerId) { return !!(state.kia_roster && state.kia_roster[playerId]); }
+
   // ----- Public API -----
   return {
     loadInjects, loadPhoneScript, loadContacts,
@@ -1520,6 +1637,10 @@ const Engine = (function () {
     setNetworkHooks, isNetworked,
     applyRemoteState, applyRemoteOutbox,
     applyRemotePresence, removeRemotePresence,
+    // v0.2.14 alarm response + KIA system
+    alarmAckOut, registerAlarmFired,
+    markKIA, revivePlayer, replacePlayer,
+    getAlarmResponses, getKIARoster, isPlayerKIA,
     getState: () => state,
     getContacts: () => state.contacts,
     getContact: (id) => state.contacts.find((c) => c.id === id),

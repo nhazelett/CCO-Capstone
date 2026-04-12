@@ -793,7 +793,10 @@ let mobileAlarmCtx = null;
 let mobileAlarmOsc = [];
 let mobileAlarmSnoozeTimer = null;
 let mobileAlarmCountdownTimer = null;
+let mobileAlarmDeathTimer = null;
+let mobileAlarmFiredAtWall = null;
 const MOBILE_ALARM_SNOOZE_SEC = 60;  // silence between siren bursts
+const MOBILE_ALARM_DEATH_SEC = 240;  // 4 minutes → KIA
 
 function mobileStartSiren() {
   try {
@@ -858,6 +861,25 @@ function mobileShowAlarm(alarm, injectId) {
 
   // Stash config for snooze replays
   window._mobileAlarmConfig = { alarm, injectId };
+
+  // Start the 4-minute death countdown
+  mobileAlarmFiredAtWall = Date.now();
+  if (mobileAlarmDeathTimer) clearTimeout(mobileAlarmDeathTimer);
+  mobileAlarmDeathTimer = setTimeout(() => {
+    if (!mobileAlarmActive) return;
+    // Player dead — report via outbox
+    const identity = Engine.readIdentityFromLocation ? Engine.readIdentityFromLocation() : null;
+    const playerId = identity || 'unknown-mobile';
+    Engine.alarmAckOut({
+      alarmInjectId: injectId,
+      playerId: playerId,
+      acked: false,
+      dead: true,
+      firedAtWall: mobileAlarmFiredAtWall,
+      deadAtWall: Date.now()
+    });
+    mobileShowKIAOverlay();
+  }, MOBILE_ALARM_DEATH_SEC * 1000);
 
   // Start the first siren burst
   mobileAlarmStartBurst();
@@ -977,9 +999,82 @@ function mobileAcknowledgeAlarm() {
   mobileAlarmActive = false;
   if (mobileAlarmCountdownTimer) { clearInterval(mobileAlarmCountdownTimer); mobileAlarmCountdownTimer = null; }
   if (mobileAlarmSnoozeTimer) { clearInterval(mobileAlarmSnoozeTimer); mobileAlarmSnoozeTimer = null; }
+  if (mobileAlarmDeathTimer) { clearTimeout(mobileAlarmDeathTimer); mobileAlarmDeathTimer = null; }
   mobileStopSiren();
   mobileAlarmClearVisuals();
+
+  // Report ack to trainer via outbox
+  const cfg = window._mobileAlarmConfig;
+  if (cfg) {
+    const identity = Engine.readIdentityFromLocation ? Engine.readIdentityFromLocation() : null;
+    const playerId = identity || 'unknown-mobile';
+    const exTime = Engine.getExerciseTime ? Engine.getExerciseTime() : null;
+    Engine.alarmAckOut({
+      alarmInjectId: cfg.injectId,
+      playerId: playerId,
+      acked: true,
+      dead: false,
+      firedAtWall: mobileAlarmFiredAtWall || Date.now(),
+      ackedAtWall: Date.now(),
+      ackedAtExercise: exTime ? exTime.displayString : ''
+    });
+  }
+
   window._mobileAlarmConfig = null;
+  mobileAlarmFiredAtWall = null;
+
+  // Remove KIA overlay if present
+  const kiaEl = document.getElementById('mobile-kia-overlay');
+  if (kiaEl) kiaEl.remove();
+}
+
+// KIA death screen for mobile
+function mobileShowKIAOverlay() {
+  if (document.getElementById('mobile-kia-overlay')) return;
+  mobileStopSiren();
+  mobileAlarmClearVisuals();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'mobile-kia-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 100000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #000; color: #666;
+    user-select: none; text-align: center; padding: 24px;
+  `;
+  overlay.innerHTML = `
+    <svg viewBox="0 0 100 100" fill="none" style="width:80px;height:80px;margin-bottom:20px;opacity:0.4;">
+      <line x1="20" y1="20" x2="80" y2="80" stroke="#FF1744" stroke-width="6" stroke-linecap="round"/>
+      <line x1="80" y1="20" x2="20" y2="80" stroke="#FF1744" stroke-width="6" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:28px;font-weight:900;color:#FF1744;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px;">KIA</div>
+    <div style="font-size:14px;color:#888;max-width:320px;line-height:1.5;margin-bottom:12px;">You failed to acknowledge the alarm within 4 minutes.</div>
+    <div style="font-size:12px;color:#555;max-width:320px;line-height:1.5;">Await instructions from White Cell.</div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+// Check if trainer marked us KIA or revived us
+function mobileCheckKIA() {
+  const s = Engine.getState();
+  const identity = Engine.readIdentityFromLocation ? Engine.readIdentityFromLocation() : null;
+  if (!identity) return;
+
+  const kia = s.kia_roster && s.kia_roster[identity];
+  if (kia && !document.getElementById('mobile-kia-overlay')) {
+    mobileShowKIAOverlay();
+  }
+  if (!kia && document.getElementById('mobile-kia-overlay')) {
+    document.getElementById('mobile-kia-overlay').remove();
+    mobileAlarmActive = false;
+    if (mobileAlarmCountdownTimer) { clearInterval(mobileAlarmCountdownTimer); mobileAlarmCountdownTimer = null; }
+    if (mobileAlarmSnoozeTimer) { clearInterval(mobileAlarmSnoozeTimer); mobileAlarmSnoozeTimer = null; }
+    if (mobileAlarmDeathTimer) { clearTimeout(mobileAlarmDeathTimer); mobileAlarmDeathTimer = null; }
+    mobileStopSiren();
+    mobileAlarmClearVisuals();
+    window._mobileAlarmConfig = null;
+    mobileAlarmFiredAtWall = null;
+  }
 }
 
 function mobileCheckAlarms() {
@@ -999,3 +1094,5 @@ function mobileCheckAlarms() {
 document.addEventListener('engine:sync', mobileCheckAlarms);
 document.addEventListener('engine:inject-fired', mobileCheckAlarms);
 setInterval(mobileCheckAlarms, 2000);
+// Poll for KIA status from trainer
+setInterval(mobileCheckKIA, 3000);

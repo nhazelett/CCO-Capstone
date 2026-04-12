@@ -1646,7 +1646,10 @@ let alarmCheckInterval = null;
 let alarmFiredInjects = new Set();
 let alarmSnoozeTimer = null;
 let alarmCountdownTimer = null;
+let alarmDeathTimer = null;     // 4-minute KIA countdown
+let alarmFiredAtWall = null;    // wall-clock ms when alarm first fired
 const ALARM_SNOOZE_SEC = 60;    // silence between siren bursts
+const ALARM_DEATH_SEC = 240;    // 4 minutes → player is dead
 
 // Web Audio siren — two detuned oscillators swept between freqs
 function startAlarmAudio() {
@@ -1732,6 +1735,26 @@ function showAlarmOverlay(alarm, injectId) {
       renderPhoneBadges();
     }
   }
+
+  // Start the 4-minute death countdown
+  alarmFiredAtWall = Date.now();
+  if (alarmDeathTimer) clearTimeout(alarmDeathTimer);
+  alarmDeathTimer = setTimeout(() => {
+    if (!alarmActive) return; // already acknowledged
+    // Player failed to acknowledge within 4 minutes — mark dead
+    const persona = typeof currentPersona === 'object' ? currentPersona : null;
+    const playerId = persona ? persona.id : 'unknown';
+    Engine.alarmAckOut({
+      alarmInjectId: injectId,
+      playerId: playerId,
+      acked: false,
+      dead: true,
+      firedAtWall: alarmFiredAtWall,
+      deadAtWall: Date.now()
+    });
+    // Show death screen (alarm loop continues but overlaid with KIA)
+    showKIAOverlay();
+  }, ALARM_DEATH_SEC * 1000);
 
   // Start the first siren burst
   alarmStartBurst();
@@ -1872,9 +1895,33 @@ function acknowledgeAlarm() {
   alarmActive = false;
   if (alarmCountdownTimer) { clearInterval(alarmCountdownTimer); alarmCountdownTimer = null; }
   if (alarmSnoozeTimer) { clearInterval(alarmSnoozeTimer); alarmSnoozeTimer = null; }
+  if (alarmDeathTimer) { clearTimeout(alarmDeathTimer); alarmDeathTimer = null; }
   stopAlarmAudio();
   alarmClearVisuals();
+
+  // Report acknowledgement to trainer via outbox
+  const cfg = window._alarmConfig;
+  if (cfg) {
+    const persona = typeof currentPersona === 'object' ? currentPersona : null;
+    const playerId = persona ? persona.id : 'unknown';
+    const exTime = Engine.getExerciseTime ? Engine.getExerciseTime() : null;
+    Engine.alarmAckOut({
+      alarmInjectId: cfg.injectId,
+      playerId: playerId,
+      acked: true,
+      dead: false,
+      firedAtWall: alarmFiredAtWall || Date.now(),
+      ackedAtWall: Date.now(),
+      ackedAtExercise: exTime ? exTime.displayString : ''
+    });
+  }
+
   window._alarmConfig = null;
+  alarmFiredAtWall = null;
+
+  // Remove KIA overlay if somehow present (acknowledged before death but after KIA marker)
+  const kiaEl = document.getElementById('kia-overlay');
+  if (kiaEl) kiaEl.remove();
 }
 
 // Check if any fired inject has an alarm field that hasn't been triggered yet
@@ -1897,6 +1944,61 @@ function initAlarmSystem() {
   document.addEventListener('engine:sync', checkForAlarmInjects);
   document.addEventListener('engine:inject-fired', checkForAlarmInjects);
   alarmCheckInterval = setInterval(checkForAlarmInjects, 2000);
+  // Also poll for KIA status (trainer may mark us dead)
+  setInterval(checkKIAStatus, 3000);
+}
+
+// Show the KIA death screen — player failed to acknowledge within 4 minutes
+function showKIAOverlay() {
+  if (document.getElementById('kia-overlay')) return;
+
+  // Kill the alarm loop visuals/audio but keep alarmActive true
+  stopAlarmAudio();
+  alarmClearVisuals();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'kia-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 100000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #000; color: #666;
+    user-select: none; text-align: center; padding: 32px;
+  `;
+  overlay.innerHTML = `
+    <svg viewBox="0 0 100 100" fill="none" style="width:100px;height:100px;margin-bottom:24px;opacity:0.4;">
+      <line x1="20" y1="20" x2="80" y2="80" stroke="#FF1744" stroke-width="6" stroke-linecap="round"/>
+      <line x1="80" y1="20" x2="20" y2="80" stroke="#FF1744" stroke-width="6" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:clamp(32px,6vw,56px);font-weight:900;color:#FF1744;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;">KIA</div>
+    <div style="font-size:clamp(14px,2.5vw,18px);color:#888;max-width:400px;line-height:1.5;margin-bottom:12px;">You failed to acknowledge the alarm within 4 minutes.</div>
+    <div style="font-size:clamp(12px,2vw,14px);color:#555;max-width:400px;line-height:1.5;">Await instructions from White Cell. You may be replaced or reassigned.</div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+// Check if the trainer has marked us as KIA (via kia_roster in state)
+function checkKIAStatus() {
+  const s = Engine.getState();
+  const persona = typeof currentPersona === 'object' ? currentPersona : null;
+  if (!persona) return;
+
+  const kia = s.kia_roster && s.kia_roster[persona.id];
+  if (kia && !document.getElementById('kia-overlay')) {
+    showKIAOverlay();
+  }
+  // If trainer revived us, remove the KIA overlay
+  if (!kia && document.getElementById('kia-overlay')) {
+    document.getElementById('kia-overlay').remove();
+    // Also fully reset alarm state so they can continue
+    alarmActive = false;
+    if (alarmCountdownTimer) { clearInterval(alarmCountdownTimer); alarmCountdownTimer = null; }
+    if (alarmSnoozeTimer) { clearInterval(alarmSnoozeTimer); alarmSnoozeTimer = null; }
+    if (alarmDeathTimer) { clearTimeout(alarmDeathTimer); alarmDeathTimer = null; }
+    stopAlarmAudio();
+    alarmClearVisuals();
+    window._alarmConfig = null;
+    alarmFiredAtWall = null;
+  }
 }
 
 function kdriveOpenShopTracker() {
