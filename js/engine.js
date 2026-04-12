@@ -1518,3 +1518,6 @@ const Engine = (function () {
     resolveTriggers
   };
 })();
+
+// Expose on window so dynamically-loaded scripts (firebase-storage.js) can find it.
+if (typeof window !== 'undefined') window.Engine = Engine;
