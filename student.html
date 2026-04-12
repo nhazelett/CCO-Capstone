@@ -28,6 +28,7 @@
     <a href="student.html" class="active">Student</a>
     <a href="inspector.html">Inspector</a>
     <a href="mobile.html">Mobile</a>
+    <a href="builder.html">Builder</a>
   </nav>
   <div class="topbar-right">
     <div class="status-pill live">
@@ -39,7 +40,7 @@
 
 <div class="student-main">
 
-  <!-- v0.2.8: Persona bar — shows which roster member is at this workstation -->
+  <!-- v0.2.8: Persona bar — who is at this workstation + compact exercise clock -->
   <div class="persona-bar" id="persona-bar">
     <div class="persona-bar-left">
       <div class="persona-avatar" id="persona-avatar">??</div>
@@ -48,144 +49,89 @@
         <div class="persona-bar-name" id="persona-bar-name">—</div>
       </div>
     </div>
+    <div class="persona-bar-clock">
+      <div class="micro">Exercise clock</div>
+      <div class="mono ambient-clock-compact" id="ambient-clock">STANDBY</div>
+      <div class="ambient-sub" id="ambient-sub">FOS Eagle Crest</div>
+    </div>
     <div class="persona-bar-right">
       <div class="persona-bar-roles" id="persona-bar-roles"></div>
-      <button class="btn btn-sm" id="persona-switch-btn">Switch persona</button>
+      <button class="btn btn-sm" id="persona-switch-btn">Switch</button>
     </div>
   </div>
 
-  <!-- Top strip: ambient widgets -->
-  <div class="ambient-strip">
-    <div class="ambient-card">
-      <div class="ambient-label micro">Exercise clock · local</div>
-      <div class="ambient-value mono" id="ambient-clock">D1 08:00</div>
-      <div class="ambient-sub" id="ambient-sub">FOS Eagle Crest · GMT+4</div>
-    </div>
-    <div class="ambient-card">
-      <div class="ambient-label micro">Tarkana · Eagle Crest</div>
-      <div class="ambient-value">
-        <span class="mono">31°</span>
-        <span class="ambient-icon">☀</span>
-      </div>
-      <div class="ambient-sub">Clear · Wind 12 kt · Dust advisory</div>
-    </div>
-    <div class="ambient-card">
-      <div class="ambient-label micro">Wing Ops · 455 AEW (P)</div>
-      <div class="ambient-value">
-        <span style="color: var(--good); font-size: 18px;">●</span>
-        <span style="font-size: 16px; font-weight: 500;">Green</span>
-      </div>
-      <div class="ambient-sub">14 sorties · DEFCON 4</div>
-    </div>
-    <div class="ambient-card">
-      <div class="ambient-label micro">Day progress</div>
-      <div class="ambient-value mono" id="ambient-progress">08:00 / 17:00</div>
-      <div class="ambient-progress-bar">
-        <div class="ambient-progress-fill" id="progress-fill" style="width: 0%;"></div>
-      </div>
-    </div>
-  </div>
+  <!-- v0.2.9: Three-column layout — Emails/Texts | Reading pane | Notes -->
+  <div class="student-grid-v2">
 
-  <!-- Main layout: mail + side rail -->
-  <div class="student-grid">
+    <!-- LEFT: emails list on top, texts list below -->
+    <aside class="student-left-col">
 
-    <!-- MAIL (Outlook-style) -->
-    <div class="panel mail-panel">
-      <div class="mail-panel-header">
-        <div class="mail-panel-title">
-          <div class="micro">Inbox · MSgt Ramirez</div>
-          <h3>Messages</h3>
+      <div class="panel inbox-panel">
+        <div class="panel-header panel-header-tight">
+          <div class="panel-header-title">
+            <div class="micro">Inbox</div>
+            <div class="title">Emails</div>
+          </div>
+          <span class="mono muted" id="mail-count" style="font-size: 11px;">0</span>
         </div>
-        <div class="mail-panel-meta">
-          <span id="mail-count" class="mono">0 messages</span>
-        </div>
-      </div>
-
-      <div class="mail-layout">
-        <!-- Left: list -->
-        <div class="mail-col-list" id="mail-col-list">
-          <div class="mail-empty-state">
-            <div class="mail-empty-icon">
-              <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="12" width="36" height="24" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 14l18 12L42 14" stroke="currentColor" stroke-width="1.5"/></svg>
+        <div class="panel-body panel-body-tight">
+          <div class="mail-col-list" id="mail-col-list">
+            <div class="mail-empty-state">
+              <div class="mail-empty-icon">
+                <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="12" width="36" height="24" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 14l18 12L42 14" stroke="currentColor" stroke-width="1.5"/></svg>
+              </div>
+              <div class="mail-empty-title">No messages</div>
+              <div class="mail-empty-desc">Inbox will populate as the exercise runs.</div>
             </div>
-            <div class="mail-empty-title">No messages</div>
-            <div class="mail-empty-desc">Inbox will populate as the exercise runs.</div>
           </div>
         </div>
-        <!-- Right: detail -->
-        <div class="mail-col-detail" id="mail-col-detail">
-          <div class="mail-detail-empty">
+      </div>
+
+      <div class="panel texts-panel">
+        <div class="panel-header panel-header-tight">
+          <div class="panel-header-title">
+            <div class="micro">SMS</div>
+            <div class="title">Texts</div>
+          </div>
+          <span class="mono muted" id="texts-count" style="font-size: 11px;">0</span>
+        </div>
+        <div class="panel-body panel-body-tight">
+          <div class="texts-list" id="texts-list">
+            <div class="muted text-center" style="padding: 24px 16px; font-size: 12px;">
+              No SMS threads yet.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- MIDDLE: reading pane (email OR SMS thread) -->
+    <main class="student-reading-col">
+      <div class="panel reading-panel">
+        <div id="reading-pane" class="reading-pane">
+          <div class="reading-empty">
             <div class="micro">Select a message</div>
-            <p>Click a message from the list to read it here.</p>
+            <p>Click an email or SMS thread from the left column to read it here.</p>
           </div>
         </div>
       </div>
-    </div>
+    </main>
 
-    <!-- Right rail -->
-    <div class="student-rail">
-
-      <!-- v0.2.7: Student response panel — capture action, authority, rationale -->
-      <div class="panel response-panel">
-        <div class="panel-header">
+    <!-- RIGHT: notes scratchpad -->
+    <aside class="student-notes-col">
+      <div class="panel notes-panel">
+        <div class="panel-header panel-header-tight">
           <div class="panel-header-title">
-            <div class="micro">My response</div>
-            <div class="title" id="response-title">Select a message</div>
-          </div>
-          <span class="autosave-hint" id="response-hint">—</span>
-        </div>
-        <div class="panel-body panel-body-tight" id="response-body">
-          <div class="muted text-center" style="padding: 24px 16px; font-size: 12px;">
-            Click a message in your inbox to log your response. What you write here is visible to the inspector during grading.
-          </div>
-        </div>
-      </div>
-
-      <!-- Notifications feed -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-header-title">
-            <div class="micro">Notifications</div>
-            <div class="title">Activity feed</div>
-          </div>
-          <span class="mono muted" id="notif-count" style="font-size: 11px;">0</span>
-        </div>
-        <div class="panel-body panel-body-tight">
-          <div class="notif-feed" id="notif-feed">
-            <div class="muted text-center" style="padding: 32px 16px; font-size: 12px;">Quiet. Activity will appear here.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pushed documents -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-header-title">
-            <div class="micro">Pushed documents</div>
-            <div class="title">Reference tray</div>
+            <div class="micro">Scratchpad</div>
+            <div class="title" id="notes-header">Notes</div>
           </div>
         </div>
         <div class="panel-body panel-body-tight">
-          <div class="doc-list" id="doc-list">
-            <div class="muted text-center" style="padding: 24px 16px; font-size: 12px;">No documents pushed yet.</div>
-          </div>
+          <textarea id="notes-textarea" class="notes-textarea" placeholder="Free-text notes. Autosaves to this laptop per persona."></textarea>
         </div>
       </div>
-
-      <!-- Wing roster quick reference -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-header-title">
-            <div class="micro">Quick contacts</div>
-            <div class="title">Wing key personnel</div>
-          </div>
-        </div>
-        <div class="panel-body panel-body-tight">
-          <div class="qc-list" id="qc-list"></div>
-        </div>
-      </div>
-
-    </div>
+    </aside>
 
   </div>
 </div>
@@ -206,6 +152,7 @@
 </div>
 
 <script src="content/content-bundle.js"></script>
+<script src="js/scenario-loader.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/student.js"></script>
 </body>

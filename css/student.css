@@ -73,7 +73,7 @@
   transition: width 1s var(--ease);
 }
 
-/* ----- Main grid ----- */
+/* ----- Legacy grid (kept for compatibility) ----- */
 
 .student-grid {
   display: grid;
@@ -90,6 +90,388 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+/* ==========================================================================
+   v0.2.9 — Three-column student layout (Emails/Texts | Reading | Notes)
+   ========================================================================== */
+
+.student-grid-v2 {
+  display: grid;
+  grid-template-columns: 340px 1fr 320px;
+  gap: 16px;
+  align-items: stretch;
+  min-height: calc(100vh - 180px);
+}
+
+@media (max-width: 1300px) {
+  .student-grid-v2 { grid-template-columns: 300px 1fr 280px; }
+}
+@media (max-width: 1100px) {
+  .student-grid-v2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.student-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+.student-left-col .inbox-panel { flex: 1 1 60%; display: flex; flex-direction: column; min-height: 260px; }
+.student-left-col .texts-panel { flex: 1 1 40%; display: flex; flex-direction: column; min-height: 200px; }
+.student-left-col .panel-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.student-reading-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.student-reading-col .reading-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.student-notes-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.student-notes-col .notes-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.student-notes-col .panel-body { flex: 1 1 auto; display: flex; }
+
+.panel-header-tight {
+  padding: 12px 16px;
+}
+
+/* ----- Reading pane ----- */
+
+.reading-pane {
+  padding: 22px 26px 26px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.reading-empty {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+.reading-empty .micro { margin-bottom: 8px; display: block; }
+.reading-empty p { margin: 0; font-size: 12px; max-width: 280px; margin: 0 auto; }
+
+/* ----- Persona bar compact clock ----- */
+
+.persona-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.persona-bar-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 16px;
+  border-left: 1px solid var(--line-soft);
+  border-right: 1px solid var(--line-soft);
+  min-width: 140px;
+}
+.persona-bar-clock .ambient-clock-compact {
+  font-size: 18px;
+  color: var(--text-bright);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.persona-bar-clock .ambient-sub {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* ----- Texts list ----- */
+
+.texts-list {
+  display: flex;
+  flex-direction: column;
+}
+.texts-row {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line-faint, rgba(255,255,255,0.05));
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.texts-row:hover { background: rgba(255, 255, 255, 0.03); }
+.texts-row.selected {
+  background: rgba(79, 195, 215, 0.08);
+  border-left: 3px solid var(--accent, #4FC3D7);
+  padding-left: 11px;
+}
+.texts-row.unread .texts-name { color: var(--text-bright); font-weight: 600; }
+
+.texts-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.texts-body { flex: 1 1 auto; min-width: 0; }
+.texts-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.texts-name {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.texts-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.texts-unread-badge {
+  background: var(--accent, #4FC3D7);
+  color: #0b0b0b;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+}
+.texts-preview {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ----- SMS thread detail ----- */
+
+.s-thread-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-faint, rgba(255,255,255,0.06));
+  margin-bottom: 16px;
+}
+.s-thread-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: 13px;
+}
+.s-thread-meta { flex: 1 1 auto; min-width: 0; }
+.s-thread-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.s-thread-title {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.s-thread-count {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.s-thread-bubbles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px;
+}
+.s-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  word-wrap: break-word;
+}
+.s-bubble.in {
+  background: rgba(255, 255, 255, 0.06);
+  align-self: flex-start;
+  border-top-left-radius: 4px;
+  color: var(--text-primary);
+}
+.s-bubble.out {
+  background: rgba(79, 195, 215, 0.18);
+  align-self: flex-end;
+  border-top-right-radius: 4px;
+  color: var(--text-bright);
+}
+.s-bubble-time {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  align-self: flex-end;
+}
+
+.s-thread-note {
+  margin-top: 18px;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+.s-thread-note .micro {
+  display: inline;
+  margin-right: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  color: var(--accent);
+}
+
+/* ----- SMS reply composer (v0.2.10) ----- */
+
+.s-thread-reply {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--bg-raised, rgba(255,255,255,0.02));
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md, 8px);
+}
+.s-thread-reply-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.s-thread-reply-head .micro {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  color: var(--accent);
+}
+.s-thread-reply-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.s-thread-reply-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.s-thread-reply-input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--bg-base);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm, 4px);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+.s-thread-reply-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ----- Email dismiss / close buttons (v0.2.10) ----- */
+
+.s-mail-row { position: relative; }
+.s-mail-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  z-index: 2;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.s-mail-row:hover .s-mail-close { opacity: 1; }
+.s-mail-close:hover {
+  background: var(--bad, #c44);
+  color: #fff;
+  border-color: var(--bad, #c44);
+}
+.s-mail-detail-close {
+  margin-left: auto;
+}
+.s-mail-restore-row {
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid var(--line-faint);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.btn-link-sm {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.btn-link-sm:hover { color: var(--accent-bright, var(--accent)); }
+
+/* ----- Notes pane fills its container ----- */
+
+.student-notes-col .notes-textarea {
+  flex: 1 1 auto;
+  min-height: 100%;
+  height: 100%;
 }
 
 /* ----- Mail panel (Outlook style) ----- */
@@ -1051,3 +1433,186 @@ body.student-body::after {
   background: rgba(245, 184, 69, 0.03);
 }
 .inbox-filter-notice strong { color: #F5B845; }
+
+/* ==========================================================================
+   v0.2.9 — delegation, reply box, notes pane
+   ========================================================================== */
+
+.delegated-from-strip {
+  margin: 10px 0 6px;
+  padding: 8px 12px;
+  background: rgba(245, 184, 69, 0.08);
+  border-left: 3px solid #F5B845;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--text-secondary, #bfa878);
+}
+
+.mail-delegate-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(245, 184, 69, 0.25);
+  border-radius: 4px;
+}
+.mail-delegate-row label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.mail-delegate-row select {
+  flex: 1 1 auto;
+  min-width: 160px;
+  background: #1a1a1a;
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.delegated-note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.mail-reply-box {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(79, 195, 215, 0.04);
+  border: 1px solid rgba(79, 195, 215, 0.25);
+  border-radius: 4px;
+}
+.mail-reply-box .micro {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  color: var(--accent, #4FC3D7);
+  margin-bottom: 6px;
+  display: block;
+}
+.mail-reply-box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #141414;
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  padding: 8px 10px;
+  font-size: 12px;
+  resize: vertical;
+  font-family: inherit;
+}
+.mail-reply-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.notes-panel .notes-textarea {
+  width: 100%;
+  min-height: 160px;
+  box-sizing: border-box;
+  background: #141414;
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  font-family: inherit;
+}
+.notes-panel .notes-textarea:focus {
+  outline: none;
+  border-color: rgba(79, 195, 215, 0.4);
+}
+
+/* ==========================================================================
+   v0.2.12 — Unclaimed inject tray
+   Red warning bar at top of student dashboard. Appears when a leadership-
+   tagged inject fires and no team member has claimed commander / SEL /
+   flight chief / team lead. Auto-hides when a leader is assigned and the
+   engine's retroactiveRouteRefresh() marks the entries resolved.
+   ========================================================================== */
+.unclaimed-tray {
+  margin: 0 16px 12px;
+  padding: 12px 16px;
+  border: 1px solid rgba(229, 107, 61, 0.55);
+  border-left: 3px solid #E56B3D;
+  background: linear-gradient(90deg, rgba(229, 107, 61, 0.14) 0%, rgba(229, 107, 61, 0.04) 100%);
+  border-radius: 6px;
+  box-shadow: 0 0 24px rgba(229, 107, 61, 0.12);
+  animation: unclaimed-pulse 2.4s ease-in-out infinite;
+}
+@keyframes unclaimed-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(229, 107, 61, 0.10); }
+  50%      { box-shadow: 0 0 32px rgba(229, 107, 61, 0.22); }
+}
+.unclaimed-tray-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.unclaimed-tray-flag {
+  font-size: 22px;
+  color: #E56B3D;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.unclaimed-tray-text { flex: 1 1 auto; }
+.unclaimed-tray-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #F5B845;
+  letter-spacing: 0.2px;
+}
+.unclaimed-tray-sub {
+  font-size: 11px;
+  color: rgba(245, 184, 69, 0.7);
+  margin-top: 2px;
+}
+.unclaimed-tray-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border-top: 1px dashed rgba(229, 107, 61, 0.3);
+}
+.unclaimed-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: rgba(232, 237, 243, 0.88);
+  border-bottom: 1px solid rgba(229, 107, 61, 0.12);
+}
+.unclaimed-row:last-child { border-bottom: none; }
+.unclaimed-row-tag {
+  flex: 0 0 auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #E56B3D;
+  background: rgba(229, 107, 61, 0.15);
+  border: 1px solid rgba(229, 107, 61, 0.4);
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+.unclaimed-row-subject {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.unclaimed-row-time {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: rgba(232, 237, 243, 0.5);
+}

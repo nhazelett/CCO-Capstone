@@ -31,7 +31,9 @@
     <a href="index.html">Overview</a>
     <a href="trainer.html">Trainer</a>
     <a href="student.html">Student</a>
+    <a href="inspector.html">Inspector</a>
     <a href="mobile.html" class="active">Mobile</a>
+    <a href="builder.html">Builder</a>
   </nav>
   <div class="desk-chrome-hint">
     <div class="micro">Preview</div>
@@ -161,7 +163,8 @@
         </div>
         <div class="thread-body" id="thread-body"></div>
         <div class="thread-input">
-          <input type="text" placeholder="Reply not available in prototype" disabled>
+          <input type="text" id="thread-reply-text" placeholder="Type a message…" maxlength="320">
+          <button class="thread-send-btn" id="thread-reply-send" title="Send">Send</button>
         </div>
       </div>
 
@@ -249,6 +252,7 @@
 </div>
 
 <script src="content/content-bundle.js"></script>
+<script src="js/scenario-loader.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/mobile.js"></script>
 </body>

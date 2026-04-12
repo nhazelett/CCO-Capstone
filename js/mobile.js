@@ -10,6 +10,34 @@ let currentView = 'home';
 let currentThreadContact = null;
 let currentMailItem = null;
 
+// v0.2.11: mobile kickoff waiting overlay. Sits over the phone screen until
+// the trainer clicks Start Exercise.
+function renderMobileKickoffBanner() {
+  const phase = Engine.getPhase ? Engine.getPhase() : 'cold-open';
+  let overlay = document.getElementById('mobile-kickoff-overlay');
+  if (phase !== 'pre-exercise') {
+    if (overlay) overlay.remove();
+    return;
+  }
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'mobile-kickoff-overlay';
+    overlay.className = 'mobile-kickoff-overlay';
+    document.body.appendChild(overlay);
+  }
+  const code = (Engine.getSession && Engine.getSession()) || 'default';
+  overlay.innerHTML = `
+    <div class="mobile-kickoff-card">
+      <div class="micro micro-accent">Waiting for kickoff</div>
+      <div class="mobile-kickoff-title">Session ${code}</div>
+      <div class="mobile-kickoff-sub">Stand by. Phone goes live when the trainer hits Start.</div>
+      <div class="mobile-kickoff-pulse">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  `;
+}
+
 (async function init() {
   const syncDot = document.getElementById('sync-dot');
 
@@ -24,6 +52,15 @@ let currentMailItem = null;
   // Attempt to load existing state
   const hadState = Engine.loadState();
   Engine.enableSync();
+
+  // v0.2.11: presence heartbeat so the trainer sees the phone joined.
+  if (Engine.startPresence) {
+    Engine.startPresence('phone:main', { role: 'phone', name: 'Phone' });
+  }
+
+  // v0.2.11: kickoff waiting overlay renders if phase === 'pre-exercise'.
+  renderMobileKickoffBanner();
+  document.addEventListener('engine:phase-changed', renderMobileKickoffBanner);
 
   // Set initial sync dot state
   if (syncDot) {
@@ -46,6 +83,7 @@ let currentMailItem = null;
       syncDot.classList.remove('error');
       syncDot.classList.add('connected');
     }
+    renderMobileKickoffBanner();
     renderAll();
   });
   document.addEventListener('engine:sms-received', (e) => {
@@ -78,7 +116,7 @@ let currentMailItem = null;
 
   setInterval(() => {
     try {
-      const raw = localStorage.getItem('cco-capstone-state');
+      const raw = Engine.getRawStateString ? Engine.getRawStateString() : null;
       if (!raw) return;
       if (raw === lastSnapshot) return;
       lastSnapshot = raw;
@@ -389,6 +427,38 @@ function renderThread() {
     const screen = document.getElementById('phone-screen');
     screen.scrollTop = screen.scrollHeight;
   }, 50);
+
+  // Wire reply composer (once). Routes through the outbox side channel.
+  const sendBtn = document.getElementById('thread-reply-send');
+  const input = document.getElementById('thread-reply-text');
+  if (sendBtn && input && !sendBtn.dataset.wired) {
+    sendBtn.dataset.wired = '1';
+    const sendSms = () => {
+      const text = (input.value || '').trim();
+      if (!text) return;
+      const c = Engine.getContact(currentThreadContact);
+      if (!c) return;
+      const out = Engine.studentSmsOut;
+      if (!out) return;
+      out({
+        contactId: c.id,
+        contactName: c.name,
+        text,
+        personaId: (typeof currentPersona !== 'undefined' && currentPersona) ? currentPersona.id : null,
+        personaName: (typeof currentPersona !== 'undefined' && currentPersona) ? currentPersona.name : null
+      });
+      input.value = '';
+      // Quick optimistic refresh — the engine will also fire engine:sync
+      setTimeout(renderThread, 50);
+    };
+    sendBtn.addEventListener('click', sendSms);
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && !ev.shiftKey) {
+        ev.preventDefault();
+        sendSms();
+      }
+    });
+  }
 }
 
 function renderMailList() {
@@ -630,7 +700,7 @@ const DebugDrawer = (function () {
 
     // localStorage snapshot
     try {
-      const raw = localStorage.getItem('cco-capstone-state');
+      const raw = Engine.getRawStateString ? Engine.getRawStateString() : null;
       if (!raw) {
         document.getElementById('debug-ls').innerHTML =
           `<span class="warn">empty — trainer has not started STARTEX</span>`;

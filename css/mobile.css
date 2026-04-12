@@ -672,24 +672,48 @@
   bottom: 16px;
   left: 12px;
   right: 12px;
-  padding: 8px;
+  padding: 4px 4px 4px 8px;
   background: rgba(10, 14, 21, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--line-soft);
   border-radius: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .thread-input input {
+  flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
-  height: 28px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 8px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--text-bright);
 }
 
-.thread-input input:focus { box-shadow: none; background: transparent; }
+.thread-input input::placeholder { color: var(--text-tertiary); }
+.thread-input input:focus { outline: none; box-shadow: none; background: transparent; }
+
+.thread-send-btn {
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 14px;
+  background: var(--accent, #4FC3D7);
+  color: #0a0e15;
+  border: none;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.thread-send-btn:hover { filter: brightness(1.1); }
+.thread-send-btn:active { transform: scale(0.97); }
 
 /* ==========================================================================
    MAIL

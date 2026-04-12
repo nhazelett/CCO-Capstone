@@ -56,12 +56,32 @@
   let currentInspectorId = notes.currentInspectorId || '';
 
   // ---------- Notes persistence ----------
+  // v0.2.10: notes are now KEYED BY OBSERVER. Each inspector gets their own
+  // notes per inject so two observers at the same exercise can grade
+  // independently without overwriting each other's observations. The
+  // on-disk shape is:
+  //   { currentInspectorId: '...', entries: { [injectId]: { [observerId]: note } } }
+  // Legacy single-note entries (pre-v0.2.10) are migrated into the 'legacy'
+  // observer slot so nothing is lost.
+  const LEGACY_OBSERVER_ID = 'legacy';
+
   function loadNotes() {
     try {
       const raw = localStorage.getItem(NOTES_KEY);
       if (!raw) return { currentInspectorId: '', entries: {} };
       const parsed = JSON.parse(raw);
-      return { currentInspectorId: parsed.currentInspectorId || '', entries: parsed.entries || {} };
+      const entries = parsed.entries || {};
+      // Migrate: old shape was entries[injectId] = { checked, comment, ... }.
+      // New shape is entries[injectId][observerId] = { checked, comment, ... }.
+      // We detect the old shape by looking for a top-level `checked` key.
+      Object.keys(entries).forEach(k => {
+        const v = entries[k];
+        if (v && typeof v === 'object' && (v.checked !== undefined || v.score !== undefined || v.comment !== undefined)) {
+          const legacyObserver = v.inspector || LEGACY_OBSERVER_ID;
+          entries[k] = { [legacyObserver]: v };
+        }
+      });
+      return { currentInspectorId: parsed.currentInspectorId || '', entries };
     } catch (e) {
       return { currentInspectorId: '', entries: {} };
     }
@@ -74,18 +94,44 @@
     } catch (e) { console.error('[inspector] save fail:', e); }
   }
 
+  // All notes for an inject keyed by observer id.
+  function notesForInject(injectId) {
+    if (!notes.entries[injectId]) notes.entries[injectId] = {};
+    return notes.entries[injectId];
+  }
+
+  // The current observer's note for an inject — the one this session can
+  // edit. If no inspector is selected we fall back to a shared 'unassigned'
+  // bucket so the UI is still usable during dev.
   function noteFor(injectId) {
-    if (!notes.entries[injectId]) {
-      notes.entries[injectId] = {
-        checked: {},    // observation id -> true
+    const byObs = notesForInject(injectId);
+    const obs = currentInspectorId || 'unassigned';
+    if (!byObs[obs]) {
+      byObs[obs] = {
+        checked: {},
         comment: '',
         flagged: false,
-        score: '',       // '', 'GO', 'NO-GO'
-        inspector: currentInspectorId,
+        score: '',
+        inspector: obs,
         updatedAt: null,
       };
     }
-    return notes.entries[injectId];
+    return byObs[obs];
+  }
+
+  // Aggregate state across all observers for a given inject — used by the
+  // stream view so the list still reflects "has anyone graded/flagged this
+  // yet?" even when multiple observers are working in parallel.
+  function aggregateFor(injectId) {
+    const byObs = notesForInject(injectId);
+    const observers = Object.values(byObs);
+    if (observers.length === 0) return { score: '', flagged: false, graded: false, count: 0 };
+    return {
+      score: (observers.find(o => o.score) || {}).score || '',
+      flagged: observers.some(o => o.flagged),
+      graded: observers.some(o => o.score || (o.comment && o.comment.trim()) || Object.keys(o.checked || {}).some(k => o.checked[k])),
+      count: observers.length
+    };
   }
 
   // ---------- Inspector selector ----------
@@ -104,7 +150,9 @@
     inspectors.forEach(i => {
       const opt = document.createElement('option');
       opt.value = i.id;
-      opt.textContent = i.name + ' · ' + i.role;
+      // v0.2.10: inspector roster no longer carries a role/title field —
+      // just the name. Fall back to the id suffix if no name is set.
+      opt.textContent = i.name || i.id;
       ui.inspectorSel.appendChild(opt);
     });
     if (currentInspectorId) ui.inspectorSel.value = currentInspectorId;
@@ -113,6 +161,9 @@
   ui.inspectorSel.addEventListener('change', () => {
     currentInspectorId = ui.inspectorSel.value;
     saveNotes();
+    // v0.2.10: switching observers swaps the whole editing surface to that
+    // person's notes for the currently-selected inject.
+    render();
   });
 
   // ---------- Engine hookup ----------
@@ -120,13 +171,35 @@
     Engine.setReadOnly(true);
     Engine.enableSync();
 
-    // Load content bundle (contacts/injects/phone scripts)
-    const configRaw = localStorage.getItem(CONFIG_KEY);
+    // v0.2.11: prefer session-scoped config (launched via new flow). Fall
+    // back to the legacy shared key for backward compat.
+    const sessionCode = (Engine.getSession && Engine.getSession()) || 'default';
+    let configRaw = localStorage.getItem(CONFIG_KEY + ':' + sessionCode);
+    if (!configRaw) configRaw = localStorage.getItem(CONFIG_KEY);
     if (!configRaw) {
       ui.exerciseStat.textContent = 'No config — launch STARTEX first';
       return;
     }
     const cfg = JSON.parse(configRaw);
+
+    // v0.2.11: identity hint from URL hash → pre-select this observer.
+    if (Engine.readIdentityFromLocation) {
+      const ident = Engine.readIdentityFromLocation();
+      if (ident && ident.type === 'inspector' && ident.id) {
+        currentInspectorId = ident.id;
+      }
+    }
+
+    // v0.2.11: start presence heartbeat.
+    if (Engine.startPresence) {
+      const identObj = (cfg.inspectors || []).find(o => o.id === currentInspectorId);
+      const pid = 'inspector:' + (currentInspectorId || 'unassigned');
+      Engine.startPresence(pid, {
+        role: 'inspector',
+        name: identObj ? identObj.name : 'Observer',
+        identity: pid
+      });
+    }
 
     // Load all injects in the bundle (not just scenario-scoped), because
     // when new injects fire we want their metadata available.
@@ -139,8 +212,44 @@
       Engine.loadContacts(),
     ]).then(() => {
       Engine.loadState();
+      renderInspectorKickoffBanner();
+      document.addEventListener('engine:phase-changed', renderInspectorKickoffBanner);
+      document.addEventListener('engine:sync', () => {
+        renderInspectorKickoffBanner();
+        render();
+      });
       render();
     });
+  }
+
+  function renderInspectorKickoffBanner() {
+    const phase = Engine.getPhase ? Engine.getPhase() : 'cold-open';
+    let overlay = document.getElementById('inspector-kickoff-overlay');
+    if (phase !== 'pre-exercise') {
+      if (overlay) overlay.remove();
+      return;
+    }
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'inspector-kickoff-overlay';
+      overlay.className = 'kickoff-overlay kickoff-overlay-student';
+      document.body.appendChild(overlay);
+    }
+    const code = (Engine.getSession && Engine.getSession()) || 'default';
+    overlay.innerHTML = `
+      <div class="kickoff-card kickoff-card-student">
+        <div class="kickoff-head">
+          <div class="micro micro-accent">Waiting for kickoff</div>
+          <h1 class="kickoff-title">Observer dashboard — standing by.</h1>
+          <p class="kickoff-sub">Session <span class="session-code mono">${code}</span>. Once the trainer hits Start, injects will begin streaming and you'll see students' activity live.</p>
+        </div>
+        <div class="kickoff-student-spinner">
+          <div class="kickoff-pulse"></div>
+          <div class="kickoff-pulse"></div>
+          <div class="kickoff-pulse"></div>
+        </div>
+      </div>
+    `;
   }
 
   // ---------- Rendering ----------
@@ -148,6 +257,94 @@
     renderStream();
     renderHeader();
     renderGrade();
+    renderRoleGapLog();
+  }
+
+  // v0.2.12: ROLE_GAP observation log. Reads state.unclaimedInjects and
+  // renders a compact bar below the inspector header strip. Each row shows
+  // the fired inject subject, the time it fired, and either "UNRESOLVED (Xm
+  // and counting)" in red or "resolved after Xm by <student>" in amber.
+  // Persists for grading even after gaps close — inspectors need the gap
+  // duration at debrief.
+  function renderRoleGapLog() {
+    if (!Engine.listUnclaimedHistory) return;
+    const history = Engine.listUnclaimedHistory();
+    let bar = document.getElementById('inspector-role-gap-log');
+    if (!history || history.length === 0) {
+      if (bar) bar.remove();
+      return;
+    }
+    if (!bar) {
+      const main = document.querySelector('.inspector-main');
+      const strip = document.querySelector('.inspector-header-strip');
+      if (!main || !strip) return;
+      bar = document.createElement('div');
+      bar.id = 'inspector-role-gap-log';
+      bar.className = 'role-gap-log';
+      if (strip.nextSibling) {
+        main.insertBefore(bar, strip.nextSibling);
+      } else {
+        main.appendChild(bar);
+      }
+    }
+
+    // Current exercise minutes, used to compute "and counting" for live gaps.
+    let nowMin = null;
+    try { nowMin = Engine.getExerciseTime().totalMinutes; } catch (e) {}
+
+    const state = Engine.getState();
+    const cfg = state.config || {};
+    const studentName = (id) => {
+      const s = (cfg.students || []).find(x => x.id === id);
+      return s ? s.name : id || '?';
+    };
+
+    const unresolvedCount = history.filter(e => !e.resolvedAtMinutes).length;
+    const rows = history
+      .slice()
+      .sort((a, b) => (a.firedAtMinutes || 0) - (b.firedAtMinutes || 0))
+      .map(e => {
+        const subj = escHtml(e.subject || 'Leadership action');
+        const fired = escHtml(e.firedAtDisplay || '—');
+        let statusHtml;
+        if (e.resolvedAtMinutes) {
+          const dur = Math.max(0, (e.resolvedAtMinutes - (e.firedAtMinutes || 0)));
+          statusHtml = `<span class="role-gap-status role-gap-resolved">resolved after ${dur}m by ${escHtml(studentName(e.resolvedByStudentId))}</span>`;
+        } else if (nowMin != null && e.firedAtMinutes != null) {
+          const dur = Math.max(0, nowMin - e.firedAtMinutes);
+          statusHtml = `<span class="role-gap-status role-gap-open">UNRESOLVED — ${dur}m and counting</span>`;
+        } else {
+          statusHtml = `<span class="role-gap-status role-gap-open">UNRESOLVED</span>`;
+        }
+        return `
+          <li class="role-gap-row">
+            <span class="role-gap-tag">ROLE_GAP</span>
+            <span class="role-gap-subject">${subj}</span>
+            <span class="role-gap-time mono">${fired}</span>
+            ${statusHtml}
+          </li>
+        `;
+      }).join('');
+
+    const headCount = unresolvedCount > 0
+      ? `<strong class="role-gap-open">${unresolvedCount} live</strong> · ${history.length} total`
+      : `${history.length} total · all resolved`;
+
+    bar.innerHTML = `
+      <div class="role-gap-head">
+        <div class="role-gap-flag">⚠</div>
+        <div class="role-gap-head-text">
+          <div class="role-gap-title">Role gap log</div>
+          <div class="role-gap-sub mono">${headCount}</div>
+        </div>
+      </div>
+      <ul class="role-gap-list">${rows}</ul>
+    `;
+  }
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
   }
 
   function renderHeader() {
@@ -164,11 +361,12 @@
   }
 
   function countGraded() {
-    return Object.values(notes.entries).filter(n => n.score || Object.keys(n.checked || {}).some(k => n.checked[k]) || (n.comment && n.comment.trim())).length;
+    // An inject is "graded" if at least one observer left any trace on it.
+    return Object.keys(notes.entries).filter(id => aggregateFor(id).graded).length;
   }
 
   function countFlagged() {
-    return Object.values(notes.entries).filter(n => n.flagged).length;
+    return Object.keys(notes.entries).filter(id => aggregateFor(id).flagged).length;
   }
 
   function firedInjects() {
@@ -186,9 +384,9 @@
   function renderStream() {
     const list = firedInjects();
     const filtered = list.filter(inj => {
-      const n = notes.entries[inj.id];
-      if (streamFilter === 'ungraded') return !n || !n.score;
-      if (streamFilter === 'flagged')  return n && n.flagged;
+      const agg = aggregateFor(inj.id);
+      if (streamFilter === 'ungraded') return !agg.score;
+      if (streamFilter === 'flagged')  return agg.flagged;
       return true;
     });
 
@@ -211,7 +409,8 @@
 
     ui.stream.innerHTML = '';
     filtered.forEach(inj => {
-      const n = notes.entries[inj.id];
+      const agg = aggregateFor(inj.id);
+      const myNote = currentInspectorId ? (notesForInject(inj.id)[currentInspectorId] || null) : null;
       const item = document.createElement('div');
       item.className = 'stream-item' + (inj.id === selectedInjectId ? ' active' : '');
       item.dataset.injectId = inj.id;
@@ -230,10 +429,12 @@
 
       const status = document.createElement('div');
       status.className = 'stream-status';
-      if (n && n.score) {
+      // Show MY score first (so this observer sees their own state clearly);
+      // fall back to ungraded if I haven't touched it yet.
+      if (myNote && myNote.score) {
         const scoreBadge = document.createElement('span');
         scoreBadge.className = 'stream-badge graded';
-        scoreBadge.textContent = n.score;
+        scoreBadge.textContent = myNote.score;
         status.appendChild(scoreBadge);
       } else {
         const un = document.createElement('span');
@@ -241,11 +442,31 @@
         un.textContent = 'Ungraded';
         status.appendChild(un);
       }
-      if (n && n.flagged) {
+      if (myNote && myNote.flagged) {
         const flg = document.createElement('span');
         flg.className = 'stream-badge flagged';
         flg.textContent = 'Flagged';
         status.appendChild(flg);
+      }
+      // v0.2.10: how many OTHER observers have weighed in on this inject?
+      const otherCount = Object.keys(notesForInject(inj.id)).filter(id => id !== currentInspectorId && id !== 'unassigned').length;
+      if (otherCount > 0) {
+        const co = document.createElement('span');
+        co.className = 'stream-badge co-observed';
+        co.textContent = `+${otherCount} other${otherCount === 1 ? '' : 's'}`;
+        co.title = 'Other observers have also logged notes on this inject';
+        status.appendChild(co);
+      }
+      // v0.2.9 (post-pivot): the trainer flags each inject complete or
+      // incomplete from the Active Feed card; the observer sees that
+      // flag right next to their own grading state so the two views
+      // stay in agreement on "did this inject get handled?"
+      const injStatus = Engine.getInjectStatus ? Engine.getInjectStatus(inj.id) : null;
+      if (injStatus) {
+        const s2 = document.createElement('span');
+        s2.className = 'stream-badge trainer-' + injStatus;
+        s2.textContent = injStatus === 'complete' ? 'Trainer ✓' : 'Trainer ✗';
+        status.appendChild(s2);
       }
       item.appendChild(status);
 
@@ -294,6 +515,20 @@
       return;
     }
 
+    // v0.2.10: refuse to show the editing surface until an observer has been
+    // picked — otherwise their comments would land in the shared 'unassigned'
+    // bucket and get mixed with everyone else's work.
+    if (!currentInspectorId) {
+      ui.gradeBody.innerHTML = `
+        <div class="grade-empty">
+          <div class="micro">Who's observing?</div>
+          <p>Pick your name from the <strong>Pick inspector…</strong> dropdown in the header. Your notes and scores will be stamped with your id so co-observers don't overwrite each other.</p>
+        </div>`;
+      ui.gradeTitle.textContent = 'Pick an observer first';
+      ui.gradeStatus.innerHTML = '';
+      return;
+    }
+
     const state = Engine.getState();
     const inj = state.injects.find(i => i.id === selectedInjectId);
     if (!inj) {
@@ -302,10 +537,18 @@
     }
 
     const n = noteFor(inj.id);
+    const allForInj = notesForInject(inj.id);
+    const otherObservers = Object.keys(allForInj).filter(id => id !== currentInspectorId && id !== 'unassigned');
+    const meName = (loadInspectorsFromConfig().find(i => i.id === currentInspectorId) || {}).name || currentInspectorId;
     ui.gradeTitle.textContent = `${inj.id} · ${inj.title || ''}`;
-    ui.gradeStatus.innerHTML = n.score
+    const otherPill = otherObservers.length > 0
+      ? ` <span class="grade-status-pill co-observed">${otherObservers.length} co-observer${otherObservers.length === 1 ? '' : 's'}</span>`
+      : '';
+    ui.gradeStatus.innerHTML = (n.score
       ? `<span class="grade-status-pill graded">${escapeHtml(n.score)}</span>`
-      : `<span class="grade-status-pill">Ungraded</span>`;
+      : `<span class="grade-status-pill">Ungraded</span>`) +
+      ` <span class="grade-status-pill observer-label">${escapeHtml(meName)}</span>` +
+      otherPill;
 
     ui.gradeBody.innerHTML = '';
 
@@ -524,10 +767,28 @@
   });
 
   ui.btnReset.addEventListener('click', () => {
-    if (confirm('Clear all inspector notes? This cannot be undone.')) {
-      notes = { currentInspectorId: currentInspectorId, entries: {} };
+    // v0.2.10: reset only clears the CURRENT observer's notes by default,
+    // so one observer resetting doesn't nuke their co-observers' work.
+    if (!currentInspectorId) {
+      if (confirm('No observer selected — clear ALL inspector notes across ALL observers? This cannot be undone.')) {
+        notes = { currentInspectorId: currentInspectorId, entries: {} };
+        saveNotes();
+        selectedInjectId = null;
+        render();
+      }
+      return;
+    }
+    const meName = (loadInspectorsFromConfig().find(i => i.id === currentInspectorId) || {}).name || currentInspectorId;
+    if (confirm(`Clear only ${meName}'s notes? Other observers' notes will be preserved.`)) {
+      Object.keys(notes.entries).forEach(injId => {
+        if (notes.entries[injId] && notes.entries[injId][currentInspectorId]) {
+          delete notes.entries[injId][currentInspectorId];
+        }
+        if (notes.entries[injId] && Object.keys(notes.entries[injId]).length === 0) {
+          delete notes.entries[injId];
+        }
+      });
       saveNotes();
-      selectedInjectId = null;
       render();
     }
   });
@@ -535,24 +796,24 @@
   ui.btnExport.addEventListener('click', exportNotes);
 
   function exportNotes() {
-    const state = Engine.getState();
     const lines = [];
+    const inspectorsCfg = loadInspectorsFromConfig();
+    const nameOf = (id) => (inspectorsCfg.find(i => i.id === id) || {}).name || id;
+
     lines.push('CCO CAPSTONE — Inspector notes export');
     lines.push('Generated: ' + new Date().toLocaleString());
     if (currentInspectorId) {
-      const cfg = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
-      const me = (cfg.inspectors || []).find(i => i.id === currentInspectorId);
-      if (me) lines.push('Inspector: ' + me.name + ' · ' + me.role);
+      lines.push('Exported by: ' + nameOf(currentInspectorId));
     }
     lines.push('');
     lines.push('='.repeat(60));
     const fired = firedInjects();
     fired.forEach(inj => {
-      const n = notes.entries[inj.id];
-      if (!n) return;
+      const byObs = notesForInject(inj.id);
+      const observerIds = Object.keys(byObs);
+      if (observerIds.length === 0) return;
       lines.push('');
       lines.push(`[${inj.id}] ${inj.title || ''}`);
-      lines.push(`  Score: ${n.score || 'Ungraded'}${n.flagged ? ' · FLAGGED' : ''}`);
       // v0.2.7: fold the student's self-reported response into the export
       const sr = studentResponseFor(inj.id);
       if (sr && (sr.action || sr.authority || sr.rationale)) {
@@ -561,23 +822,31 @@
         if (sr.authority) lines.push(`    Authority: ${sr.authority}`);
         if (sr.rationale) lines.push(`    Rationale: ${sr.rationale.replace(/\n/g, ' ')}`);
       }
-      const checks = [];
-      Object.keys(n.checked || {}).forEach(k => {
-        if (!n.checked[k]) return;
-        if (k.startsWith('sp-')) {
-          const id = k.slice(3);
-          const a = (inj.expected_actions || []).find(x => x.id === id);
-          checks.push('  ✓ ' + (a ? a.description : k));
-        } else {
-          const g = GENERIC_OBSERVATIONS.find(x => x.id === k);
-          checks.push('  ✓ ' + (g ? g.text : k));
+
+      // v0.2.10: export each observer's notes under their name so the
+      // hotwash document preserves whose observation is whose.
+      observerIds.forEach(obs => {
+        const n = byObs[obs];
+        lines.push(`  — ${nameOf(obs)} —`);
+        lines.push(`    Score: ${n.score || 'Ungraded'}${n.flagged ? ' · FLAGGED' : ''}`);
+        const checks = [];
+        Object.keys(n.checked || {}).forEach(k => {
+          if (!n.checked[k]) return;
+          if (k.startsWith('sp-')) {
+            const id = k.slice(3);
+            const a = (inj.expected_actions || []).find(x => x.id === id);
+            checks.push('    ✓ ' + (a ? a.description : k));
+          } else {
+            const g = GENERIC_OBSERVATIONS.find(x => x.id === k);
+            checks.push('    ✓ ' + (g ? g.text : k));
+          }
+        });
+        if (checks.length) lines.push(...checks);
+        if (n.comment && n.comment.trim()) {
+          lines.push('    Comment:');
+          n.comment.split('\n').forEach(l => lines.push('      ' + l));
         }
       });
-      if (checks.length) lines.push(...checks);
-      if (n.comment && n.comment.trim()) {
-        lines.push('  Comment:');
-        n.comment.split('\n').forEach(l => lines.push('    ' + l));
-      }
     });
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -600,7 +869,14 @@
   // ---------- Event subscriptions ----------
   document.addEventListener('engine:sync',         render);
   document.addEventListener('engine:inject-fired', render);
+  document.addEventListener('engine:inject-status', render);
   document.addEventListener('engine:tick',         renderHeader);
+  // v0.2.12: re-render the ROLE_GAP log on each tick so "and counting"
+  // durations stay live, and immediately when an unclaimed inject fires
+  // or resolves so the panel appears/updates without a storage event.
+  document.addEventListener('engine:tick',         renderRoleGapLog);
+  document.addEventListener('engine:unclaimed-inject',   renderRoleGapLog);
+  document.addEventListener('engine:unclaimed-resolved', renderRoleGapLog);
 
   // Also repopulate inspector select on sync (roster may have changed on relaunch)
   document.addEventListener('engine:sync', populateInspectorSelect);

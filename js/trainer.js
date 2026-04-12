@@ -11,27 +11,195 @@ function bundleInjectIds() {
     : ['IM-01', 'IM-02'];
 }
 
+// v0.2.9: which inject is currently "focused" in the Inject Focus panel.
+// Clicking a timeline row or active-feed card sets this. The focus panel
+// reads inj.quick_fires (an array of {label, kind, subject, body, to}) and
+// renders a button per entry.
+let focusedInjectId = null;
+
+// v0.2.9: default quick-fire templates for any inject that doesn't ship
+// with its own. Gives the trainer something useful to click on day one
+// while the content library grows. Per-inject authored quick_fires
+// always take precedence over these.
+const DEFAULT_QUICK_FIRES = [
+  {
+    label: 'FIRE — PWS draft',
+    from: 'A2 Plans · Lt Huang',
+    subject: 'PWS outline you asked for',
+    body: 'Attaching the PWS outline template. Fill in the performance standards and inspection methods; route through Legal before signing. Section C is the SOW proper, Section L is instructions to offerors, Section M is evaluation criteria. Ping me if you hit a blocker.'
+  },
+  {
+    label: 'FIRE — Market research',
+    from: 'SBA Procurement Center Rep',
+    subject: 'Market research summary',
+    body: 'SAM search returned 4 vendors in the area with current SAM registration and no exclusions. Two are WOSB, one is SDVOSB, one is 8(a). Attaching the capability questionnaire responses — all 4 claim they can meet the delivery window. Recommend full and open with small business set-aside evaluation.'
+  },
+  {
+    label: 'FIRE — J&A memo template',
+    from: 'Chief of Contracting · MSgt Alvarez',
+    subject: 'J&A template + citation reminders',
+    body: 'Attaching the Justification and Approval template. Cite the specific FAR 6.302 authority (likely 6.302-2 "unusual and compelling urgency" for this one). Document the market research that narrowed it to one source and why other sources were unreasonable. Approval authority depends on dollar value — check FAR 6.304 Table.'
+  },
+  {
+    label: 'FIRE — Quote / proposal',
+    from: 'Vendor rep · Crescent Star Logistics',
+    subject: 'Firm quote — attached',
+    body: 'Per your RFQ, pricing is attached. Delivery 7 days ARO. Payment terms Net 30. Price good for 14 days. Note: we cannot meet the warranty terms in clause 52.246-2 as written; we propose substitution with our standard 12-month warranty.'
+  },
+  {
+    label: 'FIRE — Legal review needed',
+    from: 'Staff Judge Advocate · Capt Reyes',
+    subject: 'Hold for legal review',
+    body: 'Noting this for legal review before you proceed. Flag the ethics angle (is anyone in your chain connected to the vendor?) and the appropriation year question (O&M vs. OCO funding?). Do not sign anything until I clear it — walk it down to my office.'
+  }
+];
+
+function quickFiresFor(inj) {
+  if (inj && Array.isArray(inj.quick_fires) && inj.quick_fires.length > 0) {
+    return inj.quick_fires;
+  }
+  return DEFAULT_QUICK_FIRES;
+}
+
+// v0.2.11: The kickoff overlay sits on top of the trainer dashboard when the
+// session is in 'pre-exercise' phase. It shows the session code, a roster
+// of who's joined via presence heartbeats, and a big Start Exercise button.
+// When the button is clicked, we call Engine.beginExerciseNow() which flips
+// phase to 'cold-open' — every connected view drops its waiting banner
+// and the clock starts. The overlay hides automatically on phase change.
+function renderKickoffOverlay() {
+  const phase = Engine.getPhase ? Engine.getPhase() : 'cold-open';
+  let overlay = document.getElementById('kickoff-overlay');
+  if (phase !== 'pre-exercise') {
+    if (overlay) overlay.remove();
+    if (_presenceTickInterval) {
+      clearInterval(_presenceTickInterval);
+      _presenceTickInterval = null;
+    }
+    return;
+  }
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'kickoff-overlay';
+    overlay.className = 'kickoff-overlay';
+    document.body.appendChild(overlay);
+  }
+  const code = (Engine.getSession && Engine.getSession()) || 'default';
+  const cfg = Engine.getState().config || {};
+  const rosterCount =
+    ((cfg.students || []).length) +
+    ((cfg.whitecell || []).length) +
+    ((cfg.inspectors || []).length) +
+    1; // trainer
+  const joined = Engine.listPresence ? Engine.listPresence() : [];
+  const joinedCount = joined.length;
+
+  const rosterRows = [
+    ...(cfg.students || []).map(s => ({ id: 'student:' + s.id, name: s.name, role: 'Student · ' + (s.shop || 'CONS'), color: s.color || '#F5B845' })),
+    ...(cfg.whitecell || []).map(w => ({ id: 'whitecell:' + w.id, name: w.name, role: 'White Cell', color: w.color || '#8A7AB0' })),
+    ...(cfg.inspectors || []).map(ob => ({ id: 'inspector:' + ob.id, name: ob.name, role: 'Observer', color: ob.color || '#4FC3D7' })),
+    { id: 'trainer:main', name: 'Trainer', role: 'Trainer', color: '#4FC3D7' }
+  ];
+
+  overlay.innerHTML = `
+    <div class="kickoff-card">
+      <div class="kickoff-head">
+        <div class="micro micro-accent">Pre-exercise · waiting for kickoff</div>
+        <h1 class="kickoff-title">Session <span class="session-code mono">${code}</span></h1>
+        <p class="kickoff-sub">${joinedCount} of ${rosterCount} joined. When you're ready, click <strong>Start Exercise</strong> below to kick off Day 1. Every connected dashboard will move to the cold open at the same moment.</p>
+      </div>
+
+      <div class="kickoff-roster">
+        ${rosterRows.map(r => {
+          const match = joined.find(j => j.clientId === r.id || j.identity === r.id);
+          const isHere = !!match;
+          return `
+            <div class="kickoff-row ${isHere ? 'here' : 'waiting'}">
+              <span class="kickoff-dot" style="background:${r.color};"></span>
+              <span class="kickoff-name">${r.name || '—'}</span>
+              <span class="kickoff-role">${r.role}</span>
+              <span class="kickoff-status">${isHere ? 'joined' : 'waiting…'}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="kickoff-foot">
+        <div class="kickoff-hint">Share the session code above with every participant. Each person opens their role view from the STARTEX launch page, or types the code into student/inspector/mobile at the home screen.</div>
+        <button class="btn btn-primary btn-xl" id="kickoff-start-btn">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>
+          Start Exercise
+        </button>
+      </div>
+    </div>
+  `;
+
+  const btn = document.getElementById('kickoff-start-btn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      if (Engine.beginExerciseNow) {
+        Engine.beginExerciseNow();
+      } else {
+        // Fallback for legacy single-phase flow
+        Engine.startExercise(Engine.getState().config);
+      }
+      overlay.remove();
+    });
+  }
+
+  // Refresh the presence list every 3s while the overlay is up so new joiners
+  // populate without having to click anything.
+  if (!_presenceTickInterval) {
+    _presenceTickInterval = setInterval(renderKickoffOverlay, 3000);
+  }
+}
+let _presenceTickInterval = null;
+
 (async function init() {
-  // Load config or redirect
-  const configRaw = localStorage.getItem('cco-capstone-config');
+  // v0.2.11: prefer session-scoped config if we're on a real session (URL
+  // hash carries #session=CODE). The engine auto-bound currentSession at
+  // module load; read the code back and try the session-scoped key first.
+  const sessionCode = (window.Engine && Engine.getSession) ? Engine.getSession() : 'default';
+  let configRaw = localStorage.getItem('cco-capstone-config:' + sessionCode);
+  if (!configRaw) configRaw = localStorage.getItem('cco-capstone-config');
   if (!configRaw) {
     window.location.href = 'startex.html';
     return;
   }
   const config = JSON.parse(configRaw);
 
-  document.getElementById('difficulty-label').textContent =
-    config.difficulty.charAt(0).toUpperCase() + config.difficulty.slice(1);
+  // v0.2.11: difficulty panel was removed in Phase C. Keep label updating
+  // defensive so legacy configs don't crash the trainer.
+  const diffLabel = document.getElementById('difficulty-label');
+  if (diffLabel) {
+    const d = config.difficulty || config.scenario_title || 'Custom';
+    diffLabel.textContent = typeof d === 'string' ? (d.charAt(0).toUpperCase() + d.slice(1)) : 'Custom';
+  }
 
   // Load content
   await Engine.loadContacts();
   await Engine.loadInjects(bundleInjectIds());
 
-  // Resume or start
-  if (!Engine.loadState()) {
+  // Resume or start. v0.2.11 flow:
+  //   - state exists + phase='pre-exercise' → show Start Exercise button,
+  //     don't run clock, present "waiting for kickoff"
+  //   - state exists + phase='cold-open'/later → normal resume
+  //   - no state → legacy one-shot path: call startExercise(config)
+  const hadState = Engine.loadState();
+  if (!hadState) {
     Engine.startExercise(config);
   }
   Engine.enableSync();
+
+  // Presence: announce ourselves to the session so the presence panel sees us.
+  if (Engine.startPresence) {
+    Engine.startPresence('trainer-main', { role: 'trainer', name: 'Trainer' });
+  }
+
+  // Render the kickoff overlay if we're still in pre-exercise.
+  renderKickoffOverlay();
+  document.addEventListener('engine:phase-changed', renderKickoffOverlay);
+  document.addEventListener('engine:sync', renderKickoffOverlay);
 
   // Initial render
   renderAll();
@@ -84,6 +252,16 @@ function bundleInjectIds() {
     btn.addEventListener('click', () => handleWhiteCellAction(btn.dataset.wc));
   });
 
+  // Observer strip collapse toggle
+  const stripDismiss = document.getElementById('observer-strip-dismiss');
+  if (stripDismiss) {
+    stripDismiss.addEventListener('click', () => {
+      observerStripCollapsed = !observerStripCollapsed;
+      stripDismiss.textContent = observerStripCollapsed ? '+' : '−';
+      renderObserverStrip();
+    });
+  }
+
   // Modal
   document.getElementById('modal-close').addEventListener('click', closeModal);
   document.getElementById('modal-backdrop').addEventListener('click', (e) => {
@@ -92,6 +270,46 @@ function bundleInjectIds() {
 
   // v0.2.8: re-render when any role assignment changes
   document.addEventListener('engine:team-roles-updated', () => renderAll());
+
+  // v0.2.9: re-render when a student posts to the trainer queue or when a
+  // delegation event fires. A NEW student ask also triggers an in-your-face
+  // notification: a toast, a count badge flash, and a yellow pulse on the
+  // Action Queue panel — because the original silent re-render was too
+  // easy to miss during a busy exercise.
+  document.addEventListener('engine:trainer-queue-updated', (e) => {
+    renderActionQueue();
+    // Only notify on newly-posted asks, not when we mark one handled.
+    const detail = e && e.detail && e.detail.entry;
+    if (detail && !detail.handled) {
+      flashActionQueue(detail);
+    }
+  });
+  document.addEventListener('engine:inbox-updated', () => {
+    renderInboxMirror();
+  });
+  document.addEventListener('engine:delegation', () => {
+    renderInboxMirror();
+    renderActionQueue();
+  });
+  // v0.2.9 (post-pivot): re-render the observer strip + active feed when
+  // the trainer toggles an inject's complete/incomplete flag, and when a
+  // cross-window sync event brings in a remote toggle.
+  document.addEventListener('engine:inject-status', () => {
+    renderActiveFeed();
+    renderObserverStrip();
+  });
+
+  // v0.2.10: drain the student outbox on load + on every sync. Student and
+  // mobile views run Engine.setReadOnly(true) so they can't write to the
+  // main state key — instead they append to a separate outbox key, and the
+  // trainer pulls from it. The storage listener in engine.js already calls
+  // outboxDrain on the live 'storage' event, but we also drain on startup
+  // and on engine:sync to catch anything that was queued before the trainer
+  // tab opened or while the trainer was in another tab.
+  if (Engine.outboxDrain) Engine.outboxDrain();
+  document.addEventListener('engine:sync', () => {
+    if (Engine.outboxDrain) Engine.outboxDrain();
+  });
 })();
 
 function renderAll() {
@@ -102,6 +320,72 @@ function renderAll() {
   renderStats();
   renderCountdown();
   renderTeamRoles();
+  renderActionQueue();
+  renderInjectFocus();
+  renderObserverStrip();
+}
+
+// v0.2.9: Observer strip — a persistent reminder at the top of the trainer
+// screen that shows which inject the observer is grading right now and
+// what they're watching for. Falls back to the most recently fired inject
+// if nothing is explicitly focused. Hidden if the strip is collapsed.
+let observerStripCollapsed = false;
+
+function observerStripPickInject() {
+  const s = Engine.getState();
+  // 1. Explicit focus wins
+  if (focusedInjectId) {
+    const inj = s.injects.find(i => i.id === focusedInjectId);
+    if (inj) return inj;
+  }
+  // 2. Otherwise: most recently fired inject (by schedule order)
+  const fired = s.injects.filter(i => s.fired.has(i.id));
+  if (fired.length > 0) {
+    return fired[fired.length - 1];
+  }
+  // 3. Nothing fired yet — show the next upcoming inject as a heads-up
+  const upcoming = s.injects.find(i => !s.fired.has(i.id));
+  return upcoming || null;
+}
+
+function renderObserverStrip() {
+  const strip = document.getElementById('observer-strip');
+  const injectLabel = document.getElementById('observer-strip-inject');
+  const noteLabel = document.getElementById('observer-strip-note');
+  if (!strip || !injectLabel || !noteLabel) return;
+
+  if (observerStripCollapsed) {
+    strip.classList.add('collapsed');
+    return;
+  }
+  strip.classList.remove('collapsed');
+
+  const inj = observerStripPickInject();
+  if (!inj) {
+    injectLabel.textContent = '—';
+    noteLabel.textContent = 'Pick an inject or wait for the next fire to see what the observer is grading.';
+    strip.classList.remove('focused', 'live', 'upcoming');
+    strip.classList.add('quiet');
+    return;
+  }
+
+  const s = Engine.getState();
+  const isLive = s.fired.has(inj.id);
+  const isFocused = inj.id === focusedInjectId;
+  const status = Engine.getInjectStatus ? Engine.getInjectStatus(inj.id) : null;
+  strip.classList.remove('quiet', 'focused', 'live', 'upcoming', 'status-complete', 'status-incomplete');
+  if (isFocused) strip.classList.add('focused');
+  else if (isLive) strip.classList.add('live');
+  else strip.classList.add('upcoming');
+  if (status === 'complete') strip.classList.add('status-complete');
+  else if (status === 'incomplete') strip.classList.add('status-incomplete');
+
+  const stateTag = isFocused ? 'FOCUS' : (isLive ? 'LIVE' : 'NEXT');
+  const statusBadge = status
+    ? `<span class="observer-strip-status ${status}">${status === 'complete' ? '✓ COMPLETE' : '✗ INCOMPLETE'}</span>`
+    : '';
+  injectLabel.innerHTML = `<span class="observer-strip-state">${stateTag}</span> ${esc(inj.id)} · ${esc(inj.title || '')} ${statusBadge}`;
+  noteLabel.textContent = inj.observer_note || 'No observer note authored for this inject yet.';
 }
 
 // v0.2.8: Role assignments panel — shows every roster member with a role
@@ -287,6 +571,12 @@ function renderTimeline() {
   container.querySelectorAll('.timeline-item').forEach(el => {
     el.addEventListener('click', () => {
       const inj = s.injects.find(i => i.id === el.dataset.id);
+      if (inj) {
+        setFocusedInject(inj.id);
+      }
+    });
+    el.addEventListener('dblclick', () => {
+      const inj = s.injects.find(i => i.id === el.dataset.id);
       if (inj) showInjectDetail(inj);
     });
   });
@@ -322,29 +612,62 @@ function renderActiveFeed() {
     return;
   }
 
-  container.innerHTML = active.map(inj => `
-    <div class="inject-card">
-      <div class="inject-card-meta">
-        <div class="dot"></div>
-        <span>${inj.id} · LIVE · ${triggerDisplay(inj)}</span>
-      </div>
-      <div class="inject-card-title">${esc(inj.title)}</div>
-      <div class="inject-card-body">${esc(inj.scenario_for_students || inj.description)}</div>
-      <div class="inject-card-actions">
-        <button class="btn" data-action="expected" data-id="${inj.id}">Expected actions</button>
-        ${inj.phone_script_id ? `<button class="btn" data-action="phone" data-id="${inj.id}">Phone script</button>` : ''}
-        <button class="btn" data-action="teaching" data-id="${inj.id}">Teaching point</button>
-        <button class="btn" data-action="wrong" data-id="${inj.id}">Wrong answers</button>
-        <button class="btn" data-action="real" data-id="${inj.id}">What really happened</button>
-        <button class="btn" data-action="flag" data-id="${inj.id}">Flag</button>
+  // v0.2.9 (post-pivot): the Active Feed card is now a minimal strip —
+  // just the inject ID + title and a two-state Complete / Incomplete flag.
+  // The detailed content (expected actions, teaching point, wrong answers,
+  // what-really-happened, flag-for-hotwash) is still reachable from the
+  // Inject Focus panel and the modal launched by double-clicking a
+  // timeline row. Keeping the active feed terse frees the trainer to
+  // focus on the *conversation*, not the card. The status toggle syncs
+  // via Engine.markInjectStatus so the observer view sees it too.
+  container.innerHTML = active.map(inj => {
+    const status = Engine.getInjectStatus ? Engine.getInjectStatus(inj.id) : null;
+    const cardCls = status ? `inject-card inject-card-slim status-${status}` : 'inject-card inject-card-slim';
+    return `
+    <div class="${cardCls}" data-id="${esc(inj.id)}">
+      <div class="inject-card-slim-row">
+        <div class="inject-card-slim-meta">
+          <span class="inject-card-slim-id">${esc(inj.id)}</span>
+          <span class="inject-card-slim-title">${esc(inj.title)}</span>
+        </div>
+        <div class="inject-card-slim-actions">
+          <button class="status-btn complete ${status === 'complete' ? 'active' : ''}"
+                  data-status-id="${esc(inj.id)}" data-status-val="complete"
+                  title="Mark complete">
+            ✓ Complete
+          </button>
+          <button class="status-btn incomplete ${status === 'incomplete' ? 'active' : ''}"
+                  data-status-id="${esc(inj.id)}" data-status-val="incomplete"
+                  title="Mark incomplete">
+            ✗ Incomplete
+          </button>
+        </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
-  container.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const inj = s.injects.find(i => i.id === btn.dataset.id);
-      if (inj) handleInjectAction(btn.dataset.action, inj);
+  // Clicking a status button toggles the state on the engine, which
+  // persists + dispatches engine:inject-status (observer listens).
+  container.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.statusId;
+      const val = btn.dataset.statusVal;
+      const cur = Engine.getInjectStatus(id);
+      // Click the already-active button to clear the flag.
+      Engine.markInjectStatus(id, cur === val ? null : val);
+      renderActiveFeed();
+      renderObserverStrip();
+    });
+  });
+
+  // Clicking the card body (anywhere that isn't a status button) focuses
+  // this inject in the Inject Focus panel so the quick-fire buttons update.
+  container.querySelectorAll('.inject-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.status-btn')) return;
+      if (card.dataset.id) setFocusedInject(card.dataset.id);
     });
   });
 }
@@ -508,6 +831,322 @@ function showCustomSmsModal() {
       Engine.sendCustomSms('ramsey', 'Where are you on that runway status?');
       closeModal();
       showToast('Test SMS sent — check the phone window');
+    });
+  }, 50);
+}
+
+// ----- v0.2.9: Action Queue + Inject Focus -----
+
+// Pending student asks. An ask is any time a student hits "Send to trainer"
+// from their mail detail reply box. Entries live in state.trainer_queue.
+// This panel surfaces unhandled entries with a Reply button that opens
+// the trainer reply composer.
+
+// v0.2.9 (post-pivot): visible alert when a new student ask lands.
+// Strategy:
+//   1. Bump a count badge on the panel header (data-unread).
+//   2. Add a .pulse class to the panel for ~2.5s (yellow flash in CSS).
+//   3. Show a toast: "[Student name] is asking about [inject id]".
+//   4. Play a short 'beep' via WebAudio so the trainer hears it even if
+//      their attention is elsewhere — opt-in via <body data-sound="on">
+//      so it can be silenced during demo capture.
+// Badge is cleared when the trainer acts on the queue (reply or dismiss).
+let actionQueueUnreadCount = 0;
+
+function flashActionQueue(entry) {
+  actionQueueUnreadCount += 1;
+  // Find the panel that wraps the action queue so we can pulse it.
+  const queue = document.getElementById('action-queue');
+  const panel = queue ? queue.closest('.panel') : null;
+  if (panel) {
+    panel.classList.add('queue-pulse');
+    setTimeout(() => panel.classList.remove('queue-pulse'), 2500);
+  }
+  // Update the unread badge on the count span.
+  const countEl = document.getElementById('queue-count');
+  if (countEl) {
+    countEl.classList.add('has-unread');
+    countEl.dataset.unread = actionQueueUnreadCount;
+  }
+  // Toast.
+  const who = (entry && entry.personaName) || 'A student';
+  const inj = entry && entry.injectId ? ` · ${entry.injectId}` : '';
+  showToast(`📬 ${who} just sent you a message${inj}`);
+  // Optional beep.
+  try {
+    if (document.body && document.body.dataset.sound === 'on') {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.value = 0.08;
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); setTimeout(() => { osc.stop(); ctx.close(); }, 120);
+    }
+  } catch (_) { /* silent */ }
+}
+
+function clearActionQueueUnread() {
+  actionQueueUnreadCount = 0;
+  const countEl = document.getElementById('queue-count');
+  if (countEl) {
+    countEl.classList.remove('has-unread');
+    delete countEl.dataset.unread;
+  }
+}
+
+function renderActionQueue() {
+  const container = document.getElementById('action-queue');
+  if (!container) return;
+  const queue = (Engine.getTrainerQueue ? Engine.getTrainerQueue() : []) || [];
+  const pending = queue.filter(q => !q.handled);
+
+  const countEl = document.getElementById('queue-count');
+  if (countEl) countEl.textContent = pending.length;
+
+  if (queue.length === 0) {
+    container.innerHTML = '<div class="muted text-center" style="padding: 16px 8px; font-size: 11px;">Quiet. Student questions will land here.</div>';
+    return;
+  }
+
+  // Render all, but collapse handled entries.
+  container.innerHTML = queue.slice(0, 8).map(q => {
+    const inj = Engine.getState().injects.find(i => i.id === q.injectId);
+    const injLabel = inj ? `${inj.id} · ${inj.title}` : (q.injectId || '—');
+    return `
+      <div class="queue-item ${q.handled ? 'handled' : 'pending'}" data-id="${esc(q.id)}">
+        <div class="queue-head">
+          <div class="queue-from">${esc(q.personaName)}</div>
+          <div class="queue-time">${esc(q.time)}</div>
+        </div>
+        <div class="queue-inject">${esc(injLabel)}</div>
+        <div class="queue-body">${esc(q.body)}</div>
+        ${q.handled
+          ? `<div class="queue-handled-strip">✓ Handled ${q.handledAt ? `· ${esc(q.handledAt)}` : ''}</div>`
+          : `<div class="queue-actions">
+              <button class="btn btn-sm" data-queue-reply="${esc(q.id)}">Reply</button>
+              <button class="btn btn-sm" data-queue-dismiss="${esc(q.id)}">Dismiss</button>
+            </div>`}
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('[data-queue-reply]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      clearActionQueueUnread();
+      openReplyComposer(btn.dataset.queueReply);
+    });
+  });
+  container.querySelectorAll('[data-queue-dismiss]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      Engine.markQueueHandled(btn.dataset.queueDismiss);
+      clearActionQueueUnread();
+      renderActionQueue();
+    });
+  });
+}
+
+function openReplyComposer(queueEntryId) {
+  const queue = Engine.getTrainerQueue();
+  const entry = queue.find(q => q.id === queueEntryId);
+  if (!entry) return;
+  const s = Engine.getState();
+  const inj = s.injects.find(i => i.id === entry.injectId);
+
+  // Preload quick-fire templates for this inject (authored or default fallback).
+  const templates = quickFiresFor(inj);
+
+  const html = `
+    <div class="reply-composer">
+      <div class="reply-ctx">
+        <div><strong>${esc(entry.personaName)}</strong> asked:</div>
+        <div class="reply-ctx-body">${esc(entry.body)}</div>
+        ${inj ? `<div class="reply-ctx-inject">${esc(inj.id)} · ${esc(inj.title)}</div>` : ''}
+      </div>
+
+      ${templates.length > 0 ? `
+        <div class="reply-templates">
+          <div class="micro">Quick-fire templates</div>
+          ${templates.map((t, idx) => `
+            <button class="btn btn-sm reply-tpl-btn" data-idx="${idx}">${esc(t.label || ('Template ' + (idx+1)))}</button>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      <div class="reply-field">
+        <label class="field-label">Subject</label>
+        <input type="text" id="reply-subject" value="Re: ${esc(entry.subject)}" />
+      </div>
+      <div class="reply-field">
+        <label class="field-label">From</label>
+        <input type="text" id="reply-from" value="White Cell" />
+      </div>
+      <div class="reply-field">
+        <label class="field-label">Body</label>
+        <textarea id="reply-body" rows="6" placeholder="Type the reply that lands in ${esc(entry.personaName)}'s inbox..."></textarea>
+      </div>
+      <div class="reply-actions">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="reply-send">Send to ${esc(entry.personaName)}</button>
+      </div>
+    </div>
+  `;
+  showModal('Reply to ' + entry.personaName, html);
+
+  // Wire template buttons
+  setTimeout(() => {
+    document.querySelectorAll('.reply-tpl-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = templates[parseInt(btn.dataset.idx, 10)];
+        if (!t) return;
+        const subjEl = document.getElementById('reply-subject');
+        const fromEl = document.getElementById('reply-from');
+        const bodyEl = document.getElementById('reply-body');
+        if (t.subject && subjEl) subjEl.value = t.subject;
+        if (t.from && fromEl) fromEl.value = t.from;
+        if (t.body && bodyEl) bodyEl.value = t.body;
+      });
+    });
+
+    document.getElementById('reply-send').addEventListener('click', () => {
+      const subject = document.getElementById('reply-subject').value;
+      const from = document.getElementById('reply-from').value;
+      const body = document.getElementById('reply-body').value;
+      if (!body.trim()) { showToast('Body is empty'); return; }
+      Engine.trainerReply({
+        queueEntryId: entry.id,
+        toPersonaId: entry.personaId,
+        subject, from, body,
+        injectId: entry.injectId,
+        threadId: entry.threadId
+      });
+      closeModal();
+      showToast('Reply sent to ' + entry.personaName);
+      renderAll();
+    });
+  }, 50);
+}
+
+// Inject Focus panel — shows the currently-focused inject's quick-fire
+// template buttons. Clicking a button opens a broadcast-reply composer
+// that lets the trainer pick a recipient (any persona) and fire the
+// template. For un-focused state, shows a prompt.
+function setFocusedInject(injectId) {
+  focusedInjectId = injectId;
+  renderInjectFocus();
+  renderObserverStrip();
+}
+
+function renderInjectFocus() {
+  const body = document.getElementById('focus-body');
+  const title = document.getElementById('focus-title');
+  if (!body || !title) return;
+
+  if (!focusedInjectId) {
+    title.textContent = 'Pick an inject';
+    body.innerHTML = '<div class="muted text-center" style="padding: 16px 8px; font-size: 11px;">Click an inject in the timeline or active feed to load its quick-fire options here.</div>';
+    return;
+  }
+  const s = Engine.getState();
+  const inj = s.injects.find(i => i.id === focusedInjectId);
+  if (!inj) {
+    title.textContent = 'Inject not found';
+    body.innerHTML = '';
+    return;
+  }
+  title.textContent = `${inj.id} · ${inj.title}`;
+
+  const fires = quickFiresFor(inj);
+  const observerNote = inj.observer_note || null;
+  const tagLabel = inj.role_tag ? inj.role_tag.toUpperCase() : 'BROADCAST';
+
+  body.innerHTML = `
+    <div class="focus-meta">
+      <span class="focus-tag">${esc(tagLabel)}</span>
+      ${s.fired.has(inj.id) ? '<span class="focus-live">● LIVE</span>' : '<span class="focus-queued">queued</span>'}
+    </div>
+    ${fires.length > 0 ? `
+      <div class="focus-fires">
+        ${fires.map((t, idx) => `
+          <button class="btn fire-btn" data-fire-idx="${idx}">
+            ${esc(t.label || 'Template ' + (idx+1))}
+          </button>
+        `).join('')}
+      </div>
+    ` : `
+      <div class="muted" style="padding: 8px 4px; font-size: 11px;">
+        No quick-fire templates defined for this inject. Add <code>quick_fires</code> to the inject in the content bundle.
+      </div>
+    `}
+    <div class="focus-expected">
+      <div class="micro">Expected actions</div>
+      <ul>
+        ${(inj.expected_actions || []).slice(0,4).map(a => `<li>${esc(a.description || '')}</li>`).join('')}
+        ${(inj.expected_actions || []).length === 0 ? '<li class="muted">—</li>' : ''}
+      </ul>
+    </div>
+    ${observerNote ? `
+      <div class="focus-observer">
+        <div class="micro">Observer watch-for</div>
+        <p>${esc(observerNote)}</p>
+      </div>
+    ` : ''}
+  `;
+
+  body.querySelectorAll('.fire-btn').forEach(btn => {
+    btn.addEventListener('click', () => openFireTemplate(inj, fires[parseInt(btn.dataset.fireIdx, 10)]));
+  });
+}
+
+function openFireTemplate(inj, tpl) {
+  if (!tpl) return;
+  const roster = rosterStudents();
+  const html = `
+    <div class="reply-composer">
+      <div class="reply-ctx">
+        <div><strong>${esc(inj.id)}</strong> — fire: <em>${esc(tpl.label || '')}</em></div>
+      </div>
+      <div class="reply-field">
+        <label class="field-label">Send to</label>
+        <select id="fire-recipient">
+          <option value="">— pick a student —</option>
+          ${roster.map(st => `<option value="${esc(st.id)}">${esc(st.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="reply-field">
+        <label class="field-label">Subject</label>
+        <input type="text" id="fire-subject" value="${esc(tpl.subject || inj.title || '')}" />
+      </div>
+      <div class="reply-field">
+        <label class="field-label">From</label>
+        <input type="text" id="fire-from" value="${esc(tpl.from || 'White Cell')}" />
+      </div>
+      <div class="reply-field">
+        <label class="field-label">Body</label>
+        <textarea id="fire-body" rows="6">${esc(tpl.body || '')}</textarea>
+      </div>
+      <div class="reply-actions">
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="fire-send">Fire</button>
+      </div>
+    </div>
+  `;
+  showModal(`Fire: ${tpl.label || 'template'}`, html);
+  setTimeout(() => {
+    document.getElementById('fire-send').addEventListener('click', () => {
+      const to = document.getElementById('fire-recipient').value;
+      if (!to) { showToast('Pick a recipient'); return; }
+      Engine.trainerReply({
+        toPersonaId: to,
+        subject: document.getElementById('fire-subject').value,
+        from: document.getElementById('fire-from').value,
+        body: document.getElementById('fire-body').value,
+        injectId: inj.id
+      });
+      closeModal();
+      showToast('Fired');
+      renderAll();
     });
   }, 50);
 }

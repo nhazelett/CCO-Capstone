@@ -29,6 +29,7 @@
     <a href="student.html">Student</a>
     <a href="inspector.html">Inspector</a>
     <a href="mobile.html">Mobile</a>
+    <a href="builder.html">Builder</a>
   </nav>
   <div class="topbar-right">
     <div class="status-pill">
@@ -44,6 +45,27 @@
     <div class="micro micro-accent">Pre-exercise · STARTEX configuration</div>
     <h1 class="startex-title">Configure the exercise.<br><span class="display">Set conditions. Hit go.</span></h1>
     <p class="startex-lede">Every decision here shapes the next three days. Difficulty, loadout, roster, length. The engine takes these inputs and generates the exercise. Once you hit STARTEX, the clock starts.</p>
+  </div>
+
+  <!-- Active scenario bar (stock vs. Builder-published) -->
+  <div class="panel active-scenario-bar">
+    <div class="panel-body" style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <div class="micro">Active scenario content</div>
+        <div class="title" id="active-scenario-title" style="font-size: 16px;">Iron Meridian (stock)</div>
+      </div>
+      <div style="flex: 1;"></div>
+      <div>
+        <div class="micro">Clock mode</div>
+        <select id="clock-mode-select" style="padding: 6px 10px; background: var(--bg-raised); color: var(--text-primary); border: 1px solid var(--line-medium); border-radius: 4px;">
+          <option value="sim">Simulated (10x fast)</option>
+          <option value="wall">Wall-clock (1:1, real day)</option>
+        </select>
+      </div>
+      <button class="btn btn-sm" id="use-stock-btn">Use stock</button>
+      <button class="btn btn-sm" id="use-custom-btn">Use published custom</button>
+      <a href="builder.html" class="btn btn-sm">Open Builder →</a>
+    </div>
   </div>
 
   <div class="startex-grid">
@@ -105,40 +127,6 @@
       </div>
     </div>
 
-    <!-- Difficulty panel -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-header-title">
-          <div class="micro">§ 02</div>
-          <div class="title">Difficulty</div>
-        </div>
-      </div>
-      <div class="panel-body">
-        <div class="stack">
-          <label class="option-card">
-            <input type="radio" name="difficulty" value="green">
-            <div>
-              <div class="option-card-title">Green · new CCO pipeline</div>
-              <div class="option-card-desc">Clean requirements, cooperative vendors, obvious answers. Use for first exposure students fresh out of the schoolhouse.</div>
-            </div>
-          </label>
-          <label class="option-card selected">
-            <input type="radio" name="difficulty" value="amber" checked>
-            <div>
-              <div class="option-card-title">Amber · pre-deployment workup</div>
-              <div class="option-card-desc">Ambiguous requirements, funding traps, ethics bait. Default setting for squadron training.</div>
-            </div>
-          </label>
-          <label class="option-card">
-            <input type="radio" name="difficulty" value="red">
-            <div>
-              <div class="option-card-title">Red · seasoned operators</div>
-              <div class="option-card-desc">Hostile vendors, impossible timelines, red-team injects. Designed to break good CCOs so they know where their gaps are.</div>
-            </div>
-          </label>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Student roster -->
@@ -188,31 +176,80 @@
     </div>
   </div>
 
-  <!-- Loadout modifiers -->
+  <!-- Unit capabilities -->
   <div class="panel startex-full">
     <div class="panel-header">
       <div class="panel-header-title">
         <div class="micro">§ 04</div>
-        <div class="title">Loadout modifiers</div>
+        <div class="title">Unit capabilities</div>
       </div>
-      <div class="muted" style="font-size: 11px;">Unchecked items generate additional injects</div>
+      <div class="muted" style="font-size: 11px;">Toggle on what your unit actually has — each unlocks targeted injects</div>
     </div>
     <div class="panel-body">
-      <div class="modifier-grid" id="modifiers">
-        <div class="toggle on" data-mod="body-armor"><div class="toggle-dot"></div>Body armor &amp; IOTV</div>
-        <div class="toggle off" data-mod="gpc"><div class="toggle-dot"></div>GPC cards issued</div>
-        <div class="toggle on" data-mod="sipr"><div class="toggle-dot"></div>SIPR connectivity</div>
-        <div class="toggle off" data-mod="theater-bpa"><div class="toggle-dot"></div>Theater BPA inherited</div>
-        <div class="toggle on" data-mod="finance"><div class="toggle-dot"></div>Finance co-located</div>
-        <div class="toggle on" data-mod="warrant"><div class="toggle-dot"></div>Warranted CO on site</div>
-        <div class="toggle off" data-mod="linguist"><div class="toggle-dot"></div>Linguist support</div>
-        <div class="toggle on" data-mod="printer"><div class="toggle-dot"></div>Printer / file storage</div>
+      <div class="capability-grid" id="capabilities">
+
+        <div class="cap-card off" data-cap="body-armor">
+          <div class="cap-head">
+            <div class="cap-title">Body armor &amp; IOTV</div>
+            <div class="cap-toggle"><div class="cap-toggle-dot"></div></div>
+          </div>
+          <div class="cap-desc">Students have kit available. Unlocks a uniform-posture-change inject on the evening of D1.</div>
+        </div>
+
+        <div class="cap-card off" data-cap="fm-colocated">
+          <div class="cap-head">
+            <div class="cap-title">FM co-located &amp; playing</div>
+            <div class="cap-toggle"><div class="cap-toggle-dot"></div></div>
+          </div>
+          <div class="cap-desc">Finance is seated alongside contracting. Unlocks CONS/FM crossover injects (funding citations, cash advances, disbursement). Bring: <strong>fake cash, vault, 1034/1081 forms</strong>.</div>
+        </div>
+
+        <div class="cap-card off" data-cap="gpc">
+          <div class="cap-head">
+            <div class="cap-title">GPC cards issued</div>
+            <div class="cap-toggle"><div class="cap-toggle-dot"></div></div>
+          </div>
+          <div class="cap-desc">Micro-purchase authority available. Unlocks GPC-split-purchase and ethics bait injects.</div>
+        </div>
+
+        <div class="cap-card off" data-cap="theater-bpa">
+          <div class="cap-head">
+            <div class="cap-title">Theater BPA inherited</div>
+            <div class="cap-toggle"><div class="cap-toggle-dot"></div></div>
+          </div>
+          <div class="cap-desc">Existing theater BPAs in place. Unlocks BPA-call and modification injects instead of fresh solicitations.</div>
+        </div>
+
+        <div class="cap-card off" data-cap="warranted-ko">
+          <div class="cap-head">
+            <div class="cap-title">Warranted KO on site</div>
+            <div class="cap-toggle"><div class="cap-toggle-dot"></div></div>
+          </div>
+          <div class="cap-desc">A warranted contracting officer is present. Unlocks above-SAT injects and obligation-authority decision points.</div>
+        </div>
+
+        <div class="cap-card off" data-cap="linguist">
+          <div class="cap-head">
+            <div class="cap-title">Linguist support</div>
+            <div class="cap-toggle"><div class="cap-toggle-dot"></div></div>
+          </div>
+          <div class="cap-desc">Cleared linguist available for vendor meetings. Unlocks HN-vendor injects and market-research visits.</div>
+        </div>
+
+        <div class="cap-card off" data-cap="printer">
+          <div class="cap-head">
+            <div class="cap-title">Printer / file storage</div>
+            <div class="cap-toggle"><div class="cap-toggle-dot"></div></div>
+          </div>
+          <div class="cap-desc">Physical file room and printer available. Unlocks wet-signature and contract file integrity injects.</div>
+        </div>
+
       </div>
 
-      <div class="banner banner-warn" style="margin-top: 18px;">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 9v3m0 3h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div>
-          <strong style="color: var(--warn);">3 gaps detected</strong> — Engine will generate 7 additional injects across D1 and D2 to exercise workarounds for GPC, BPA inheritance, and linguist acquisition.
+      <div class="banner banner-ok" style="margin-top: 18px;" id="capabilities-summary">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div id="capabilities-summary-text">
+          No capabilities selected — base scenario only.
         </div>
       </div>
     </div>
@@ -255,15 +292,11 @@
           <div class="micro">§ 06</div>
           <div class="title">Exercise summary</div>
         </div>
+        <div class="micro" id="summary-scenario-label">—</div>
       </div>
       <div class="panel-body">
-        <div class="summary-list">
-          <div class="summary-row"><span class="summary-label">Base injects</span><span class="summary-value mono">53 loaded</span></div>
-          <div class="summary-row"><span class="summary-label">Modifier injects</span><span class="summary-value mono">+7 conditional</span></div>
-          <div class="summary-row"><span class="summary-label">Phone scripts</span><span class="summary-value mono">1 loaded</span></div>
-          <div class="summary-row"><span class="summary-label">SMS contacts</span><span class="summary-value mono">5 personas + 1 group</span></div>
-          <div class="summary-row"><span class="summary-label">Ethics landmines</span><span class="summary-value mono">4 planned</span></div>
-          <div class="summary-row summary-row-total"><span class="summary-label">TLO coverage</span><span class="summary-value" style="color: var(--good);">All 5 · balanced</span></div>
+        <div class="summary-list" id="exercise-summary-list">
+          <div class="summary-row"><span class="summary-label">Loading summary…</span><span class="summary-value mono">—</span></div>
         </div>
       </div>
     </div>
@@ -277,7 +310,6 @@
       <div class="launch-sub">Injects fire on schedule. Falling behind is part of the training.</div>
     </div>
     <div class="launch-actions">
-      <button class="btn btn-lg">Dry run</button>
       <button class="btn btn-primary btn-xl" id="startex-btn">
         <svg viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>
         STARTEX
@@ -287,7 +319,163 @@
 
 </div>
 
+<!-- v0.2.10: load content-bundle + scenario-loader so the Exercise Summary
+     panel can render real counts from whichever scenario is active. -->
+<script src="content/content-bundle.js"></script>
+<script src="js/scenario-loader.js"></script>
+<script src="js/engine.js"></script>
 <script>
+// ---------- Active scenario picker ----------
+// Driven by window.CCOScenario (from scenario-loader.js). The picker lets
+// the exercise lead flip between the shipped Iron Meridian bundle and a
+// scenario the Builder published to localStorage.
+(function () {
+  function refresh() {
+    const titleEl = document.getElementById('active-scenario-title');
+    const clockSel = document.getElementById('clock-mode-select');
+    if (!titleEl || !window.CCOScenario) return;
+    const p = window.CCOScenario.getActive();
+    if (p.mode === 'builder') {
+      titleEl.textContent = `${p.title} (custom)`;
+      titleEl.style.color = 'var(--accent-bright)';
+      // Default clock mode from the published bundle
+      const b = window.CCOScenario.getBundle();
+      if (b && b.meta && b.meta.clock_mode && clockSel) clockSel.value = b.meta.clock_mode;
+    } else {
+      titleEl.textContent = 'Iron Meridian (stock)';
+      titleEl.style.color = '';
+    }
+    renderExerciseSummary();
+  }
+
+  // Read the active content bundle (stock __CCO_DATA or Builder-published
+  // override) and produce a summary table for the § 06 panel. This replaces
+  // a previous hardcoded readout that lied to the exercise lead about what
+  // the engine would actually load.
+  function renderExerciseSummary() {
+    const listEl = document.getElementById('exercise-summary-list');
+    const labelEl = document.getElementById('summary-scenario-label');
+    if (!listEl) return;
+
+    const p = window.CCOScenario ? window.CCOScenario.getActive() : { mode: 'stock' };
+    const b = window.CCOScenario ? window.CCOScenario.getBundle() : null;
+    const data = window.__CCO_DATA || {};
+
+    // Prefer the Builder bundle's in-memory shape (flat injects object, meta
+    // at top level) when a custom scenario is active; fall back to the
+    // loaded content-bundle shape otherwise.
+    let injects, meta, contacts, phoneScripts, scenarioTitle;
+    if (p.mode === 'builder' && b) {
+      injects = b.injects || {};
+      meta = b.meta || {};
+      contacts = b.contacts || [];
+      phoneScripts = b.phoneScripts || {};
+      scenarioTitle = (meta.scenario_title || p.title || 'Custom scenario') + ' · custom';
+    } else {
+      injects = data.injects || {};
+      meta = data.meta || {};
+      contacts = (data.contacts && data.contacts.contacts) || [];
+      phoneScripts = data.phoneScripts || {};
+      scenarioTitle = 'Iron Meridian · stock';
+    }
+
+    if (labelEl) labelEl.textContent = scenarioTitle;
+
+    const injectList = Object.values(injects);
+    const injectCount = injectList.length;
+    const days = meta.days || maxDayFromInjects(injectList) || 4;
+    const phases = meta.phases ? meta.phases.length : null;
+
+    // Count injects by method (email vs call vs text vs doc vs walk-in)
+    const methodCounts = {};
+    injectList.forEach(inj => {
+      const m = inj.method || inferMethod(inj);
+      methodCounts[m] = (methodCounts[m] || 0) + 1;
+    });
+
+    // Count role routing
+    const routing = { cco: 0, aco: 0, leadership: 0, broadcast: 0 };
+    injectList.forEach(inj => {
+      const tag = inj.role_tag;
+      if (tag === 'cco') routing.cco++;
+      else if (tag === 'aco') routing.aco++;
+      else if (tag === 'leadership' || tag === 'commander' || tag === 'sel' || tag === 'flight_chief') routing.leadership++;
+      else routing.broadcast++;
+    });
+
+    const rows = [];
+    rows.push(['Scenario', scenarioTitle]);
+    rows.push(['Length', `${days} day${days === 1 ? '' : 's'}${phases ? ` · ${phases} phase${phases === 1 ? '' : 's'}` : ''}`]);
+    rows.push(['Injects loaded', `${injectCount}`]);
+    const methodStr = Object.entries(methodCounts)
+      .map(([k, v]) => `${v} ${k}`)
+      .join(', ') || '—';
+    rows.push(['Inject mix', methodStr]);
+    rows.push(['Role routing', `${routing.cco} CCO · ${routing.aco} ACO · ${routing.leadership} lead · ${routing.broadcast} broadcast`]);
+    rows.push(['Role players / contacts', `${contacts.length}`]);
+    rows.push(['Phone scripts', `${Object.keys(phoneScripts).length}`]);
+    rows.push(['Clock mode', (meta.clock_mode || document.getElementById('clock-mode-select').value) === 'wall' ? 'Wall-clock (1:1)' : 'Simulated']);
+
+    listEl.innerHTML = rows.map((r, i) => {
+      const isLast = i === rows.length - 1;
+      return `
+        <div class="summary-row${isLast ? ' summary-row-total' : ''}">
+          <span class="summary-label">${esc(r[0])}</span>
+          <span class="summary-value mono">${esc(r[1])}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function inferMethod(inj) {
+    // Legacy injects don't have .method; infer from presence of inbox items,
+    // sms items, phone scripts, etc.
+    if (inj.phone_script || (inj.method === 'call')) return 'call';
+    if (Array.isArray(inj.sms_items) && inj.sms_items.length) return 'text';
+    if (Array.isArray(inj.inbox_items) && inj.inbox_items.length) return 'email';
+    return 'other';
+  }
+  function maxDayFromInjects(list) {
+    let max = 0;
+    list.forEach(i => {
+      const d = (i.trigger && i.trigger.day) || 0;
+      if (d > max) max = d;
+    });
+    return max;
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+  }
+
+  // Re-render summary when the clock-mode dropdown changes (it's part of
+  // the readout). Scenario switches also trigger refresh() below.
+  window.addEventListener('DOMContentLoaded', () => {
+    refresh();
+    const clockSel = document.getElementById('clock-mode-select');
+    if (clockSel) clockSel.addEventListener('change', renderExerciseSummary);
+  });
+  document.getElementById('use-stock-btn').addEventListener('click', () => {
+    window.CCOScenario.useStock();
+    refresh();
+  });
+  document.getElementById('use-custom-btn').addEventListener('click', () => {
+    const b = window.CCOScenario.getBundle();
+    if (!b) {
+      alert('No custom scenario has been published yet. Open the Builder and click "Publish → App" first.');
+      return;
+    }
+    // Re-point to builder without re-publishing (bundle unchanged)
+    const pointer = window.CCOScenario.getActive();
+    localStorage.setItem(window.CCOScenario.POINTER_KEY, JSON.stringify({
+      mode: 'builder',
+      title: (b.meta && b.meta.scenario_title) || pointer.title || 'Custom scenario',
+      updated_at: new Date().toISOString()
+    }));
+    refresh();
+  });
+})();
+
 // Length buttons
 document.querySelectorAll('.length-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -296,19 +484,78 @@ document.querySelectorAll('.length-btn').forEach(btn => {
   });
 });
 
-// Option card selection
-document.querySelectorAll('.option-card').forEach(card => {
-  card.addEventListener('click', () => {
-    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-  });
-});
+// ---------- Capability cards ----------
+// Each card toggles on/off. We rebuild a short "unlocks" summary banner
+// whenever the selection changes so the exercise lead can see at a glance
+// what extra injects they've loaded on top of the base scenario.
+const CAPABILITY_LABELS = {
+  'body-armor':    'body armor',
+  'fm-colocated':  'FM crossover',
+  'gpc':           'GPC',
+  'theater-bpa':   'theater BPA',
+  'warranted-ko':  'warranted KO',
+  'linguist':      'linguist',
+  'printer':       'wet-sig / file room',
+};
+const CAPABILITY_STORAGE_KEY = 'cco-capstone-capabilities-draft';
 
-// Toggle modifiers
-document.querySelectorAll('.toggle').forEach(t => {
-  t.addEventListener('click', () => {
-    t.classList.toggle('on');
-    t.classList.toggle('off');
+function loadCapabilityDraft() {
+  try {
+    const raw = localStorage.getItem(CAPABILITY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (e) { return null; }
+}
+function saveCapabilityDraft() {
+  const snap = serializeCapabilities();
+  try { localStorage.setItem(CAPABILITY_STORAGE_KEY, JSON.stringify(snap)); } catch (e) {}
+}
+function serializeCapabilities() {
+  const out = {};
+  document.querySelectorAll('.cap-card').forEach(card => {
+    out[card.dataset.cap] = card.classList.contains('on');
+  });
+  return out;
+}
+function refreshCapabilitySummary() {
+  const active = [];
+  document.querySelectorAll('.cap-card.on').forEach(card => {
+    active.push(CAPABILITY_LABELS[card.dataset.cap] || card.dataset.cap);
+  });
+  const banner = document.getElementById('capabilities-summary');
+  const text = document.getElementById('capabilities-summary-text');
+  if (!banner || !text) return;
+  if (active.length === 0) {
+    banner.classList.remove('banner-ok');
+    banner.classList.add('banner-warn');
+    text.innerHTML = 'No capabilities selected — base scenario only.';
+  } else {
+    banner.classList.remove('banner-warn');
+    banner.classList.add('banner-ok');
+    text.innerHTML = `<strong>${active.length} capabilit${active.length === 1 ? 'y' : 'ies'} active</strong> — engine will layer in ${active.join(', ')} injects on top of the base scenario.`;
+  }
+}
+// Seed from saved draft
+(function initCapabilities() {
+  const draft = loadCapabilityDraft() || { 'body-armor': true, printer: true };
+  document.querySelectorAll('.cap-card').forEach(card => {
+    if (draft[card.dataset.cap]) {
+      card.classList.remove('off');
+      card.classList.add('on');
+    } else {
+      card.classList.remove('on');
+      card.classList.add('off');
+    }
+  });
+  refreshCapabilitySummary();
+})();
+document.querySelectorAll('.cap-card').forEach(card => {
+  card.addEventListener('click', () => {
+    card.classList.toggle('on');
+    card.classList.toggle('off');
+    refreshCapabilitySummary();
+    saveCapabilityDraft();
   });
 });
 
@@ -319,21 +566,26 @@ const COLOR_PALETTE = [
   '#E56B3D', '#C85A7A', '#6B90C8', '#A8B050',
 ];
 
+// v0.2.10: roster schema simplified.
+// - Students carry a `shop` field: 'CONS' | 'FM'. CONS/FM-specific injects
+//   only route to students tagged with the matching shop.
+// - White cell and inspectors no longer carry a title field; they're just
+//   name + color. Notes/observations stamp by id, not by title.
 const ROSTER_DEFAULTS = {
   students: [
-    { id: 's-ra', name: 'MSgt Ramirez', role: 'Primary CCO',   color: '#4FC3D7' },
-    { id: 's-ch', name: 'SSgt Chen',    role: 'Assistant CCO', color: '#8A7AB0' },
-    { id: 's-ok', name: 'TSgt Okafor',  role: 'COR liaison',   color: '#5BC98E' },
-    { id: 's-br', name: 'SrA Brooks',   role: 'Backup / admin',color: '#F5B845' },
+    { id: 's-ra', name: 'MSgt Ramirez', shop: 'CONS', color: '#4FC3D7' },
+    { id: 's-ch', name: 'SSgt Chen',    shop: 'CONS', color: '#8A7AB0' },
+    { id: 's-ok', name: 'TSgt Okafor',  shop: 'CONS', color: '#5BC98E' },
+    { id: 's-br', name: 'SrA Brooks',   shop: 'FM',   color: '#F5B845' },
   ],
   whitecell: [
-    { id: 'w-dt', name: 'Lt Col Dooley',  role: 'OPFOR vendor voice',  color: '#E56B3D' },
-    { id: 'w-pr', name: 'Maj Perez',      role: 'COR / requirements',  color: '#6B90C8' },
-    { id: 'w-vl', name: 'CMSgt Villanueva', role: 'Finance / RM',      color: '#C85A7A' },
+    { id: 'w-dt', name: 'Lt Col Dooley',    color: '#E56B3D' },
+    { id: 'w-pr', name: 'Maj Perez',        color: '#6B90C8' },
+    { id: 'w-vl', name: 'CMSgt Villanueva', color: '#C85A7A' },
   ],
   inspectors: [
-    { id: 'i-hd', name: 'Col Haddad',     role: 'Senior observer',     color: '#A8B050' },
-    { id: 'i-rm', name: 'MSgt Ramsey',    role: 'Ethics evaluator',    color: '#4FC3D7' },
+    { id: 'i-hd', name: 'Col Haddad',  color: '#A8B050' },
+    { id: 'i-rm', name: 'MSgt Ramsey', color: '#4FC3D7' },
   ],
 };
 
@@ -355,7 +607,20 @@ function loadRosterDraft() {
     const raw = localStorage.getItem(ROSTER_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.students && parsed.whitecell && parsed.inspectors) return parsed;
+    if (!parsed || !parsed.students || !parsed.whitecell || !parsed.inspectors) return null;
+    // v0.2.10: migrate legacy drafts that still carry a `role` field on
+    // students/whitecell/inspectors. For students, map anything resembling
+    // "FM" / "finance" to shop:FM, otherwise CONS. For whitecell/inspectors,
+    // drop the role entirely.
+    parsed.students = parsed.students.map(st => {
+      if (st.shop) return st;
+      const roleLower = (st.role || '').toLowerCase();
+      const shop = /fm|finance|disburs|rm\b/.test(roleLower) ? 'FM' : 'CONS';
+      return { id: st.id, name: st.name, shop, color: st.color };
+    });
+    parsed.whitecell = parsed.whitecell.map(w => ({ id: w.id, name: w.name, color: w.color }));
+    parsed.inspectors = parsed.inspectors.map(i => ({ id: i.id, name: i.name, color: i.color }));
+    return parsed;
   } catch (e) {}
   return null;
 }
@@ -374,6 +639,7 @@ function buildCard(kind, person) {
   card.className = 'roster-card roster-card-edit';
   card.dataset.id = person.id;
   card.dataset.color = person.color;
+  if (kind === 'students') card.dataset.shop = person.shop || 'CONS';
 
   const avatar = document.createElement('button');
   avatar.type = 'button';
@@ -403,15 +669,28 @@ function buildCard(kind, person) {
     saveRosterDraft();
   });
 
-  const roleInput = document.createElement('input');
-  roleInput.type = 'text';
-  roleInput.className = 'roster-input roster-input-role';
-  roleInput.value = person.role;
-  roleInput.placeholder = 'Role';
-  roleInput.addEventListener('input', saveRosterDraft);
-
   body.appendChild(nameInput);
-  body.appendChild(roleInput);
+
+  // v0.2.10: students get a CONS/FM shop selector (used by the engine to
+  // route shop-scoped injects). White cell and inspectors have no title
+  // field at all — one less thing to fill in before STARTEX.
+  if (kind === 'students') {
+    const shopSel = document.createElement('select');
+    shopSel.className = 'roster-input roster-input-shop';
+    shopSel.title = 'Which shop is this student from?';
+    ['CONS', 'FM'].forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      if ((person.shop || 'CONS') === s) opt.selected = true;
+      shopSel.appendChild(opt);
+    });
+    shopSel.addEventListener('change', () => {
+      card.dataset.shop = shopSel.value;
+      saveRosterDraft();
+    });
+    body.appendChild(shopSel);
+  }
 
   const del = document.createElement('button');
   del.type = 'button';
@@ -449,14 +728,20 @@ function serializeRoster(kind) {
   if (!grid) return [];
   return Array.from(grid.children).map(card => {
     const name = card.querySelector('.roster-input-name').value.trim() || 'Unnamed';
-    const role = card.querySelector('.roster-input-role').value.trim() || '—';
-    return {
+    const base = {
       id: card.dataset.id,
       name,
-      role,
       initials: initials(name),
       color: card.dataset.color,
     };
+    if (kind === 'students') {
+      base.shop = card.dataset.shop || 'CONS';
+      // Legacy compat: some older code still reads `role` off the student
+      // record. Fall back to the shop label so those callsites render
+      // something sensible until they're migrated.
+      base.role = base.shop;
+    }
+    return base;
   });
 }
 
@@ -480,14 +765,16 @@ function seedRoster(kind, people) {
 document.querySelectorAll('[data-add-roster]').forEach(btn => {
   btn.addEventListener('click', () => {
     const kind = btn.dataset.addRoster;
-    const defaults = {
-      students:   { name: 'New student',  role: 'CCO trainee' },
-      whitecell:  { name: 'New member',   role: 'Role-player' },
-      inspectors: { name: 'New inspector',role: 'Observer'    },
+    const defaultName = {
+      students:   'New student',
+      whitecell:  'New member',
+      inspectors: 'New inspector',
     }[kind];
     const color = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
     const prefix = kind === 'whitecell' ? 'w' : kind === 'inspectors' ? 'i' : 's';
-    addPerson(kind, { id: cid(prefix), name: defaults.name, role: defaults.role, color });
+    const person = { id: cid(prefix), name: defaultName, color };
+    if (kind === 'students') person.shop = 'CONS';
+    addPerson(kind, person);
     saveRosterDraft();
     // Focus the new card's name input for immediate editing
     const grid = document.getElementById('roster-' + kind);
@@ -496,8 +783,118 @@ document.querySelectorAll('[data-add-roster]').forEach(btn => {
   });
 });
 
-// STARTEX launch
-document.getElementById('startex-btn').addEventListener('click', () => {
+// ==========================================================================
+// v0.2.11 STARTEX launch — session-code flow
+//
+// Before: one click redirected straight to trainer.html under a single global
+// state key. Multiple exercises on one machine clobbered each other, and
+// there was no concept of "students join a session."
+//
+// Now: clicking STARTEX generates a 6-char session code (e.g. X7K2QM),
+// binds every subsequent localStorage key to that code, initializes the
+// state with phase='pre-exercise', and swaps in a "Session launched" panel
+// with direct links to each role view (trainer, students, white cell,
+// observers, phone). The trainer opens their dashboard first, waits for
+// others to join, then clicks "Start Exercise" on trainer.html to flip
+// the phase to 'cold-open' — that's the true kickoff moment.
+// ==========================================================================
+
+function buildRoleLinks(code, config) {
+  const base = '#session=' + encodeURIComponent(code);
+  const links = [];
+  links.push({
+    group: 'Trainer',
+    items: [{ label: 'Trainer Dashboard', href: 'trainer.html' + base, role: 'trainer' }]
+  });
+  const studentItems = (config.students || []).map((s, i) => ({
+    label: `${s.name || 'Student ' + (i+1)} · ${s.shop || 'CONS'}`,
+    href: `student.html${base}&as=${encodeURIComponent('student:' + s.id)}`,
+    role: 'student',
+    color: s.color || '#F5B845'
+  }));
+  if (studentItems.length) links.push({ group: 'Students', items: studentItems });
+  const whiteItems = (config.whitecell || []).map(w => ({
+    label: w.name || 'White Cell',
+    href: `student.html${base}&as=${encodeURIComponent('whitecell:' + w.id)}`,
+    role: 'whitecell',
+    color: w.color || '#8A7AB0'
+  }));
+  if (whiteItems.length) links.push({ group: 'White Cell', items: whiteItems });
+  const inspectorItems = (config.inspectors || []).map(ob => ({
+    label: ob.name || 'Observer',
+    href: `inspector.html${base}&as=${encodeURIComponent('inspector:' + ob.id)}`,
+    role: 'inspector',
+    color: ob.color || '#4FC3D7'
+  }));
+  if (inspectorItems.length) links.push({ group: 'Observers', items: inspectorItems });
+  links.push({
+    group: 'Phone',
+    items: [{ label: 'Phone (PWA)', href: 'mobile.html' + base, role: 'phone' }]
+  });
+  return links;
+}
+
+function showLaunchCompletePanel(code, config) {
+  const groups = buildRoleLinks(code, config);
+  const container = document.querySelector('.startex-content') || document.body;
+
+  // Stash the whole pre-launch UI and replace it with the launch-complete
+  // panel. We don't destroy it — the back link lets you return and tweak.
+  const existing = document.getElementById('launch-complete-panel');
+  if (existing) existing.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'launch-complete-panel';
+  panel.className = 'launch-complete';
+  panel.innerHTML = `
+    <div class="launch-complete-head">
+      <div class="micro micro-accent">Session launched</div>
+      <h2 class="launch-complete-title">Session <span class="session-code mono">${code}</span> is live</h2>
+      <p class="launch-complete-sub">Phase: <strong>Pre-exercise · waiting for kickoff</strong>. Open the trainer dashboard first, then share the links below with everyone in the session. When everyone's joined, the trainer clicks <strong>Start Exercise</strong> to begin Day 1.</p>
+    </div>
+
+    <div class="launch-complete-grid">
+      ${groups.map(g => `
+        <div class="launch-group">
+          <div class="launch-group-title">${g.group}</div>
+          <div class="launch-group-items">
+            ${g.items.map(it => `
+              <a class="launch-role-link" href="${it.href}" target="_blank" rel="noopener"
+                 data-role="${it.role}" ${it.color ? `style="--role-accent: ${it.color};"` : ''}>
+                <span class="launch-role-dot"></span>
+                <span class="launch-role-label">${it.label}</span>
+                <span class="launch-role-arrow">↗</span>
+              </a>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="launch-complete-foot">
+      <button class="btn btn-ghost" id="launch-back-btn">← Back to config</button>
+      <button class="btn btn-primary" id="launch-open-trainer-btn">Open Trainer Dashboard →</button>
+    </div>
+  `;
+
+  // Hide the original launch bar and scenario config rows; show the panel instead.
+  document.querySelectorAll('.startex-section, .launch-bar, .roster-section').forEach(el => {
+    el.style.display = 'none';
+  });
+  container.appendChild(panel);
+
+  document.getElementById('launch-back-btn').addEventListener('click', () => {
+    panel.remove();
+    document.querySelectorAll('.startex-section, .launch-bar, .roster-section').forEach(el => {
+      el.style.display = '';
+    });
+  });
+  document.getElementById('launch-open-trainer-btn').addEventListener('click', () => {
+    window.open('trainer.html#session=' + encodeURIComponent(code), '_blank');
+  });
+}
+
+document.getElementById('startex-btn').addEventListener('click', async () => {
   const students   = serializeRoster('students');
   const whitecell  = serializeRoster('whitecell');
   const inspectors = serializeRoster('inspectors');
@@ -507,23 +904,73 @@ document.getElementById('startex-btn').addEventListener('click', () => {
     return;
   }
 
+  const clockMode = document.getElementById('clock-mode-select').value === 'wall' ? 'wall' : 'sim';
+  const activePointer = (window.CCOScenario && window.CCOScenario.getActive()) || { mode: 'stock' };
+
+  // Generate session code. Six chars from an unambiguous alphabet.
+  const sessionCode = (function () {
+    const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < 6; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return out;
+  })();
+
   const config = {
-    scenario: 'iron-meridian',
-    difficulty: document.querySelector('input[name="difficulty"]:checked').value,
+    session_code: sessionCode,
+    scenario: activePointer.mode === 'builder' ? 'builder-custom' : 'iron-meridian',
+    scenario_title: activePointer.title || 'Iron Meridian',
+    scenario_mode: activePointer.mode,
+    clock_mode: clockMode,
     length: document.querySelector('.length-btn.active').dataset.length,
     roster: students,                // legacy key kept for engine compat
     students,
     whitecell,
     inspectors,
-    modifiers: Array.from(document.querySelectorAll('.toggle')).reduce((acc, t) => {
-      acc[t.dataset.mod] = t.classList.contains('on');
-      return acc;
-    }, {}),
+    capabilities: serializeCapabilities(),
     startedAt: new Date().toISOString(),
   };
+  // Config is still a single shared blob for now; we also write a
+  // session-scoped copy so the trainer can reliably find the config for its
+  // session even if another launch happens on the same machine.
   localStorage.setItem('cco-capstone-config', JSON.stringify(config));
-  localStorage.removeItem('cco-capstone-state');
-  window.location.href = 'trainer.html';
+  localStorage.setItem('cco-capstone-config:' + sessionCode, JSON.stringify(config));
+
+  // Bind the engine to the new session, load content, and prelaunch.
+  // prelaunchExercise() initializes injects/triggers/state under this
+  // session code with phase='pre-exercise' but DOES NOT start the clock.
+  // The trainer clicks "Start Exercise" on trainer.html to kick off Day 1.
+  if (window.Engine && Engine.setSession) {
+    Engine.setSession(sessionCode);
+    // v0.2.12: publish the active-session pointer so any bare-load view
+    // (student.html, trainer.html, etc. opened without a #session hash)
+    // auto-joins this exercise. Fixes late-joiner rejoin and the "student
+    // opened manually" tester flow.
+    if (Engine.writeActiveSessionPointer) {
+      Engine.writeActiveSessionPointer(sessionCode);
+    }
+    try { localStorage.removeItem('cco-capstone-state:' + sessionCode); } catch (e) {}
+    try { localStorage.removeItem('cco-capstone-student-outbox:' + sessionCode); } catch (e) {}
+
+    try {
+      // Load content (contacts, injects) so resolveTriggers() has something
+      // to work with. scenario-loader has already published the bundle into
+      // window.__CCO_DATA on page load.
+      await Engine.loadContacts();
+      // Determine which injects are "in" based on scenario + length. Use a
+      // simple selector: all injects from the active bundle. Builder scenarios
+      // are already pre-filtered.
+      const bundle = (window.__CCO_DATA && window.__CCO_DATA.injects) || [];
+      const ids = bundle.map(i => i.id);
+      await Engine.loadInjects(ids);
+      Engine.prelaunchExercise(config);
+    } catch (e) {
+      console.error('Prelaunch failed:', e);
+      alert('Launch failed: ' + (e && e.message ? e.message : e));
+      return;
+    }
+  }
+
+  showLaunchCompletePanel(sessionCode, config);
 });
 </script>
 </body>

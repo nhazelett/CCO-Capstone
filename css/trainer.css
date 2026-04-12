@@ -840,3 +840,456 @@ body.trainer-body .inbox-mirror-item .routing-tag-mini.needs {
   color: #E56B3D;
   border-color: rgba(229, 107, 61, 0.5);
 }
+
+/* ==========================================================================
+   v0.2.9 — action queue, inject focus, reply composer
+   ========================================================================== */
+
+.action-queue { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+
+.queue-item {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.queue-item.pending {
+  border-left: 3px solid var(--warn, #E56B3D);
+  background: rgba(229, 107, 61, 0.05);
+}
+.queue-item.handled {
+  opacity: 0.5;
+  border-left: 3px solid var(--good, #6F9960);
+}
+.queue-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+}
+.queue-from { font-weight: 600; color: var(--accent, #4FC3D7); }
+.queue-time { font-family: monospace; color: var(--text-tertiary); font-size: 10px; }
+.queue-inject {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.queue-body {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+.queue-actions { margin-top: 8px; display: flex; gap: 6px; }
+.queue-handled-strip {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--good, #6F9960);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.focus-body { padding: 10px 12px; }
+.focus-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.focus-tag {
+  padding: 2px 6px;
+  background: rgba(79, 195, 215, 0.14);
+  color: var(--accent, #4FC3D7);
+  border: 1px solid rgba(79, 195, 215, 0.3);
+  border-radius: 3px;
+}
+.focus-live { color: var(--live, #E56B3D); font-weight: 600; }
+.focus-queued { color: var(--text-tertiary); }
+
+.focus-fires {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+}
+.focus-fires .fire-btn {
+  text-align: left;
+  justify-content: flex-start;
+  width: 100%;
+  background: rgba(79, 195, 215, 0.08);
+  border: 1px solid rgba(79, 195, 215, 0.3);
+  color: var(--accent, #4FC3D7);
+}
+.focus-fires .fire-btn:hover {
+  background: rgba(79, 195, 215, 0.18);
+}
+
+.focus-expected {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.focus-expected ul {
+  margin: 6px 0 0 0;
+  padding-left: 16px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.focus-expected li { margin-bottom: 2px; }
+
+.focus-observer {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(168, 176, 80, 0.06);
+  border-left: 3px solid rgba(168, 176, 80, 0.5);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.focus-observer .micro { color: rgba(168, 176, 80, 0.9); margin-bottom: 4px; }
+.focus-observer p { margin: 0; font-style: italic; }
+
+/* Reply composer (modal content) */
+.reply-composer .reply-ctx {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid var(--accent);
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+.reply-composer .reply-ctx-body {
+  margin-top: 6px;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+.reply-composer .reply-ctx-inject {
+  margin-top: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+.reply-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.reply-templates .micro { width: 100%; margin-bottom: 4px; }
+.reply-field { margin-bottom: 10px; }
+.reply-field label { display: block; margin-bottom: 4px; }
+.reply-field input[type="text"],
+.reply-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #141414;
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+}
+.reply-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* ============================================================
+   v0.2.9 — Observer strip
+   Persistent yellow-tinted banner reminding the trainer that
+   an observer at the back of the room is grading them on the
+   currently-focused inject.
+   ============================================================ */
+.observer-strip {
+  background: linear-gradient(90deg,
+    rgba(234, 179, 8, 0.08) 0%,
+    rgba(234, 179, 8, 0.14) 50%,
+    rgba(234, 179, 8, 0.08) 100%);
+  border-bottom: 1px solid rgba(234, 179, 8, 0.35);
+  border-top: 1px solid rgba(234, 179, 8, 0.15);
+  color: #f3e8a0;
+  font-size: 12px;
+  transition: background 0.3s ease;
+}
+.observer-strip.collapsed .observer-strip-inner {
+  padding: 4px 0;
+}
+.observer-strip.collapsed .observer-strip-label,
+.observer-strip.collapsed .observer-strip-note {
+  display: none;
+}
+.observer-strip.collapsed .observer-strip-eye {
+  opacity: 0.5;
+}
+.observer-strip.quiet {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+.observer-strip.focused {
+  background: linear-gradient(90deg,
+    rgba(79, 195, 215, 0.08) 0%,
+    rgba(79, 195, 215, 0.14) 50%,
+    rgba(79, 195, 215, 0.08) 100%);
+  border-bottom-color: rgba(79, 195, 215, 0.35);
+  color: #c6eef5;
+}
+.observer-strip.live {
+  background: linear-gradient(90deg,
+    rgba(34, 197, 94, 0.07) 0%,
+    rgba(34, 197, 94, 0.13) 50%,
+    rgba(34, 197, 94, 0.07) 100%);
+  border-bottom-color: rgba(34, 197, 94, 0.35);
+  color: #c9f0d3;
+}
+.observer-strip-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 0;
+}
+.observer-strip-eye {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  opacity: 0.85;
+}
+.observer-strip-label {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 180px;
+  max-width: 320px;
+}
+.observer-strip-label .micro {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  line-height: 1.2;
+}
+.observer-strip-inject {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.observer-strip-state {
+  display: inline-block;
+  padding: 0 5px;
+  margin-right: 5px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  vertical-align: 1px;
+}
+.observer-strip.live .observer-strip-state {
+  background: rgba(34, 197, 94, 0.35);
+  color: #d4f9dd;
+}
+.observer-strip.focused .observer-strip-state {
+  background: rgba(79, 195, 215, 0.35);
+  color: #d6f2f8;
+}
+.observer-strip-note {
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.4;
+  opacity: 0.9;
+  padding-right: 12px;
+  /* Allow the note to wrap on narrow screens */
+  min-width: 0;
+}
+.observer-strip-dismiss {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  line-height: 1;
+  font-size: 16px;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+}
+.observer-strip-dismiss:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+@media (max-width: 900px) {
+  .observer-strip-inner {
+    flex-wrap: wrap;
+    padding: 6px 0;
+  }
+  .observer-strip-label {
+    min-width: 140px;
+    max-width: none;
+  }
+  .observer-strip-note {
+    flex-basis: 100%;
+    padding-right: 0;
+    margin-top: 4px;
+  }
+}
+
+/* =============================================================
+   v0.2.9 (post-pivot): Slim active-feed inject card
+   - Was: dense card with description + 5 action buttons.
+   - Now: single row — ID · title + Complete/Incomplete toggle.
+   The detailed content is still reachable from the Inject Focus
+   panel or the timeline dblclick modal.
+   ============================================================= */
+.inject-card-slim {
+  padding: 10px 14px !important;
+  display: block;
+  border-left: 3px solid var(--accent, #4FC3D7);
+}
+.inject-card-slim.status-complete {
+  border-left-color: var(--good, #4ade80);
+  background: rgba(74, 222, 128, 0.04);
+}
+.inject-card-slim.status-incomplete {
+  border-left-color: var(--alert, #f87171);
+  background: rgba(248, 113, 113, 0.04);
+}
+.inject-card-slim-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.inject-card-slim-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+.inject-card-slim-id {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.inject-card-slim-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inject-card-slim-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.status-btn {
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid var(--line, rgba(255,255,255,0.1));
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: all 0.12s ease;
+}
+.status-btn:hover {
+  border-color: var(--accent, #4FC3D7);
+  color: var(--text-primary);
+}
+.status-btn.complete.active {
+  background: var(--good, #4ade80);
+  border-color: var(--good, #4ade80);
+  color: #0a0a0a;
+}
+.status-btn.incomplete.active {
+  background: var(--alert, #f87171);
+  border-color: var(--alert, #f87171);
+  color: #0a0a0a;
+}
+
+/* =============================================================
+   v0.2.9: Observer strip completion badge
+   ============================================================= */
+.observer-strip-status {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+}
+.observer-strip-status.complete {
+  background: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.4);
+}
+.observer-strip-status.incomplete {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+.observer-strip.status-complete {
+  border-left: 3px solid #4ade80;
+}
+.observer-strip.status-incomplete {
+  border-left: 3px solid #f87171;
+}
+
+/* =============================================================
+   v0.2.9 (post-pivot): Action Queue notification — yellow flash
+   pulse on the panel when a new student ask lands, plus an
+   unread count badge on the header.
+   ============================================================= */
+.panel.queue-pulse {
+  animation: queuePulse 2.4s ease;
+}
+@keyframes queuePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 212, 59, 0.0); background: var(--panel-bg); }
+  10%  { box-shadow: 0 0 0 4px rgba(255, 212, 59, 0.45); background: rgba(255, 212, 59, 0.08); }
+  50%  { box-shadow: 0 0 0 2px rgba(255, 212, 59, 0.25); background: rgba(255, 212, 59, 0.04); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 212, 59, 0.0); background: var(--panel-bg); }
+}
+#queue-count.has-unread {
+  position: relative;
+  color: #ffd43b;
+}
+#queue-count.has-unread::after {
+  content: "●";
+  color: #ffd43b;
+  margin-left: 6px;
+  animation: pulseDot 1.6s ease-in-out infinite;
+  font-size: 14px;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}

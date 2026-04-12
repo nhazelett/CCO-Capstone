@@ -29,11 +29,34 @@
     <a href="student.html">Student</a>
     <a href="inspector.html">Inspector</a>
     <a href="mobile.html">Mobile</a>
+    <a href="builder.html">Builder</a>
   </nav>
   <div class="topbar-right">
     <div class="status-pill live" id="status-pill">
       <div class="status-dot"></div>
       <span id="exercise-status">Exercise live</span>
+    </div>
+  </div>
+</div>
+
+<!-- v0.2.9: Observer strip — always-visible reminder that the observer at
+     the back of the room is evaluating the trainer's performance on the
+     currently-focused (or most-recently-fired) inject. -->
+<div class="observer-strip" id="observer-strip">
+  <div class="container-wide">
+    <div class="observer-strip-inner">
+      <div class="observer-strip-eye" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
+        </svg>
+      </div>
+      <div class="observer-strip-label">
+        <div class="micro">Observer is watching you on</div>
+        <div class="observer-strip-inject" id="observer-strip-inject">—</div>
+      </div>
+      <div class="observer-strip-note" id="observer-strip-note">Pick an inject or wait for the next fire to see what the observer is grading.</div>
+      <button class="btn btn-sm observer-strip-dismiss" id="observer-strip-dismiss" title="Collapse">−</button>
     </div>
   </div>
 </div>
@@ -183,6 +206,36 @@
         </div>
       </div>
 
+      <!-- v0.2.9: Action queue — pending student asks -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <div class="micro">Action queue</div>
+            <div class="title"><span id="queue-count">0</span> pending</div>
+          </div>
+        </div>
+        <div class="panel-body panel-body-tight">
+          <div class="action-queue" id="action-queue">
+            <div class="muted text-center" style="padding: 16px 8px; font-size: 11px;">Quiet. Student questions will land here.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- v0.2.9: Inject focus — quick-fire templates for the selected inject -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <div class="micro">Inject focus</div>
+            <div class="title" id="focus-title">Pick an inject</div>
+          </div>
+        </div>
+        <div class="panel-body panel-body-tight">
+          <div class="focus-body" id="focus-body">
+            <div class="muted text-center" style="padding: 16px 8px; font-size: 11px;">Click an inject in the timeline or active feed to load its quick-fire options here.</div>
+          </div>
+        </div>
+      </div>
+
       <!-- v0.2.8: Role assignments panel -->
       <div class="panel">
         <div class="panel-header">
@@ -247,6 +300,7 @@
 </div>
 
 <script src="content/content-bundle.js"></script>
+<script src="js/scenario-loader.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/trainer.js"></script>
 </body>
