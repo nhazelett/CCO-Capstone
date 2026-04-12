@@ -22,16 +22,28 @@
   'use strict';
 
   // Guard: only run if Firebase SDK + config + Engine are all present.
+  // v0.2.14: update the net-loader badge with failure reason if a guard trips.
+  var _earlyBadge = document.getElementById('cco-net-badge');
+  function _guardFail(msg) {
+    console.warn('[firebase-storage] ' + msg);
+    if (_earlyBadge) {
+      _earlyBadge.textContent = '✗ NET: ' + msg;
+      _earlyBadge.style.borderColor = 'rgba(217, 85, 42, 0.7)';
+      _earlyBadge.style.color = '#D9552A';
+      _earlyBadge.style.background = 'rgba(217, 85, 42, 0.15)';
+      _earlyBadge.style.opacity = '1';
+    }
+  }
   if (!window.firebase || !window.firebase.database) {
-    console.warn('[firebase-storage] Firebase SDK not loaded — skipping.');
+    _guardFail('Firebase SDK not loaded');
     return;
   }
   if (!window.CCOFirebaseConfig || window.CCOFirebaseConfig.apiKey === 'PASTE_YOUR_API_KEY') {
-    console.warn('[firebase-storage] Firebase config not set — skipping. Edit js/firebase-config.js.');
+    _guardFail('Firebase config not set');
     return;
   }
   if (!window.Engine || !Engine.setNetworkHooks) {
-    console.warn('[firebase-storage] Engine not loaded or missing v0.2.13 hooks — skipping.');
+    _guardFail('Engine missing setNetworkHooks');
     return;
   }
 
