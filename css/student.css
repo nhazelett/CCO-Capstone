@@ -1616,3 +1616,593 @@ body.student-body::after {
   font-size: 10px;
   color: rgba(232, 237, 243, 0.5);
 }
+
+/* ==========================================================================
+   v0.2.14 — Outlook-style email restyle
+   Light-themed inbox list, reading pane, reply box, and delegation row.
+   Dark exercise chrome (persona bar, topbar, clock) is UNTOUCHED.
+   ========================================================================== */
+
+/* ---- Layout: Email left | Reading+Notes center | Texts right ---- */
+
+.student-grid-v2 {
+  grid-template-columns: 340px 1fr 300px;
+}
+.student-left-col .inbox-panel { flex: 1 1 100%; min-height: 400px; }
+.student-left-col .texts-panel { display: none; } /* moved to right col */
+
+.student-texts-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.student-texts-col .texts-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+}
+.student-texts-col .panel-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+/* Notes col no longer exists — replaced by sticky tray beneath reading pane */
+.student-notes-col { display: none; }
+
+@media (max-width: 1300px) {
+  .student-grid-v2 { grid-template-columns: 300px 1fr 260px; }
+}
+@media (max-width: 1100px) {
+  .student-grid-v2 { grid-template-columns: 1fr; }
+}
+
+/* ---- Outlook font stack ---- */
+.outlook-inbox,
+.outlook-reading,
+.outlook-inbox .mail-col-list,
+.outlook-reading .reading-pane {
+  font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+}
+
+/* Remove dark-theme right border on Outlook inbox list */
+.outlook-inbox .mail-col-list {
+  border-right: none;
+}
+
+/* ===== INBOX PANEL (left column) ===== */
+
+body.student-body .outlook-inbox {
+  background: #FFFFFF;
+  border: 1px solid #EDEBE9;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.student-body .outlook-inbox-header {
+  background: #F3F2F1;
+  border-bottom: 1px solid #EDEBE9;
+  padding: 14px 16px;
+}
+body.student-body .outlook-inbox-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #323130;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body.student-body .outlook-mail-count {
+  font-size: 12px;
+  color: #605E5C;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-inbox .panel-body {
+  background: #FFFFFF;
+}
+
+/* Filter notice — Outlook-ish info bar */
+body.student-body .outlook-inbox .inbox-filter-notice {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 12px;
+  color: #605E5C;
+  background: #F3F2F1;
+  border-bottom: 1px solid #EDEBE9;
+  padding: 8px 16px;
+}
+body.student-body .outlook-inbox .inbox-filter-notice strong {
+  color: #0078D4;
+}
+body.student-body .outlook-inbox .inbox-filter-notice .btn-link-sm {
+  color: #0078D4;
+}
+
+/* ===== MAIL ROWS (Outlook list items) ===== */
+
+body.student-body .outlook-inbox .s-mail-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #F3F2F1;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+body.student-body .outlook-inbox .s-mail-row:hover {
+  background: #F3F2F1;
+}
+body.student-body .outlook-inbox .s-mail-row.selected {
+  background: #EFF6FC;
+  border-left-color: #0078D4;
+  box-shadow: none;
+}
+body.student-body .outlook-inbox .s-mail-row.unread {
+  background: #FFFFFF;
+  border-left-color: #0078D4;
+}
+body.student-body .outlook-inbox .s-mail-row.unread::before {
+  display: none;
+}
+
+/* Row avatar circle (Outlook initials) */
+.s-mail-row-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0078D4;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+/* Vary avatar colors for visual variety — nth-child based */
+.s-mail-row:nth-child(4n+2) .s-mail-row-avatar { background: #107C10; }
+.s-mail-row:nth-child(4n+3) .s-mail-row-avatar { background: #CA5010; }
+.s-mail-row:nth-child(4n+4) .s-mail-row-avatar { background: #8764B8; }
+
+.s-mail-row-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* From name — Outlook uses semibold Segoe 14px dark */
+body.student-body .outlook-inbox .s-mail-from {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #323130;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body.student-body .outlook-inbox .s-mail-row.unread .s-mail-from {
+  color: #0078D4;
+  font-weight: 700;
+}
+
+/* Time stamp — Outlook uses light grey right-aligned */
+body.student-body .outlook-inbox .s-mail-time {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 12px;
+  color: #A19F9D;
+}
+
+/* Subject — Outlook regular weight */
+body.student-body .outlook-inbox .s-mail-subject {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #323130;
+}
+body.student-body .outlook-inbox .s-mail-row.unread .s-mail-subject {
+  font-weight: 600;
+  color: #201F1E;
+}
+
+/* Preview — Outlook muted grey */
+body.student-body .outlook-inbox .s-mail-preview {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 12px;
+  color: #A19F9D;
+}
+
+/* Close button — subtle on Outlook white */
+body.student-body .outlook-inbox .s-mail-close {
+  color: #A19F9D;
+  background: transparent;
+}
+body.student-body .outlook-inbox .s-mail-close:hover {
+  color: #323130;
+  background: #EDEBE9;
+}
+
+/* Routing tags — keep the color-coded tags but soften for light bg */
+body.student-body .outlook-inbox .routing-tag.lead {
+  background: #E1F5FE;
+  color: #0277BD;
+  border-color: #B3E5FC;
+}
+body.student-body .outlook-inbox .routing-tag.duty {
+  background: #E8F5E9;
+  color: #2E7D32;
+  border-color: #C8E6C9;
+}
+
+/* Empty state */
+body.student-body .outlook-empty {
+  color: #605E5C;
+}
+body.student-body .outlook-empty .mail-empty-title {
+  color: #323130;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-empty .mail-empty-desc {
+  color: #A19F9D;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+
+/* ===== READING PANEL (center column) ===== */
+
+body.student-body .outlook-reading {
+  background: #FFFFFF;
+  border: 1px solid #EDEBE9;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.student-body .outlook-reading .reading-pane {
+  background: #FFFFFF;
+  color: #323130;
+}
+
+/* Empty reading state */
+.outlook-empty-reading {
+  padding: 80px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.outlook-empty-reading p {
+  color: #A19F9D;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+
+/* Subject line — Outlook uses large semibold, no mono/uppercase */
+body.student-body .outlook-reading .s-mail-detail-subject {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #201F1E;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  border-bottom: none;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+/* Meta bar — Outlook from / time row */
+body.student-body .outlook-reading .s-mail-detail-meta {
+  border-top: none;
+  border-bottom: 1px solid #EDEBE9;
+  padding: 12px 0;
+  margin-bottom: 20px;
+}
+
+/* Avatar in detail — Outlook blue circle */
+body.student-body .outlook-reading .s-mail-avatar {
+  background: #0078D4;
+  color: #FFFFFF;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+
+/* From name in detail */
+body.student-body .outlook-reading .s-mail-from-name {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #323130;
+}
+body.student-body .outlook-reading .s-mail-from-email {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 12px;
+  color: #605E5C;
+}
+body.student-body .outlook-reading .s-mail-detail-time {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 12px;
+  color: #A19F9D;
+}
+
+/* Close button — Outlook style */
+body.student-body .outlook-reading .s-mail-detail-close {
+  background: #F3F2F1;
+  color: #323130;
+  border: 1px solid #EDEBE9;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .s-mail-detail-close:hover {
+  background: #EDEBE9;
+}
+
+/* Email body — proper Outlook reading font */
+body.student-body .outlook-reading .s-mail-detail-body {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #323130;
+}
+
+/* Delegated strip — softer on white */
+body.student-body .outlook-reading .delegated-from-strip {
+  background: #FFF4CE;
+  border-left-color: #FFB900;
+  color: #605E5C;
+}
+
+/* Delegate row — light theme */
+body.student-body .outlook-reading .mail-delegate-row {
+  background: #FAF9F8;
+  border: 1px solid #EDEBE9;
+  border-radius: 4px;
+}
+body.student-body .outlook-reading .mail-delegate-row label {
+  color: #605E5C;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .mail-delegate-row select {
+  background: #FFFFFF;
+  color: #323130;
+  border: 1px solid #8A8886;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .delegated-note {
+  color: #A19F9D;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+
+/* Reply box — Outlook compose-like */
+body.student-body .outlook-reading .mail-reply-box {
+  background: #FAF9F8;
+  border: 1px solid #EDEBE9;
+  border-radius: 4px;
+}
+body.student-body .outlook-reading .mail-reply-box .micro {
+  color: #0078D4;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+body.student-body .outlook-reading .mail-reply-box textarea {
+  background: #FFFFFF;
+  color: #323130;
+  border: 1px solid #8A8886;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 13px;
+}
+body.student-body .outlook-reading .mail-reply-box textarea:focus {
+  border-color: #0078D4;
+  outline: none;
+}
+body.student-body .outlook-reading .mail-reply-actions .btn {
+  background: #0078D4;
+  color: #FFFFFF;
+  border: none;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-weight: 600;
+}
+body.student-body .outlook-reading .mail-reply-actions .btn:hover {
+  background: #106EBE;
+}
+
+/* White cell tag on reading pane */
+body.student-body .outlook-reading .routing-tag {
+  background: #E1F5FE;
+  color: #0277BD;
+  border: 1px solid #B3E5FC;
+}
+
+/* ===== BURNT STICKY NOTES (beneath reading pane) ===== */
+
+.sticky-notes-tray {
+  display: flex;
+  gap: 16px;
+  padding: 14px 0 0;
+  flex-wrap: wrap;
+}
+
+.sticky-note {
+  flex: 1 1 30%;
+  min-width: 180px;
+  background: #F5E6B8;
+  border: 1px solid #D4C08A;
+  border-radius: 2px;
+  padding: 14px 16px 18px;
+  position: relative;
+  box-shadow:
+    2px 3px 8px rgba(80, 50, 10, 0.18),
+    inset 0 0 30px rgba(120, 80, 20, 0.06);
+  transform: rotate(-0.4deg);
+  transition: transform 0.2s ease;
+
+  /* Burnt/aged edges effect */
+  background-image:
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(100, 60, 10, 0.12), transparent 60%),
+    radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100, 60, 10, 0.09), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(80, 45, 5, 0.07), transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 4%);
+  background-color: #F5E6B8;
+}
+.sticky-note:hover {
+  transform: rotate(0deg) translateY(-1px);
+  box-shadow: 2px 4px 12px rgba(80, 50, 10, 0.24), inset 0 0 30px rgba(120, 80, 20, 0.06);
+}
+
+/* Tape strip at top */
+.sticky-note::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 12px;
+  background: rgba(200, 190, 160, 0.55);
+  border-radius: 1px;
+  border: 1px solid rgba(180, 170, 140, 0.4);
+}
+
+/* Subtle burn marks on corners */
+.sticky-note::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  background: radial-gradient(circle at 100% 100%, rgba(80, 40, 0, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  border-radius: 0 0 2px 0;
+}
+
+.sticky-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sticky-note-label {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6B5A30;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sticky-note-textarea {
+  width: 100%;
+  min-height: 80px;
+  box-sizing: border-box;
+  background-color: #F5E6B8;
+  color: #3B3118;
+  border: none;
+  border-bottom: 1px dashed rgba(107, 90, 48, 0.2);
+  padding: 6px 2px;
+  font-family: 'Segoe UI', Georgia, serif;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+
+  /* Ruled-paper lines */
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 19px,
+    rgba(107, 90, 48, 0.10) 19px,
+    rgba(107, 90, 48, 0.10) 20px
+  );
+  background-size: 100% 20px;
+}
+.sticky-note-textarea:focus {
+  outline: none;
+  border-bottom-color: rgba(107, 90, 48, 0.4);
+}
+.sticky-note-textarea::placeholder {
+  color: rgba(107, 90, 48, 0.4);
+  font-style: italic;
+}
+
+/* Per-note rotation & color variety */
+.sticky-note-1 {
+  transform: rotate(-0.6deg);
+  background-color: #F5E6B8;
+}
+.sticky-note-1 .sticky-note-textarea { background-color: #F5E6B8; }
+
+.sticky-note-2 {
+  transform: rotate(0.4deg);
+  background-color: #F5D6A8;
+  background-image:
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(120, 60, 10, 0.10), transparent 60%),
+    radial-gradient(ellipse 40% 60% at 0% 100%, rgba(120, 60, 10, 0.07), transparent 50%),
+    linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 4%);
+}
+.sticky-note-2 .sticky-note-textarea { background-color: #F5D6A8; }
+
+.sticky-note-3 {
+  transform: rotate(-0.3deg);
+  background-color: #EFE0C0;
+  background-image:
+    radial-gradient(ellipse 50% 50% at 0% 100%, rgba(90, 50, 5, 0.10), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 100% 0%, rgba(100, 55, 10, 0.08), transparent 50%),
+    linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 4%);
+}
+.sticky-note-3 .sticky-note-textarea { background-color: #EFE0C0; }
+
+/* ===== SMS thread inside Outlook-white reading pane ===== */
+
+body.student-body .outlook-reading .s-thread-head {
+  border-bottom-color: #EDEBE9;
+}
+body.student-body .outlook-reading .s-thread-name {
+  color: #323130;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .s-thread-title {
+  color: #605E5C;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .s-thread-count {
+  color: #A19F9D;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .s-bubble.in {
+  background: #F3F2F1;
+  color: #323130;
+}
+body.student-body .outlook-reading .s-bubble.out {
+  background: #E1DFDD;
+  color: #201F1E;
+}
+body.student-body .outlook-reading .s-bubble-time {
+  color: #A19F9D;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .s-thread-reply {
+  background: #FAF9F8;
+  border-color: #EDEBE9;
+}
+body.student-body .outlook-reading .s-thread-reply-head .micro {
+  color: #0078D4;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .s-thread-reply-hint {
+  color: #A19F9D;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .s-thread-reply-input {
+  background: #FFFFFF;
+  color: #323130;
+  border-color: #8A8886;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+body.student-body .outlook-reading .s-thread-reply-input:focus {
+  border-color: #0078D4;
+}
+
+/* ===== Micro label resets inside Outlook-themed panels ===== */
+body.student-body .outlook-inbox .micro,
+body.student-body .outlook-reading .micro {
+  color: #605E5C;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}

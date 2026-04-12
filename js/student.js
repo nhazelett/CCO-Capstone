@@ -42,6 +42,38 @@ function saveNotes(text) {
 }
 let notesSaveTimer = null;
 
+// v0.2.14: additional sticky notes — Actions Taken & Key Info
+const STUDENT_ACTIONS_KEY_PREFIX = 'cco-capstone-actions-';
+const STUDENT_KEYINFO_KEY_PREFIX = 'cco-capstone-keyinfo-';
+function actionsKeyFor(persona) {
+  if (persona === 'observer') return STUDENT_ACTIONS_KEY_PREFIX + 'observer';
+  if (!persona || !persona.id) return STUDENT_ACTIONS_KEY_PREFIX + 'unassigned';
+  return STUDENT_ACTIONS_KEY_PREFIX + persona.id;
+}
+function keyinfoKeyFor(persona) {
+  if (persona === 'observer') return STUDENT_KEYINFO_KEY_PREFIX + 'observer';
+  if (!persona || !persona.id) return STUDENT_KEYINFO_KEY_PREFIX + 'unassigned';
+  return STUDENT_KEYINFO_KEY_PREFIX + persona.id;
+}
+function loadActions() {
+  try { return localStorage.getItem(actionsKeyFor(currentPersona)) || ''; }
+  catch (e) { return ''; }
+}
+function saveActions(text) {
+  try { localStorage.setItem(actionsKeyFor(currentPersona), text || ''); }
+  catch (e) {}
+}
+function loadKeyInfo() {
+  try { return localStorage.getItem(keyinfoKeyFor(currentPersona)) || ''; }
+  catch (e) { return ''; }
+}
+function saveKeyInfo(text) {
+  try { localStorage.setItem(keyinfoKeyFor(currentPersona), text || ''); }
+  catch (e) {}
+}
+let actionsSaveTimer = null;
+let keyinfoSaveTimer = null;
+
 // v0.2.10: per-laptop dismissed mail tracking. Students can close/hide any
 // email they're done with — it stays in the underlying inbox (so inspectors
 // and the trainer still see it) but vanishes from this student's list. The
@@ -588,15 +620,19 @@ function renderMailList() {
       } else if (m.role_tag === 'cco') {
         tag = `<span class="routing-tag duty">CCO</span>`;
       }
+      const rowInitials = initialsFromName(m.from);
       return `
         <div class="s-mail-row ${m.unread ? 'unread' : ''} ${isSelected ? 'selected' : ''}" data-id="${esc(m.id)}">
           <button class="s-mail-close" data-dismiss="${esc(m.id)}" title="Close this email">&times;</button>
-          <div class="s-mail-head">
-            <div class="s-mail-from">${esc(m.from)}${tag}</div>
-            <div class="s-mail-time">${esc(m.time)}</div>
+          <div class="s-mail-row-avatar">${esc(rowInitials)}</div>
+          <div class="s-mail-row-content">
+            <div class="s-mail-head">
+              <div class="s-mail-from">${esc(m.from)}${tag}</div>
+              <div class="s-mail-time">${esc(m.time)}</div>
+            </div>
+            <div class="s-mail-subject">${esc(m.subject)}</div>
+            <div class="s-mail-preview">${esc(preview)}</div>
           </div>
-          <div class="s-mail-subject">${esc(m.subject)}</div>
-          <div class="s-mail-preview">${esc(preview)}</div>
         </div>
       `;
     })
@@ -711,9 +747,9 @@ function renderReadingPane() {
     return;
   }
   container.innerHTML = `
-    <div class="reading-empty">
-      <div class="micro">Select a message</div>
-      <p>Click an email or SMS thread from the left column to read it here.</p>
+    <div class="reading-empty outlook-empty-reading">
+      <svg viewBox="0 0 56 56" fill="none" style="width:48px;height:48px;margin-bottom:12px;opacity:0.35;"><rect x="6" y="10" width="44" height="36" rx="3" stroke="#0078D4" stroke-width="1.5"/><path d="M6 14l22 14L50 14" stroke="#0078D4" stroke-width="1.5"/></svg>
+      <p style="color:#605E5C;font-size:13px;font-family:'Segoe UI',-apple-system,sans-serif;">Select an item to read</p>
     </div>
   `;
 }
@@ -891,6 +927,38 @@ function renderNotesPanel() {
       clearTimeout(notesSaveTimer);
       notesSaveTimer = setTimeout(() => saveNotes(el.value), 250);
     });
+  }
+
+  // v0.2.14: wire additional sticky notes (Actions Taken, Key Info)
+  const actionsEl = document.getElementById('actions-textarea');
+  if (actionsEl) {
+    const aKey = actionsKeyFor(currentPersona);
+    if (actionsEl.dataset.key !== aKey) {
+      actionsEl.value = loadActions();
+      actionsEl.dataset.key = aKey;
+    }
+    if (!actionsEl.dataset.wired) {
+      actionsEl.dataset.wired = '1';
+      actionsEl.addEventListener('input', () => {
+        clearTimeout(actionsSaveTimer);
+        actionsSaveTimer = setTimeout(() => saveActions(actionsEl.value), 250);
+      });
+    }
+  }
+  const keyinfoEl = document.getElementById('keyinfo-textarea');
+  if (keyinfoEl) {
+    const kKey = keyinfoKeyFor(currentPersona);
+    if (keyinfoEl.dataset.key !== kKey) {
+      keyinfoEl.value = loadKeyInfo();
+      keyinfoEl.dataset.key = kKey;
+    }
+    if (!keyinfoEl.dataset.wired) {
+      keyinfoEl.dataset.wired = '1';
+      keyinfoEl.addEventListener('input', () => {
+        clearTimeout(keyinfoSaveTimer);
+        keyinfoSaveTimer = setTimeout(() => saveKeyInfo(keyinfoEl.value), 250);
+      });
+    }
   }
 }
 

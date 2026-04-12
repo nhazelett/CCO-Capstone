@@ -36,35 +36,34 @@
   }
 
   // ---- Initialize Firebase ----
-  const app = firebase.initializeApp(window.CCOFirebaseConfig);
-  const db  = firebase.database();
+  var app = firebase.initializeApp(window.CCOFirebaseConfig);
+  var db  = firebase.database();
 
-  const session = Engine.getSession();
-  if (!session || session === 'default') {
-    console.warn('[firebase-storage] No session code set — network relay inactive. Open via a session link or set a session first.');
-    return;
-  }
+  // ---- Session tracking ----
+  // The session may not be known yet (e.g., startex.html before the user
+  // clicks STARTEX). We install hooks and the badge immediately, and bind
+  // Firebase listeners once a real session is available. If the session IS
+  // already known (e.g., trainer.html#session=XYZ), we bind right away.
+  var _boundSession = null;  // the session code we're actively syncing
+  var _listeners = [];       // { ref, event, fn } — for cleanup if rebinding
 
-  console.log(`[firebase-storage] Connected to Firebase. Session: ${session}`);
-
-  // ---- Ref helpers ----
-  function stateRef()                { return db.ref(`sessions/${session}/state`); }
-  function outboxRef()               { return db.ref(`sessions/${session}/outbox`); }
-  function presenceRef(clientId)     { return db.ref(`sessions/${session}/presence/${clientId}`); }
-  function presenceRootRef()         { return db.ref(`sessions/${session}/presence`); }
-  function configRef()               { return db.ref(`sessions/${session}/config`); }
+  function stateRef()            { return db.ref('sessions/' + _boundSession + '/state'); }
+  function outboxRef()           { return db.ref('sessions/' + _boundSession + '/outbox'); }
+  function presenceRef(cid)      { return db.ref('sessions/' + _boundSession + '/presence/' + cid); }
+  function presenceRootRef()     { return db.ref('sessions/' + _boundSession + '/presence'); }
+  function configRef()           { return db.ref('sessions/' + _boundSession + '/config'); }
 
   // ---- Timestamp tracking to ignore own echoes ----
-  // Firebase on('value') fires for local writes too. We track the last
-  // _lastUpdate timestamp we wrote so we can skip the inbound callback when
-  // it's just our own echo.
-  let _lastWrittenUpdate = 0;
+  var _lastWrittenUpdate = 0;
 
   // ---- Outbound hooks (engine → Firebase) ----
+  // Installed immediately so the engine can relay writes the moment a
+  // session binds. If _boundSession is null, writes are silently skipped.
 
   Engine.setNetworkHooks({
 
     onStateWrite: function (sessionCode, snap) {
+      if (!_boundSession) return;
       _lastWrittenUpdate = snap._lastUpdate || Date.now();
       stateRef().set(snap).catch(function (e) {
         console.warn('[firebase-storage] state write failed:', e);
@@ -72,134 +71,200 @@
     },
 
     onOutboxWrite: function (sessionCode, list) {
+      if (!_boundSession) return;
       outboxRef().set(list).catch(function (e) {
         console.warn('[firebase-storage] outbox write failed:', e);
       });
     },
 
     onPresenceWrite: function (sessionCode, clientId, payload) {
+      if (!_boundSession) return;
       var ref = presenceRef(clientId);
       ref.set(payload).catch(function (e) {
         console.warn('[firebase-storage] presence write failed:', e);
       });
-      // Register onDisconnect cleanup so Firebase removes this entry when
-      // the client's connection drops — no heartbeat polling needed.
       ref.onDisconnect().remove().catch(function () {});
     },
 
     onPresenceStop: function (sessionCode, clientId) {
+      if (!_boundSession) return;
       presenceRef(clientId).remove().catch(function () {});
     }
 
   });
 
-  // ---- Inbound listeners (Firebase → engine) ----
+  // ---- Bind Firebase listeners for a session ----
+  function bindSession(code) {
+    if (!code || code === 'default') return;
+    if (code === _boundSession) return; // already bound
 
-  // State: when another device writes state, apply it locally.
-  stateRef().on('value', function (snapshot) {
-    var val = snapshot.val();
-    if (!val) return;
-    // Skip if this is an echo of our own write.
-    if (val._lastUpdate && val._lastUpdate === _lastWrittenUpdate) return;
-    // Apply to engine (writes localStorage, loads state, dispatches sync).
-    Engine.applyRemoteState(val);
-  });
+    // Tear down previous listeners if re-binding
+    unbindListeners();
 
-  // Outbox: when a student on another device writes outbox entries, the
-  // trainer's engine should drain them.
-  outboxRef().on('value', function (snapshot) {
-    var val = snapshot.val();
-    if (!val || !Array.isArray(val) || val.length === 0) return;
-    Engine.applyRemoteOutbox(val);
-    // Clear the Firebase outbox after draining (trainer is the consumer).
-    // Only do this if the engine isn't read-only (i.e., this window is the trainer).
-    if (!Engine.getState().readOnly) {
-      outboxRef().set([]).catch(function () {});
-    }
-  });
+    _boundSession = code;
+    console.log('[firebase-storage] Binding to session: ' + code);
+    updateBadge();
 
-  // Presence: mirror all remote presence entries to localStorage so
-  // Engine.listPresence() works unchanged (it scans localStorage keys).
-  // Also handle disconnects — when a child is removed, clean up the
-  // corresponding localStorage key.
-  presenceRootRef().on('child_added', function (snap) {
-    var payload = snap.val();
-    if (!payload || !payload.clientId) return;
-    Engine.applyRemotePresence(payload.clientId, payload);
-  });
-  presenceRootRef().on('child_changed', function (snap) {
-    var payload = snap.val();
-    if (!payload || !payload.clientId) return;
-    Engine.applyRemotePresence(payload.clientId, payload);
-  });
-  presenceRootRef().on('child_removed', function (snap) {
-    var payload = snap.val();
-    if (!payload || !payload.clientId) return;
-    Engine.removeRemotePresence(payload.clientId);
-  });
+    // --- Inbound: state ---
+    var stateCb = function (snapshot) {
+      var val = snapshot.val();
+      if (!val) return;
+      if (val._lastUpdate && val._lastUpdate === _lastWrittenUpdate) return;
+      Engine.applyRemoteState(val);
+    };
+    stateRef().on('value', stateCb);
+    _listeners.push({ ref: stateRef(), event: 'value', fn: stateCb });
 
-  // ---- Initial state sync ----
-  // If this is a new window joining an existing session, load the current
-  // state from Firebase (which may be newer than anything in localStorage).
-  stateRef().once('value').then(function (snapshot) {
-    var val = snapshot.val();
-    if (val && val._lastUpdate) {
-      // Compare with local state — take whichever is newer.
-      var localRaw = Engine.getRawStateString ? Engine.getRawStateString() : null;
-      var localUpdate = 0;
-      if (localRaw) {
-        try { localUpdate = JSON.parse(localRaw)._lastUpdate || 0; } catch (e) {}
+    // --- Inbound: outbox ---
+    var outboxCb = function (snapshot) {
+      var val = snapshot.val();
+      if (!val || !Array.isArray(val) || val.length === 0) return;
+      Engine.applyRemoteOutbox(val);
+      if (!Engine.getState().readOnly) {
+        outboxRef().set([]).catch(function () {});
       }
-      if (val._lastUpdate > localUpdate) {
-        console.log('[firebase-storage] Remote state is newer — applying.');
-        Engine.applyRemoteState(val);
-      }
-    }
-  });
+    };
+    outboxRef().on('value', outboxCb);
+    _listeners.push({ ref: outboxRef(), event: 'value', fn: outboxCb });
 
-  // ---- Seed config to Firebase ----
-  // The trainer writes config to localStorage during launch. Mirror it to
-  // Firebase so remote windows can read it.
-  var localConfig = null;
-  try {
-    var configKey = 'cco-capstone-config:' + session;
-    var raw = localStorage.getItem(configKey) || localStorage.getItem('cco-capstone-config');
-    if (raw) localConfig = JSON.parse(raw);
-  } catch (e) {}
-  if (localConfig) {
-    configRef().set(localConfig).catch(function (e) {
-      console.warn('[firebase-storage] config seed failed:', e);
+    // --- Inbound: presence ---
+    var pAddCb = function (snap) {
+      var p = snap.val();
+      if (p && p.clientId) Engine.applyRemotePresence(p.clientId, p);
+    };
+    var pChangeCb = function (snap) {
+      var p = snap.val();
+      if (p && p.clientId) Engine.applyRemotePresence(p.clientId, p);
+    };
+    var pRemoveCb = function (snap) {
+      var p = snap.val();
+      if (p && p.clientId) Engine.removeRemotePresence(p.clientId);
+    };
+    presenceRootRef().on('child_added',   pAddCb);
+    presenceRootRef().on('child_changed', pChangeCb);
+    presenceRootRef().on('child_removed', pRemoveCb);
+    _listeners.push({ ref: presenceRootRef(), event: 'child_added',   fn: pAddCb });
+    _listeners.push({ ref: presenceRootRef(), event: 'child_changed', fn: pChangeCb });
+    _listeners.push({ ref: presenceRootRef(), event: 'child_removed', fn: pRemoveCb });
+
+    // --- Inbound: config ---
+    var configCb = function (snapshot) {
+      var val = snapshot.val();
+      if (!val) return;
+      try {
+        var json = JSON.stringify(val);
+        localStorage.setItem('cco-capstone-config', json);
+        localStorage.setItem('cco-capstone-config:' + code, json);
+      } catch (e) {}
+    };
+    configRef().on('value', configCb);
+    _listeners.push({ ref: configRef(), event: 'value', fn: configCb });
+
+    // --- Initial state sync ---
+    stateRef().once('value').then(function (snapshot) {
+      var val = snapshot.val();
+      if (val && val._lastUpdate) {
+        var localRaw = Engine.getRawStateString ? Engine.getRawStateString() : null;
+        var localUpdate = 0;
+        if (localRaw) {
+          try { localUpdate = JSON.parse(localRaw)._lastUpdate || 0; } catch (e) {}
+        }
+        if (val._lastUpdate > localUpdate) {
+          console.log('[firebase-storage] Remote state is newer — applying.');
+          Engine.applyRemoteState(val);
+        }
+      }
+    });
+
+    // --- Seed config to Firebase ---
+    var localConfig = null;
+    try {
+      var raw = localStorage.getItem('cco-capstone-config:' + code) ||
+                localStorage.getItem('cco-capstone-config');
+      if (raw) localConfig = JSON.parse(raw);
+    } catch (e) {}
+    if (localConfig) {
+      configRef().set(localConfig).catch(function (e) {
+        console.warn('[firebase-storage] config seed failed:', e);
+      });
+    }
+  }
+
+  function unbindListeners() {
+    _listeners.forEach(function (l) {
+      try { l.ref.off(l.event, l.fn); } catch (e) {}
+    });
+    _listeners = [];
+  }
+
+  // ---- Visual indicator ----
+  // Reuse the badge net-loader.js already created, or make a new one.
+  var badge = document.getElementById('cco-net-badge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'cco-net-badge';
+    badge.style.cssText = [
+      'position:fixed', 'bottom:8px', 'right:8px', 'z-index:99999',
+      'background:rgba(79,195,215,0.18)', 'border:1px solid rgba(79,195,215,0.5)',
+      'color:#4FC3D7', 'font-size:10px', 'font-family:monospace',
+      'padding:3px 8px', 'border-radius:4px', 'letter-spacing:1px',
+      'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(badge);
+  }
+
+  function updateBadge() {
+    if (_boundSession) {
+      badge.textContent = '● NET';
+      badge.title = 'Firebase relay active — session ' + _boundSession;
+      badge.style.opacity = '1';
+    } else {
+      badge.textContent = '● NET (standby)';
+      badge.title = 'Firebase loaded — waiting for session';
+      badge.style.opacity = '0.5';
+    }
+  }
+  updateBadge();
+
+  // ---- Auto-bind if session is already known ----
+  var currentSession = Engine.getSession();
+  if (currentSession && currentSession !== 'default') {
+    bindSession(currentSession);
+  }
+
+  // ---- Watch for session changes ----
+  // When startex.html creates a new session via Engine.setSession(), or
+  // when the user clicks a launch link and opens trainer.html, the
+  // session code becomes available. We poll Engine.getSession() briefly
+  // to catch the transition. Also listen for engine:prelaunch which fires
+  // after startex creates the session.
+  if (!_boundSession) {
+    var pollCount = 0;
+    var pollTimer = setInterval(function () {
+      pollCount++;
+      var s = Engine.getSession();
+      if (s && s !== 'default' && s !== _boundSession) {
+        bindSession(s);
+        clearInterval(pollTimer);
+      }
+      // Stop polling after 5 minutes — if no session by then, give up.
+      if (pollCount > 300) clearInterval(pollTimer);
+    }, 1000);
+
+    // Also catch the prelaunch event (fired by startex after session is set)
+    document.addEventListener('engine:prelaunch', function () {
+      var s = Engine.getSession();
+      if (s && s !== 'default' && s !== _boundSession) {
+        bindSession(s);
+        clearInterval(pollTimer);
+      }
     });
   }
 
-  // Also listen for config from Firebase (remote window might have written it).
-  configRef().on('value', function (snapshot) {
-    var val = snapshot.val();
-    if (!val) return;
-    // Write to both legacy and session-scoped localStorage keys so all
-    // view JS files can find the config regardless of which key they check.
-    try {
-      var json = JSON.stringify(val);
-      localStorage.setItem('cco-capstone-config', json);
-      localStorage.setItem('cco-capstone-config:' + session, json);
-    } catch (e) {}
-  });
+  // ---- Expose bindSession globally so startex can trigger it ----
+  window.CCOFirebaseBind = bindSession;
 
-  // ---- Visual indicator ----
-  // Add a small "NETWORKED" badge to the page so the user knows Firebase is
-  // active. This helps distinguish online-mode testing from local-mode.
-  var badge = document.createElement('div');
-  badge.textContent = '● NET';
-  badge.title = 'Firebase relay active — session ' + session;
-  badge.style.cssText = [
-    'position:fixed', 'bottom:8px', 'right:8px', 'z-index:99999',
-    'background:rgba(79,195,215,0.18)', 'border:1px solid rgba(79,195,215,0.5)',
-    'color:#4FC3D7', 'font-size:10px', 'font-family:monospace',
-    'padding:3px 8px', 'border-radius:4px', 'letter-spacing:1px',
-    'pointer-events:none'
-  ].join(';');
-  document.body.appendChild(badge);
-
-  console.log('[firebase-storage] Adapter active. Hooks installed. Listeners bound.');
+  console.log('[firebase-storage] Adapter loaded. Hooks installed.' +
+    (_boundSession ? ' Bound to ' + _boundSession + '.' : ' Waiting for session.'));
 
 })();
