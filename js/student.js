@@ -317,6 +317,8 @@ function renderStudentKickoffBanner() {
     renderPersonaBar();
   }
 
+  initKDrive();
+  initPhone();
   renderAll();
 
   document.addEventListener('engine:tick', () => {
@@ -362,12 +364,15 @@ function renderStudentKickoffBanner() {
 
 function renderAll() {
   renderClock();
+  renderPhoneClock();
   renderPersonaBar();
   renderUnclaimedTray();
   renderMailList();
   renderTextsList();
   renderReadingPane();
   renderNotesPanel();
+  renderPhoneBadges();
+  startSignalNoise();
 }
 
 // v0.2.12: unclaimed inject tray. When a leadership-tagged inject fires
@@ -1063,4 +1068,392 @@ function esc(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+/* ==========================================================================
+   K: SHARED DRIVE — file browser panel
+   Reads window.__CCO_KDRIVE manifest and renders an Explorer-style
+   folder/file browser with breadcrumb navigation.
+   ========================================================================== */
+let kdrivePath = [];          // stack of folder names forming current path
+let kdriveCollapsed = false;  // toggle state
+
+function initKDrive() {
+  const toggle = document.getElementById('kdrive-toggle-btn');
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      kdriveCollapsed = !kdriveCollapsed;
+      const body = document.getElementById('kdrive-body');
+      if (body) body.style.display = kdriveCollapsed ? 'none' : '';
+      toggle.textContent = kdriveCollapsed ? '▸' : '▾';
+    });
+  }
+  renderKDrive();
+}
+
+function kdriveCurrentFolder() {
+  const root = window.__CCO_KDRIVE;
+  if (!root) return null;
+  let node = root;
+  for (const seg of kdrivePath) {
+    const child = (node.children || []).find(c => c.name === seg && c.type === 'folder');
+    if (!child) return node; // path broken, stay at last valid
+    node = child;
+  }
+  return node;
+}
+
+function renderKDrive() {
+  const list = document.getElementById('kdrive-file-list');
+  const crumbs = document.getElementById('kdrive-breadcrumb');
+  if (!list) return;
+  const root = window.__CCO_KDRIVE;
+  if (!root) {
+    list.innerHTML = '<div class="kdrive-empty">No shared drive loaded.</div>';
+    return;
+  }
+
+  // Breadcrumb
+  if (crumbs) {
+    let html = '<span class="kdrive-crumb kdrive-crumb-root" data-depth="-1">K:</span>';
+    kdrivePath.forEach((seg, i) => {
+      html += ` <span class="kdrive-sep">›</span> <span class="kdrive-crumb" data-depth="${i}">${esc(seg)}</span>`;
+    });
+    crumbs.innerHTML = html;
+    crumbs.querySelectorAll('.kdrive-crumb').forEach(el => {
+      el.addEventListener('click', () => {
+        const depth = parseInt(el.dataset.depth, 10);
+        if (depth < 0) kdrivePath = [];
+        else kdrivePath = kdrivePath.slice(0, depth + 1);
+        renderKDrive();
+      });
+    });
+  }
+
+  const folder = kdriveCurrentFolder();
+  const children = folder ? (folder.children || []) : [];
+
+  if (children.length === 0) {
+    list.innerHTML = '<div class="kdrive-empty">This folder is empty.</div>';
+    return;
+  }
+
+  // Sort: folders first, then files, alphabetical within each group
+  const sorted = children.slice().sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  list.innerHTML = sorted.map(item => {
+    if (item.type === 'folder') {
+      const count = (item.children || []).length;
+      return `
+        <div class="kdrive-item kdrive-folder" data-name="${esc(item.name)}">
+          <div class="kdrive-icon kdrive-icon-folder">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M2 5a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" stroke="#FFB900" stroke-width="1.3" fill="rgba(255,185,0,0.15)"/></svg>
+          </div>
+          <div class="kdrive-item-body">
+            <div class="kdrive-item-name">${esc(item.name)}</div>
+            <div class="kdrive-item-meta">${count} item${count !== 1 ? 's' : ''}</div>
+          </div>
+        </div>`;
+    }
+    // File
+    const iconClass = 'kdrive-icon-' + (item.icon || 'file');
+    const noteHtml = item.note ? `<span class="kdrive-item-note" title="${esc(item.note)}">ⓘ</span>` : '';
+    return `
+      <div class="kdrive-item kdrive-file" data-name="${esc(item.name)}" data-href="${esc(item.href || '')}" data-dynamic="${esc(item.dynamic || '')}">
+        <div class="kdrive-icon ${esc(iconClass)}">
+          ${kdriveFileIcon(item.icon)}
+        </div>
+        <div class="kdrive-item-body">
+          <div class="kdrive-item-name">${esc(item.name)}${noteHtml}</div>
+          <div class="kdrive-item-meta">${esc(item.size || '')}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Wire folder clicks
+  list.querySelectorAll('.kdrive-folder').forEach(el => {
+    el.addEventListener('click', () => {
+      kdrivePath.push(el.dataset.name);
+      renderKDrive();
+    });
+  });
+
+  // Wire file clicks
+  list.querySelectorAll('.kdrive-file').forEach(el => {
+    el.addEventListener('click', () => {
+      const href = el.dataset.href;
+      const dyn = el.dataset.dynamic;
+      if (dyn) {
+        kdriveOpenDynamic(dyn, el.dataset.name);
+      } else if (href) {
+        window.open(href, '_blank');
+      }
+    });
+  });
+}
+
+function kdriveFileIcon(type) {
+  switch (type) {
+    case 'pdf':
+      return '<svg viewBox="0 0 20 20" fill="none"><rect x="4" y="2" width="12" height="16" rx="1.5" stroke="#D32F2F" stroke-width="1.2"/><text x="10" y="13" text-anchor="middle" fill="#D32F2F" font-size="5" font-weight="bold" font-family="sans-serif">PDF</text></svg>';
+    case 'xlsx':
+      return '<svg viewBox="0 0 20 20" fill="none"><rect x="4" y="2" width="12" height="16" rx="1.5" stroke="#217346" stroke-width="1.2"/><text x="10" y="13" text-anchor="middle" fill="#217346" font-size="5" font-weight="bold" font-family="sans-serif">XLS</text></svg>';
+    case 'docx':
+      return '<svg viewBox="0 0 20 20" fill="none"><rect x="4" y="2" width="12" height="16" rx="1.5" stroke="#2B579A" stroke-width="1.2"/><text x="10" y="13" text-anchor="middle" fill="#2B579A" font-size="5" font-weight="bold" font-family="sans-serif">DOC</text></svg>';
+    default:
+      return '<svg viewBox="0 0 20 20" fill="none"><rect x="4" y="2" width="12" height="16" rx="1.5" stroke="#888" stroke-width="1.2"/></svg>';
+  }
+}
+
+function kdriveOpenDynamic(type, name) {
+  // Dynamic file generators — produce client-side content
+  if (type === 'shop-tracker') {
+    kdriveOpenShopTracker();
+    return;
+  }
+  alert('Dynamic file type "' + type + '" not yet implemented.');
+}
+
+/* ==========================================================================
+   PHONE UI — tab switching, Signal chat, notifications
+   ========================================================================== */
+let activePhoneApp = 'messages';
+
+function initPhone() {
+  const tabs = document.querySelectorAll('.phone-tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      activePhoneApp = tab.dataset.app;
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.app === activePhoneApp));
+      document.querySelectorAll('.phone-app').forEach(app => {
+        app.classList.toggle('phone-app-active', app.id === 'phone-app-' + activePhoneApp);
+      });
+      // Mark signal messages as seen when switching to Signal tab
+      if (activePhoneApp === 'signal') {
+        signalSeenCount = signalMessages.length;
+        renderPhoneBadges();
+      }
+    });
+  });
+  renderPhoneClock();
+  renderSignalChat();
+}
+
+function renderPhoneClock() {
+  const el = document.getElementById('phone-time');
+  if (!el) return;
+  // Use exercise time if running, otherwise real time
+  const now = Engine.getExerciseTime ? Engine.getExerciseTime() : null;
+  const s = Engine.getState ? Engine.getState() : {};
+  if (now && s.clock && s.clock.running) {
+    el.textContent = now.shortTime || '--:--';
+  } else {
+    const d = new Date();
+    el.textContent = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+  }
+}
+
+function renderPhoneBadges() {
+  // Messages badge
+  const msgBadge = document.getElementById('phone-badge-messages');
+  if (msgBadge) {
+    const s = Engine.getState();
+    const threads = s.smsThreads || {};
+    let totalUnread = 0;
+    Object.values(threads).forEach(msgs => {
+      if (Array.isArray(msgs)) {
+        totalUnread += msgs.filter(m => m.unread && m.direction === 'in').length;
+      }
+    });
+    if (totalUnread > 0) {
+      msgBadge.textContent = totalUnread;
+      msgBadge.hidden = false;
+    } else {
+      msgBadge.hidden = true;
+    }
+  }
+
+  // Signal badge — count unseen signal messages
+  const sigBadge = document.getElementById('phone-badge-signal');
+  if (sigBadge) {
+    const unseen = signalUnseenCount();
+    if (unseen > 0) {
+      sigBadge.textContent = unseen;
+      sigBadge.hidden = false;
+    } else {
+      sigBadge.hidden = true;
+    }
+  }
+}
+
+// Signal chat state
+let signalMessages = [];
+let signalSeenCount = 0;
+let signalNoiseTimer = null;
+
+function signalUnseenCount() {
+  return Math.max(0, signalMessages.length - signalSeenCount);
+}
+
+// The noise library — deployment chatter that populates Signal throughout.
+// Some messages are pure noise; some hint at upcoming injects (marked with hintFor).
+const SIGNAL_NOISE_LIBRARY = [
+  { sender: 'TSgt Williams', text: 'Anyone know where the spare generator keys are? CE can\'t find them.', delay: 0 },
+  { sender: 'SSgt Parker', text: 'Laundry room is PACKED. Someone took my PT gear out of the dryer and just left it on the floor 😤', delay: 45 },
+  { sender: 'MSgt Rodriguez', text: 'Reminder: DFAC hours changed — dinner is now 1700-1900, not 1800-2000.', delay: 90 },
+  { sender: 'TSgt Kim', text: 'Top wants everyone at the 0700 stand-up tomorrow. No exceptions.', delay: 150 },
+  { sender: 'SrA Davis', text: 'WiFi at the CLU is trash again. Anyone else having issues?', delay: 210 },
+  { sender: 'SSgt Parker', text: 'Seriously though, WHO is taking people\'s stuff from the laundry?? This is the third time this week.', delay: 280, hintFor: 'security-cameras' },
+  { sender: 'MSgt Rodriguez', text: 'Fuel delivery was short again this morning. Only 80% of what we ordered.', delay: 350, hintFor: 'fuel-delivery' },
+  { sender: 'TSgt Williams', text: 'CE says the AC in Building 3 is down. It\'s going to be a rough day in there.', delay: 420 },
+  { sender: 'SSgt Chen', text: 'Anyone have the number for the local vendor who does the office supply runs? Binder clips are apparently a hot commodity.', delay: 490, hintFor: 'bpa-supplies' },
+  { sender: 'SrA Davis', text: 'Shout out to whoever left donuts in the break room. You\'re a hero. 🍩', delay: 540 },
+  { sender: 'TSgt Kim', text: 'Top III meeting notes: Commander wants a brief on contracting backlog by COB Friday.', delay: 600, hintFor: 'commander-brief' },
+  { sender: 'SSgt Parker', text: 'Ok now clothes are MISSING from the laundry. Not just moved — GONE. Top needs to do something about this.', delay: 680, hintFor: 'security-cameras' },
+  { sender: 'MSgt Rodriguez', text: 'FM says the MIPR for airfield lighting is still sitting there from last rotation. Anyone tracking?', delay: 760, hintFor: 'mipr-stale' },
+  { sender: 'TSgt Williams', text: 'Porta-johns outside the gym need serviced. Putting in a request but just FYI.', delay: 830 },
+  { sender: 'SSgt Chen', text: 'The BPA for office supplies — is that still valid? I heard it might be expiring soon.', delay: 900, hintFor: 'bpa-expiring' },
+  { sender: 'SrA Davis', text: 'Mail run is at 1400 if anyone needs to send packages.', delay: 960 },
+  { sender: 'TSgt Kim', text: 'Commander asked about security cameras for the laundry and common areas. Said "figure it out." Classic.', delay: 1040, hintFor: 'security-cameras' },
+  { sender: 'MSgt Rodriguez', text: 'DFAC repair still not funded. CE is getting antsy. Says the fryer is a safety hazard.', delay: 1120, hintFor: 'dfac-repair' },
+  { sender: 'SSgt Parker', text: 'Update: found half my PT gear in the trash. Filing a report with SF.', delay: 1200 },
+  { sender: 'TSgt Williams', text: 'Friendly reminder to hydrate. It\'s 115°F outside. Don\'t be a statistic.', delay: 1280 },
+];
+
+function startSignalNoise() {
+  if (signalNoiseTimer) return;
+  const s = Engine.getState();
+  if (!s.clock || !s.clock.running) return;
+
+  // Use exerciseMs from clock state to get real elapsed seconds
+  const clockState = s.clock || {};
+  const elapsed = Math.floor((clockState.exerciseMs || 0) / 1000);
+
+  // Add all messages whose delay has passed
+  SIGNAL_NOISE_LIBRARY.forEach(msg => {
+    const triggerSec = msg.delay;
+    if (elapsed >= triggerSec && !signalMessages.find(m => m._src === msg)) {
+      signalMessages.push({
+        _src: msg,
+        sender: msg.sender,
+        text: msg.text,
+        time: formatSignalTime(triggerSec),
+        hintFor: msg.hintFor || null
+      });
+    }
+  });
+
+  // Set timers for future messages
+  SIGNAL_NOISE_LIBRARY.forEach(msg => {
+    const triggerSec = msg.delay;
+    if (elapsed < triggerSec) {
+      const waitMs = (triggerSec - elapsed) * 1000;
+      setTimeout(() => {
+        if (!signalMessages.find(m => m._src === msg)) {
+          signalMessages.push({
+            _src: msg,
+            sender: msg.sender,
+            text: msg.text,
+            time: formatSignalTime(triggerSec),
+            hintFor: msg.hintFor || null
+          });
+          renderSignalChat();
+          renderPhoneBadges();
+          // Flash the Signal tab if not active
+          if (activePhoneApp !== 'signal') {
+            const tab = document.getElementById('phone-tab-signal');
+            if (tab) { tab.classList.add('phone-tab-flash'); setTimeout(() => tab.classList.remove('phone-tab-flash'), 1500); }
+          }
+        }
+      }, waitMs);
+    }
+  });
+}
+
+function formatSignalTime(delaySec) {
+  // Convert delay seconds to time string using the exercise day start
+  const s = Engine.getState ? Engine.getState() : {};
+  const dayStart = (s.clock && s.clock.dayStart) || 420; // default 0700
+  const totalMin = dayStart + Math.floor(delaySec / 60);
+  const h = Math.floor((totalMin % (24 * 60)) / 60);
+  const m = totalMin % 60;
+  return pad(h) + ':' + pad(m);
+}
+
+function renderSignalChat() {
+  const container = document.getElementById('signal-chat');
+  if (!container) return;
+
+  if (signalMessages.length === 0) {
+    container.innerHTML = '<div class="signal-empty">No messages yet. Chat will populate during the exercise.</div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="signal-date-sep">Today</div>' +
+    signalMessages.map(m => `
+      <div class="signal-msg signal-msg-in">
+        <div class="signal-msg-sender">${esc(m.sender)}</div>
+        <div class="signal-msg-text">${esc(m.text)}</div>
+        <div class="signal-msg-time">${esc(m.time)}</div>
+      </div>
+    `).join('');
+
+  // Auto-scroll to bottom
+  container.scrollTop = container.scrollHeight;
+
+  // Mark as seen if signal tab is active
+  if (activePhoneApp === 'signal') {
+    signalSeenCount = signalMessages.length;
+  }
+}
+
+function kdriveOpenShopTracker() {
+  // Show a simple HTML preview of the shop tracker spreadsheet
+  // In a future version this could generate a real .xlsx via SheetJS
+  const today = new Date();
+  const fmt = d => d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+
+  const modal = document.createElement('div');
+  modal.className = 'kdrive-modal-overlay';
+  modal.innerHTML = `
+    <div class="kdrive-modal">
+      <div class="kdrive-modal-header">
+        <span class="kdrive-modal-title">K_Shop_Tracker_LAST_ROTATION.xlsx</span>
+        <button class="kdrive-modal-close">&times;</button>
+      </div>
+      <div class="kdrive-modal-body">
+        <table class="kdrive-tracker-table">
+          <thead>
+            <tr>
+              <th>Contract / Action</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Key Date</th>
+              <th>Assigned</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>FA8501-24-D-0012 Base O&M</td><td>Service</td><td class="status-green">Active</td><td>${fmt(addDays(today, 180))}</td><td>—</td><td>Option Yr 2 exercised. COR: TBD this rotation.</td></tr>
+            <tr><td>FA8501-23-P-0089 Gen Fuel</td><td>Supply</td><td class="status-green">Active</td><td>${fmt(addDays(today, 45))}</td><td>—</td><td>Delivery schedule on track. Verify fuel quality certs.</td></tr>
+            <tr><td>BPA — Office Supplies</td><td>BPA</td><td class="status-yellow">Expiring</td><td>${fmt(addDays(today, 2))}</td><td>—</td><td>EXPIRES ${fmt(addDays(today, 2))} — renew or re-compete ASAP</td></tr>
+            <tr><td>GPC Reconciliation</td><td>Admin</td><td class="status-yellow">Due</td><td>${fmt(addDays(today, 5))}</td><td>—</td><td>Monthly log due to RM NLT ${fmt(addDays(today, 5))}</td></tr>
+            <tr><td>MIPR — Airfield Lighting</td><td>MIPR</td><td class="status-red">Stale</td><td>${fmt(addDays(today, -30))}</td><td>—</td><td>Prev rotation did not close. Verify w/ FM if funds still available.</td></tr>
+            <tr><td>New Requirement — DFAC Repair</td><td>Service</td><td class="status-red">Unfunded</td><td>TBD</td><td>—</td><td>CE submitted PR. Awaiting fund cite from FM.</td></tr>
+          </tbody>
+        </table>
+        <div class="kdrive-tracker-note">
+          <strong>Note:</strong> Tracker from previous rotation. "Assigned" column cleared for incoming team.
+          Dates auto-calculated from today (${fmt(today)}).
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('.kdrive-modal-close').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.remove(); });
 }

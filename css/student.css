@@ -1626,35 +1626,426 @@ body.student-body::after {
 /* ---- Layout: Email left | Reading+Notes center | Texts right ---- */
 
 .student-grid-v2 {
-  grid-template-columns: 340px 1fr 300px;
+  grid-template-columns: 340px 1fr 320px;
 }
 .student-left-col .inbox-panel { flex: 1 1 100%; min-height: 400px; }
 .student-left-col .texts-panel { display: none; } /* moved to right col */
 
-.student-texts-col {
+/* old texts col hidden — replaced by phone */
+.student-texts-col { display: none; }
+.student-notes-col { display: none; }
+
+/* ===== PHONE COLUMN (right) ===== */
+
+.student-phone-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  padding-top: 8px;
+}
+
+.phone-frame {
+  width: 300px;
+  min-height: 580px;
+  max-height: calc(100vh - 140px);
+  background: #000;
+  border-radius: 36px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 0 0 2px #333;
+  position: sticky;
+  top: 80px;
+}
+
+.phone-notch {
+  width: 120px;
+  height: 26px;
+  background: #000;
+  border-radius: 0 0 16px 16px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.phone-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: #1a1a1a;
+  margin-top: -6px;
+}
+
+.phone-carrier {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.phone-screen {
+  flex: 1 1 auto;
+  background: #fff;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
-.student-texts-col .texts-panel {
-  flex: 1 1 auto;
+
+.phone-tabs {
   display: flex;
-  flex-direction: column;
-  min-height: 260px;
+  border-bottom: 2px solid #E5E5E5;
+  background: #F8F8F8;
+  flex-shrink: 0;
 }
-.student-texts-col .panel-body {
+
+.phone-tab {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  text-align: center;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s;
+}
+
+.phone-tab.active {
+  color: #000;
+}
+
+.phone-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  background: #3A76F0;
+  border-radius: 1px;
+}
+
+.phone-badge {
+  display: inline-block;
+  background: #E53935;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  border-radius: 8px;
+  text-align: center;
+  padding: 0 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.phone-app {
+  display: none;
   flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
 }
-/* Notes col no longer exists — replaced by sticky tray beneath reading pane */
-.student-notes-col { display: none; }
+
+.phone-app-active {
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-home-bar {
+  width: 120px;
+  height: 4px;
+  background: #666;
+  border-radius: 2px;
+  margin: 8px auto 10px;
+  flex-shrink: 0;
+}
+
+/* Messages app — reuse texts-list styles but light theme */
+.phone-app-messages .texts-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.phone-app-messages .texts-row {
+  background: #fff;
+  border-bottom: 1px solid #F0F0F0;
+  padding: 12px 14px;
+}
+.phone-app-messages .texts-row:hover {
+  background: #F5F5F5;
+}
+.phone-app-messages .texts-row.selected {
+  background: #E8F0FE;
+}
+.phone-app-messages .texts-row.unread .texts-name {
+  color: #000;
+  font-weight: 700;
+}
+.phone-app-messages .texts-name {
+  color: #1a1a1a;
+  font-size: 13px;
+}
+.phone-app-messages .texts-preview {
+  color: #666;
+  font-size: 12px;
+}
+.phone-app-messages .texts-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+.phone-app-messages .texts-unread-badge {
+  background: #3A76F0;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 9px;
+  text-align: center;
+  padding: 0 5px;
+}
+.phone-app-messages .texts-time {
+  color: #999;
+  font-size: 11px;
+}
+
+/* ===== SIGNAL APP ===== */
+
+.signal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #E5E5E5;
+  background: #F8F8F8;
+  flex-shrink: 0;
+}
+
+.signal-group-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #E8EFF9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.signal-group-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.signal-group-members {
+  font-size: 11px;
+  color: #888;
+}
+
+.signal-chat {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.signal-empty {
+  text-align: center;
+  padding: 32px 16px;
+  font-size: 12px;
+  color: #999;
+}
+
+.signal-msg {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 16px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  position: relative;
+}
+
+.signal-msg-in {
+  align-self: flex-start;
+  background: #E8EFF9;
+  color: #1a1a1a;
+  border-bottom-left-radius: 4px;
+}
+
+.signal-msg-system {
+  align-self: center;
+  background: none;
+  color: #999;
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+  padding: 4px 8px;
+}
+
+.signal-msg-sender {
+  font-size: 10px;
+  font-weight: 700;
+  color: #3A76F0;
+  margin-bottom: 2px;
+}
+
+.signal-msg-time {
+  font-size: 9px;
+  color: #999;
+  text-align: right;
+  margin-top: 2px;
+}
+
+/* Date separator */
+.signal-date-sep {
+  text-align: center;
+  font-size: 10px;
+  color: #aaa;
+  padding: 8px 0 4px;
+  font-weight: 600;
+}
+
+/* Signal tab flash animation */
+.phone-tab-flash {
+  animation: tabFlash 0.3s ease 3;
+}
+@keyframes tabFlash {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(58,118,240,0.15); }
+}
+
+/* ===== K DRIVE MODAL (shop tracker preview) ===== */
+
+.kdrive-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.kdrive-modal {
+  background: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  max-width: 900px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.kdrive-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #EDEBE9;
+  background: #F3F2F1;
+}
+
+.kdrive-modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #323130;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.kdrive-modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #605E5C;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.kdrive-modal-close:hover { background: #E1DFDD; }
+
+.kdrive-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.kdrive-tracker-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: 'Segoe UI', sans-serif;
+  color: #323130;
+}
+
+.kdrive-tracker-table th {
+  background: #F3F2F1;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #EDEBE9;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #605E5C;
+}
+
+.kdrive-tracker-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #F3F2F1;
+  vertical-align: top;
+}
+
+.kdrive-tracker-table tr:hover td {
+  background: #F5F5F5;
+}
+
+.status-green { color: #217346; font-weight: 600; }
+.status-yellow { color: #CA5010; font-weight: 600; }
+.status-red { color: #D32F2F; font-weight: 600; }
+
+.kdrive-tracker-note {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: #FFF8E1;
+  border-left: 3px solid #FFB900;
+  font-size: 12px;
+  color: #5D4037;
+  border-radius: 0 4px 4px 0;
+}
 
 @media (max-width: 1300px) {
-  .student-grid-v2 { grid-template-columns: 300px 1fr 260px; }
+  .student-grid-v2 { grid-template-columns: 300px 1fr 280px; }
+  .phone-frame { width: 280px; min-height: 520px; }
 }
 @media (max-width: 1100px) {
   .student-grid-v2 { grid-template-columns: 1fr; }
+  .student-phone-col { display: none; }
 }
 
 /* ---- Outlook font stack ---- */
@@ -2205,4 +2596,175 @@ body.student-body .outlook-reading .micro {
   font-family: 'Segoe UI', -apple-system, sans-serif;
   letter-spacing: 0.04em;
   font-weight: 600;
+}
+
+/* ==========================================================================
+   v0.2.15 — K: Shared Drive file browser
+   Windows Explorer-inspired file browser below reading pane, near sticky notes.
+   Light theme to match the Outlook restyle above.
+   ========================================================================== */
+
+.kdrive-panel {
+  margin-top: 12px;
+  background: #FFFFFF;
+  border: 1px solid #EDEBE9;
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+
+.kdrive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #F3F2F1;
+  border-bottom: 1px solid #EDEBE9;
+  cursor: pointer;
+}
+.kdrive-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kdrive-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #323130;
+}
+.kdrive-toggle-btn {
+  background: none;
+  border: none;
+  color: #605E5C;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: background 0.12s;
+}
+.kdrive-toggle-btn:hover { background: #EDEBE9; }
+
+.kdrive-body {
+  max-height: 400px;
+  overflow-y: auto;
+  transition: max-height 0.25s ease;
+}
+.kdrive-body.collapsed {
+  max-height: 0;
+  overflow: hidden;
+}
+
+/* Breadcrumb */
+.kdrive-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: #605E5C;
+  border-bottom: 1px solid #FAF9F8;
+  flex-wrap: wrap;
+}
+.kdrive-crumb {
+  cursor: pointer;
+  color: #0078D4;
+  font-weight: 600;
+}
+.kdrive-crumb:hover { text-decoration: underline; }
+.kdrive-crumb-sep {
+  color: #A19F9D;
+  margin: 0 2px;
+}
+.kdrive-crumb:last-child { color: #323130; cursor: default; }
+.kdrive-crumb:last-child:hover { text-decoration: none; }
+
+/* File list */
+.kdrive-file-list {
+  padding: 4px 0;
+}
+
+.kdrive-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-bottom: 1px solid #FAF9F8;
+  text-decoration: none;
+  color: inherit;
+}
+.kdrive-item:hover {
+  background: #F3F2F1;
+}
+.kdrive-item:last-child { border-bottom: none; }
+
+.kdrive-item-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+.kdrive-item-icon.folder-icon {
+  color: #FFB900;
+}
+.kdrive-item-icon.pdf-icon {
+  color: #D13438;
+}
+.kdrive-item-icon.xlsx-icon {
+  color: #107C10;
+}
+.kdrive-item-icon.docx-icon {
+  color: #185ABD;
+}
+.kdrive-item-icon.file-icon {
+  color: #605E5C;
+}
+
+.kdrive-item-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #323130;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kdrive-item.folder .kdrive-item-name { font-weight: 600; }
+
+.kdrive-item-meta {
+  font-size: 11px;
+  color: #A19F9D;
+  flex-shrink: 0;
+}
+
+.kdrive-item-note {
+  font-size: 11px;
+  color: #CA5010;
+  font-style: italic;
+  flex-shrink: 0;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kdrive-empty {
+  padding: 24px 14px;
+  text-align: center;
+  font-size: 12px;
+  color: #A19F9D;
+}
+
+/* Folder count badge */
+.kdrive-item-count {
+  font-size: 11px;
+  color: #A19F9D;
+  background: #F3F2F1;
+  padding: 1px 6px;
+  border-radius: 8px;
 }
