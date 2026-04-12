@@ -158,13 +158,6 @@
         "from_email": "jt.morales.mil@mail.mil",
         "subject": "Read before I leave - portfolio notes",
         "body": "Team - welcome to the Eagle Crest shop. Quick notes before I catch my rotator:\n\n1. TFL BPA is your workhorse. Use it for anything facilities. Owner is well-connected.\n2. Crescent Star for consumables, they are solid.\n3. Al-Rashid Construction - good to go for any runway, concrete, or asphalt work. Used them for the MWR pad last month, no issues.\n4. Dining services is giving me heartburn. Performance mod is in legal.\n5. CE SMSgt Dooley has been blowing up my phone about a generator mod. Drafted it, never got it signed. Sorry.\n\nPortfolio is in the shared drive. Good luck. - Morales"
-      },
-      {
-        "id": "msg2",
-        "from": "Capt Perez",
-        "from_email": "alejandra.perez.mil@mail.mil",
-        "subject": "Welcome - Wing CC read file due EOD D2",
-        "body": "Welcome to Eagle Crest. Wing CC wants a read file on the shop by EOD Day 2. Include active contract summary, expiring actions, and any concerns. Standard format. - Perez, 455 AEW/CCX"
       }
     ],
     "expected_actions": [
@@ -248,13 +241,22 @@
     "trigger": {
       "type": "absolute",
       "day": 1,
-      "hour": 8,
-      "minute": 5
+      "hour": 9,
+      "minute": 30
     },
     "duration_minutes": 20,
     "description": "TSgt Morales has 20 minutes before his rotator. Phone call. He will brief what is on fire, what to ignore, and one thing that is a lie.",
     "scenario_for_students": "Your desk phone rings. It is TSgt Morales, the outgoing CCO. He is already at the PAX terminal waiting on his rotator. He has about 20 minutes to give you the verbal turnover he did not have time for in person. Take the call. Ask questions. Figure out what matters.",
     "phone_script_id": "IM-02-morales",
+    "inbox_items": [
+      {
+        "id": "msg-perez-welcome",
+        "from": "Capt Perez",
+        "from_email": "alejandra.perez.mil@mail.mil",
+        "subject": "Welcome - Wing CC read file due EOD D2",
+        "body": "Welcome to Eagle Crest. Wing CC wants a read file on the shop by EOD Day 2. Include active contract summary, expiring actions, and any concerns. Standard format. - Perez, 455 AEW/CCX"
+      }
+    ],
     "sms_items": [
       {
         "id": "sms-ramsey-welcome",
@@ -346,10 +348,10 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 8,
-      "earliest_minute": 30,
-      "latest_hour": 9,
-      "latest_minute": 0
+      "earliest_hour": 10,
+      "earliest_minute": 0,
+      "latest_hour": 10,
+      "latest_minute": 30
     },
     "duration_minutes": 30,
     "description": "SMSgt Dooley reports generator fuel is disappearing overnight. He wants a new contract for a locked fuel bladder.",
@@ -430,10 +432,10 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 9,
-      "earliest_minute": 15,
-      "latest_hour": 10,
-      "latest_minute": 0
+      "earliest_hour": 10,
+      "earliest_minute": 45,
+      "latest_hour": 11,
+      "latest_minute": 30
     },
     "duration_minutes": 45,
     "description": "A rep from Al-Rashid Construction walks into the shop with an invoice for runway shoulder work 'authorized verbally last Thursday.' There is no file record.",
@@ -515,10 +517,10 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 9,
-      "earliest_minute": 30,
-      "latest_hour": 10,
-      "latest_minute": 0
+      "earliest_hour": 11,
+      "earliest_minute": 0,
+      "latest_hour": 11,
+      "latest_minute": 30
     },
     "duration_minutes": 25,
     "description": "The tenant Army LNO calls asking when 'the fuel deal we agreed to' will be contracted.",
@@ -585,10 +587,10 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 10,
-      "earliest_minute": 0,
-      "latest_hour": 11,
-      "latest_minute": 0
+      "earliest_hour": 11,
+      "earliest_minute": 30,
+      "latest_hour": 12,
+      "latest_minute": 30
     },
     "duration_minutes": 30,
     "description": "Col Ramsey wants a morale concert for Friday. Requirement memo arrives with 'CC priority' in 24-pt font.",
@@ -669,10 +671,10 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 10,
-      "earliest_minute": 30,
-      "latest_hour": 11,
-      "latest_minute": 0
+      "earliest_hour": 12,
+      "earliest_minute": 0,
+      "latest_hour": 12,
+      "latest_minute": 30
     },
     "duration_minutes": 60,
     "description": "Runway 09L has a FOD strike. Wing Ops says it needs repair in two hours or sorties stop. This is where the Al-Rashid expiration becomes urgent.",
@@ -762,10 +764,10 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 11,
-      "earliest_minute": 0,
-      "latest_hour": 12,
-      "latest_minute": 0
+      "earliest_hour": 12,
+      "earliest_minute": 30,
+      "latest_hour": 13,
+      "latest_minute": 30
     },
     "duration_minutes": 15,
     "description": "Col Ramsey wants a face-to-face. The promised 'ten minutes' is actually ten minutes of fast questions.",
@@ -833,9 +835,9 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 12,
+      "earliest_hour": 13,
       "earliest_minute": 0,
-      "latest_hour": 13,
+      "latest_hour": 14,
       "latest_minute": 0
     },
     "duration_minutes": 20,
@@ -903,9 +905,9 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 13,
+      "earliest_hour": 14,
       "earliest_minute": 0,
-      "latest_hour": 14,
+      "latest_hour": 15,
       "latest_minute": 0
     },
     "duration_minutes": 25,
@@ -976,9 +978,9 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 13,
+      "earliest_hour": 14,
       "earliest_minute": 30,
-      "latest_hour": 14,
+      "latest_hour": 15,
       "latest_minute": 0
     },
     "duration_minutes": 20,
@@ -1046,9 +1048,9 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 14,
+      "earliest_hour": 15,
       "earliest_minute": 0,
-      "latest_hour": 15,
+      "latest_hour": 16,
       "latest_minute": 0
     },
     "duration_minutes": 30,
@@ -1116,9 +1118,9 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 14,
+      "earliest_hour": 15,
       "earliest_minute": 0,
-      "latest_hour": 16,
+      "latest_hour": 17,
       "latest_minute": 0
     },
     "duration_minutes": 45,
@@ -1181,9 +1183,9 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 15,
+      "earliest_hour": 16,
       "earliest_minute": 0,
-      "latest_hour": 16,
+      "latest_hour": 17,
       "latest_minute": 0
     },
     "duration_minutes": 20,
@@ -1237,10 +1239,10 @@
     "trigger": {
       "type": "window",
       "day": 1,
-      "earliest_hour": 15,
-      "earliest_minute": 0,
+      "earliest_hour": 16,
+      "earliest_minute": 30,
       "latest_hour": 17,
-      "latest_minute": 0
+      "latest_minute": 30
     },
     "duration_minutes": 40,
     "description": "EOD has a mission requirement that needs cash-on-hand purchases RIGHT NOW. FOO authority is requested.",
