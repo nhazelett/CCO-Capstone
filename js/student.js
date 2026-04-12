@@ -1220,26 +1220,51 @@ function kdriveOpenDynamic(type, name) {
 /* ==========================================================================
    PHONE UI — tab switching, Signal chat, notifications
    ========================================================================== */
-let activePhoneApp = 'messages';
+let activePhoneApp = null; // null = home screen
 
 function initPhone() {
-  const tabs = document.querySelectorAll('.phone-tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      activePhoneApp = tab.dataset.app;
-      tabs.forEach(t => t.classList.toggle('active', t.dataset.app === activePhoneApp));
-      document.querySelectorAll('.phone-app').forEach(app => {
-        app.classList.toggle('phone-app-active', app.id === 'phone-app-' + activePhoneApp);
-      });
-      // Mark signal messages as seen when switching to Signal tab
-      if (activePhoneApp === 'signal') {
-        signalSeenCount = signalMessages.length;
-        renderPhoneBadges();
-      }
+  // App icon clicks → open app
+  document.querySelectorAll('.phone-icon[data-app]').forEach(icon => {
+    if (icon.classList.contains('phone-icon-deco')) return; // decorative
+    icon.addEventListener('click', () => {
+      openPhoneApp(icon.dataset.app);
     });
   });
+
+  // Back buttons → home screen
+  document.querySelectorAll('.phone-back-btn[data-back]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closePhoneApp();
+    });
+  });
+
   renderPhoneClock();
   renderSignalChat();
+}
+
+function openPhoneApp(appName) {
+  activePhoneApp = appName;
+  const home = document.getElementById('phone-home');
+  const appView = document.getElementById('phone-app-' + appName);
+  if (home) home.style.display = 'none';
+  if (appView) appView.style.display = 'flex';
+
+  // Mark signal as seen when opening relay
+  if (appName === 'signal') {
+    signalSeenCount = signalMessages.length;
+    renderPhoneBadges();
+  }
+}
+
+function closePhoneApp() {
+  // Hide current app, show home
+  if (activePhoneApp) {
+    const appView = document.getElementById('phone-app-' + activePhoneApp);
+    if (appView) appView.style.display = 'none';
+  }
+  activePhoneApp = null;
+  const home = document.getElementById('phone-home');
+  if (home) home.style.display = '';
 }
 
 function renderPhoneClock() {
@@ -1362,10 +1387,10 @@ function startSignalNoise() {
           });
           renderSignalChat();
           renderPhoneBadges();
-          // Flash the Signal tab if not active
+          // Pulse the Signal icon on home screen if not in the app
           if (activePhoneApp !== 'signal') {
-            const tab = document.getElementById('phone-tab-signal');
-            if (tab) { tab.classList.add('phone-tab-flash'); setTimeout(() => tab.classList.remove('phone-tab-flash'), 1500); }
+            const icon = document.getElementById('phone-icon-signal');
+            if (icon) { icon.classList.add('phone-icon-pulse'); setTimeout(() => icon.classList.remove('phone-icon-pulse'), 800); }
           }
         }
       }, waitMs);
@@ -1438,12 +1463,18 @@ function kdriveOpenShopTracker() {
             </tr>
           </thead>
           <tbody>
-            <tr><td>FA8501-24-D-0012 Base O&M</td><td>Service</td><td class="status-green">Active</td><td>${fmt(addDays(today, 180))}</td><td>—</td><td>Option Yr 2 exercised. COR: TBD this rotation.</td></tr>
-            <tr><td>FA8501-23-P-0089 Gen Fuel</td><td>Supply</td><td class="status-green">Active</td><td>${fmt(addDays(today, 45))}</td><td>—</td><td>Delivery schedule on track. Verify fuel quality certs.</td></tr>
-            <tr><td>BPA — Office Supplies</td><td>BPA</td><td class="status-yellow">Expiring</td><td>${fmt(addDays(today, 2))}</td><td>—</td><td>EXPIRES ${fmt(addDays(today, 2))} — renew or re-compete ASAP</td></tr>
+            <tr><td>FA8501XXD0012 Base O&M (IDIQ)</td><td>Service</td><td class="status-green">Active</td><td>${fmt(addDays(today, 180))}</td><td>—</td><td>Option Yr 2 exercised. COR: TBD this rotation.</td></tr>
+            <tr><td>FA8501XXD0034 Vehicles (IDIQ)</td><td>Service</td><td class="status-green">Active</td><td>${fmt(addDays(today, 240))}</td><td>—</td><td>Fleet status nominal. TO 003 maint svc active.</td></tr>
+            <tr><td>FA8501XXD0051 Cell/Comms (IDIQ)</td><td>Supply</td><td class="status-green">Active</td><td>${fmt(addDays(today, 120))}</td><td>—</td><td>40 handsets issued. 6 sat phones on rental.</td></tr>
+            <tr><td>FA8501XXP0089 Gen Fuel</td><td>Supply</td><td class="status-green">Active</td><td>${fmt(addDays(today, 45))}</td><td>—</td><td>Delivery schedule on track. Verify fuel quality certs.</td></tr>
+            <tr><td>FA8501XXP0102 Fence Repair</td><td>Service</td><td class="status-green">Active</td><td>${fmt(addDays(today, 30))}</td><td>—</td><td>Sections 4-7. Final inspection pending.</td></tr>
+            <tr><td>FA8501XXP0115 HVAC Compressor</td><td>Supply</td><td class="status-green">Active</td><td>${fmt(addDays(today, 15))}</td><td>—</td><td>Sole source — Carrier OEM. Delivery expected soon.</td></tr>
+            <tr><td>BPA0001 — Office Supplies</td><td>BPA</td><td class="status-yellow">Expiring</td><td>${fmt(addDays(today, 2))}</td><td>—</td><td>EXPIRES ${fmt(addDays(today, 2))} — renew or re-compete ASAP</td></tr>
+            <tr><td>BPA0002 — Water & Rations</td><td>BPA</td><td class="status-green">Active</td><td>${fmt(addDays(today, 90))}</td><td>—</td><td>Delivery nominal. QA spot checks clean.</td></tr>
+            <tr><td>BPA0003 — Latrine Svcing</td><td>BPA</td><td class="status-green">Active</td><td>${fmt(addDays(today, 60))}</td><td>—</td><td>Service schedule map on K drive.</td></tr>
             <tr><td>GPC Reconciliation</td><td>Admin</td><td class="status-yellow">Due</td><td>${fmt(addDays(today, 5))}</td><td>—</td><td>Monthly log due to RM NLT ${fmt(addDays(today, 5))}</td></tr>
             <tr><td>MIPR — Airfield Lighting</td><td>MIPR</td><td class="status-red">Stale</td><td>${fmt(addDays(today, -30))}</td><td>—</td><td>Prev rotation did not close. Verify w/ FM if funds still available.</td></tr>
-            <tr><td>New Requirement — DFAC Repair</td><td>Service</td><td class="status-red">Unfunded</td><td>TBD</td><td>—</td><td>CE submitted PR. Awaiting fund cite from FM.</td></tr>
+            <tr><td>New Req — DFAC Fryer Repair</td><td>Service</td><td class="status-red">Unfunded</td><td>TBD</td><td>—</td><td>CE submitted PR. Awaiting fund cite from FM.</td></tr>
           </tbody>
         </table>
         <div class="kdrive-tracker-note">

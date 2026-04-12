@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K: Drive Manager — CCO Capstone</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', -apple-system, system-ui, sans-serif;
+  background: #F3F2F1;
+  color: #323130;
+  min-height: 100vh;
+}
+
+/* ===== TOP BAR ===== */
+.topbar {
+  background: #0078D4;
+  color: #fff;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.topbar-title {
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar-title svg { flex-shrink: 0; }
+.topbar-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+.topbar-actions { display: flex; gap: 10px; }
+
+.btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: #fff; color: #0078D4; }
+.btn-primary:hover { background: #E8F0FE; }
+.btn-secondary { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+.btn-secondary:hover { background: rgba(255,255,255,0.25); }
+.btn-danger { background: #D32F2F; color: #fff; }
+.btn-danger:hover { background: #B71C1C; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-ghost { background: none; color: #0078D4; padding: 5px 10px; }
+.btn-ghost:hover { background: #E8F0FE; }
+
+/* ===== LAYOUT ===== */
+.layout {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 20px;
+  min-height: calc(100vh - 80px);
+}
+
+@media (max-width: 800px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ===== PANELS ===== */
+.panel {
+  background: #fff;
+  border: 1px solid #EDEBE9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #EDEBE9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FAFAFA;
+}
+.panel-header h2 { font-size: 14px; font-weight: 700; color: #323130; }
+.panel-header-actions { display: flex; gap: 6px; }
+
+.panel-body {
+  padding: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+}
+
+/* ===== FOLDER TREE (left panel) ===== */
+.tree { padding: 8px 0; }
+
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px 7px calc(12px + var(--depth, 0) * 20px);
+  cursor: pointer;
+  font-size: 13px;
+  color: #323130;
+  border-left: 3px solid transparent;
+  transition: background 0.1s;
+  user-select: none;
+}
+.tree-item:hover { background: #F5F5F5; }
+.tree-item.selected { background: #E8F0FE; border-left-color: #0078D4; }
+.tree-item.drop-target { background: #DCEAFB; }
+
+.tree-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.tree-icon svg { width: 100%; height: 100%; }
+.tree-chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.15s; color: #999; }
+.tree-chevron.open { transform: rotate(90deg); }
+.tree-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-count { font-size: 11px; color: #999; background: #F3F2F1; padding: 1px 6px; border-radius: 8px; }
+
+.tree-item-file {
+  padding-left: calc(12px + var(--depth, 0) * 20px + 20px);
+  color: #605E5C;
+  font-size: 12.5px;
+}
+
+/* ===== RIGHT PANEL — file list / drop zone ===== */
+.file-panel { display: flex; flex-direction: column; }
+
+.drop-zone {
+  border: 2px dashed #C8C6C4;
+  border-radius: 6px;
+  padding: 32px;
+  text-align: center;
+  margin: 16px;
+  background: #FAFAFA;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.drop-zone.drag-over {
+  border-color: #0078D4;
+  background: #E8F0FE;
+}
+.drop-zone-icon { font-size: 36px; margin-bottom: 8px; opacity: 0.4; }
+.drop-zone-text { font-size: 14px; color: #605E5C; font-weight: 500; }
+.drop-zone-hint { font-size: 12px; color: #A19F9D; margin-top: 4px; }
+
+/* File grid inside folder view */
+.file-grid {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.file-row:hover { background: #F5F5F5; }
+.file-row.selected { background: #E8F0FE; }
+
+.file-row-icon { width: 28px; height: 28px; flex-shrink: 0; }
+.file-row-icon svg { width: 100%; height: 100%; }
+.file-row-body { flex: 1; min-width: 0; }
+.file-row-name { font-size: 13px; color: #323130; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-row-meta { font-size: 11px; color: #A19F9D; }
+.file-row-note { font-size: 11px; color: #CA5010; font-style: italic; }
+.file-row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.file-row:hover .file-row-actions { opacity: 1; }
+
+.file-row-btn {
+  background: none;
+  border: 1px solid #E1DFDD;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  color: #605E5C;
+}
+.file-row-btn:hover { background: #F3F2F1; }
+.file-row-btn.danger { color: #D32F2F; border-color: #FECDD2; }
+.file-row-btn.danger:hover { background: #FFEBEE; }
+
+/* ===== EMPTY STATES ===== */
+.empty-state {
+  text-align: center;
+  padding: 40px 24px;
+  color: #A19F9D;
+}
+.empty-state-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; }
+.empty-state-title { font-size: 15px; font-weight: 600; color: #605E5C; margin-bottom: 4px; }
+.empty-state-desc { font-size: 13px; }
+
+/* ===== MODALS ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  max-width: 480px;
+  width: 100%;
+  overflow: hidden;
+}
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #EDEBE9;
+  font-size: 16px;
+  font-weight: 700;
+}
+.modal-body { padding: 20px; }
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #EDEBE9;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #FAFAFA;
+}
+
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 12px; font-weight: 600; color: #605E5C; margin-bottom: 4px; }
+.form-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #C8C6C4;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.form-input:focus { outline: none; border-color: #0078D4; box-shadow: 0 0 0 1px #0078D4; }
+.form-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #C8C6C4;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+}
+
+/* ===== BREADCRUMB ===== */
+.breadcrumb {
+  padding: 10px 16px;
+  font-size: 12px;
+  color: #605E5C;
+  border-bottom: 1px solid #F3F2F1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.breadcrumb-seg {
+  cursor: pointer;
+  color: #0078D4;
+  font-weight: 500;
+}
+.breadcrumb-seg:hover { text-decoration: underline; }
+.breadcrumb-sep { color: #C8C6C4; }
+.breadcrumb-current { color: #323130; font-weight: 600; cursor: default; }
+
+/* ===== FOOTER STATUS ===== */
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1px solid #EDEBE9;
+  padding: 8px 24px;
+  font-size: 12px;
+  color: #605E5C;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 100;
+}
+.status-unsaved { color: #CA5010; font-weight: 600; }
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #323130;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 2000;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  animation: toastIn 0.3s ease;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Helper to show/hide */
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title">
+      <svg viewBox="0 0 24 24" fill="none" style="width:28px;height:28px;">
+        <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="#fff" stroke-width="1.5" fill="rgba(255,255,255,0.1)"/>
+      </svg>
+      K: Drive Manager
+    </div>
+    <div class="topbar-sub">Manage the shared drive students see during exercises</div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-secondary" id="btn-import">Open Existing</button>
+    <button class="btn btn-primary" id="btn-save">Save K Drive</button>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT: Folder tree -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Folders</h2>
+      <div class="panel-header-actions">
+        <button class="btn btn-sm btn-ghost" id="btn-new-folder" title="New folder">+ Folder</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="tree" id="folder-tree"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Selected folder contents -->
+  <div class="panel file-panel">
+    <div class="panel-header">
+      <h2 id="folder-title">K: Drive</h2>
+      <div class="panel-header-actions">
+        <button class="btn btn-sm btn-ghost" id="btn-add-subfolder">+ Subfolder</button>
+        <button class="btn btn-sm btn-ghost" id="btn-rename-folder">Rename</button>
+        <button class="btn btn-sm file-row-btn danger" id="btn-delete-folder">Delete Folder</button>
+      </div>
+    </div>
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <div class="panel-body" id="folder-content">
+      <!-- Drop zone + file list rendered here -->
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <span id="status-text">Ready — open an existing K Drive or start building from scratch.</span>
+  <span id="status-count"></span>
+</div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="import-input" accept=".js,.json" hidden>
+<input type="file" id="file-upload-input" multiple hidden>
+
+<script>
+/* ==========================================================================
+   K DRIVE MANAGER — core logic
+   ========================================================================== */
+
+// The drive tree — same structure as kdrive-manifest.js
+let driveTree = {
+  label: 'K: Shared Drive',
+  children: []
+};
+
+// Navigation state
+let selectedPath = []; // array of folder name segments
+let unsavedChanges = false;
+
+// File data store — maps "path/filename" to { data: base64, mime: '' }
+let fileStore = {};
+
+/* ---- Tree helpers ---- */
+
+function getNode(path) {
+  let node = driveTree;
+  for (const seg of path) {
+    const child = (node.children || []).find(c => c.name === seg && c.type === 'folder');
+    if (!child) return null;
+    node = child;
+  }
+  return node;
+}
+
+function getSelectedFolder() {
+  return getNode(selectedPath) || driveTree;
+}
+
+function countItems(node) {
+  if (!node.children) return 0;
+  let c = 0;
+  for (const child of node.children) {
+    c++;
+    if (child.type === 'folder') c += countItems(child);
+  }
+  return c;
+}
+
+function pathKey(path, filename) {
+  return [...path, filename].join('/');
+}
+
+/* ---- Render folder tree ---- */
+
+function renderTree() {
+  const container = document.getElementById('folder-tree');
+  container.innerHTML = buildTreeHTML(driveTree.children || [], [], 0);
+  wireTreeClicks(container);
+  updateStatus();
+}
+
+function buildTreeHTML(children, parentPath, depth) {
+  let html = '';
+  const folders = children.filter(c => c.type === 'folder');
+  for (const folder of folders) {
+    const path = [...parentPath, folder.name];
+    const pathStr = path.join('/');
+    const isSelected = selectedPath.join('/') === pathStr;
+    const isAncestor = selectedPath.join('/').startsWith(pathStr + '/');
+    const isOpen = isSelected || isAncestor;
+    const count = (folder.children || []).length;
+
+    html += `<div class="tree-item ${isSelected ? 'selected' : ''}" data-path="${esc(pathStr)}" style="--depth: ${depth}">
+      <span class="tree-chevron ${isOpen ? 'open' : ''}">&#9654;</span>
+      <span class="tree-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M2 5a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" stroke="#FFB900" stroke-width="1.3" fill="rgba(255,185,0,0.15)"/></svg></span>
+      <span class="tree-label">${esc(folder.name)}</span>
+      <span class="tree-count">${count}</span>
+    </div>`;
+
+    if (isOpen && folder.children) {
+      html += buildTreeHTML(folder.children, path, depth + 1);
+    }
+  }
+  return html;
+}
+
+function wireTreeClicks(container) {
+  container.querySelectorAll('.tree-item').forEach(el => {
+    el.addEventListener('click', () => {
+      selectedPath = el.dataset.path.split('/');
+      renderTree();
+      renderContent();
+    });
+  });
+}
+
+/* ---- Render folder content (right panel) ---- */
+
+function renderContent() {
+  const folder = getSelectedFolder();
+  const title = document.getElementById('folder-title');
+  const content = document.getElementById('folder-content');
+  const crumbs = document.getElementById('breadcrumb');
+
+  // Title
+  title.textContent = selectedPath.length === 0 ? 'K: Drive (root)' : selectedPath[selectedPath.length - 1];
+
+  // Breadcrumb
+  let crumbHTML = '<span class="breadcrumb-seg" data-depth="-1">K:</span>';
+  selectedPath.forEach((seg, i) => {
+    const isLast = i === selectedPath.length - 1;
+    crumbHTML += ` <span class="breadcrumb-sep">›</span> `;
+    if (isLast) {
+      crumbHTML += `<span class="breadcrumb-current">${esc(seg)}</span>`;
+    } else {
+      crumbHTML += `<span class="breadcrumb-seg" data-depth="${i}">${esc(seg)}</span>`;
+    }
+  });
+  crumbs.innerHTML = crumbHTML;
+  crumbs.querySelectorAll('.breadcrumb-seg').forEach(el => {
+    el.addEventListener('click', () => {
+      const depth = parseInt(el.dataset.depth);
+      selectedPath = depth < 0 ? [] : selectedPath.slice(0, depth + 1);
+      renderTree();
+      renderContent();
+    });
+  });
+
+  // Children
+  const children = (folder.children || []).sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  // Show/hide folder management buttons
+  const isRoot = selectedPath.length === 0;
+  document.getElementById('btn-rename-folder').hidden = isRoot;
+  document.getElementById('btn-delete-folder').hidden = isRoot;
+  document.getElementById('btn-add-subfolder').hidden = false;
+
+  // Build content HTML
+  let html = '';
+
+  // Drop zone
+  html += `<div class="drop-zone" id="drop-zone">
+    <div class="drop-zone-icon">📂</div>
+    <div class="drop-zone-text">Drag files here to add them</div>
+    <div class="drop-zone-hint">Or click to browse — PDFs, Excel, Word, any file type</div>
+  </div>`;
+
+  if (children.length > 0) {
+    html += '<div class="file-grid">';
+    for (const item of children) {
+      if (item.type === 'folder') {
+        const count = (item.children || []).length;
+        html += `<div class="file-row" data-name="${esc(item.name)}" data-type="folder">
+          <div class="file-row-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M2 5a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" stroke="#FFB900" stroke-width="1.3" fill="rgba(255,185,0,0.15)"/></svg></div>
+          <div class="file-row-body">
+            <div class="file-row-name">${esc(item.name)}</div>
+            <div class="file-row-meta">${count} item${count !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="file-row-actions">
+            <button class="file-row-btn" data-action="rename" data-name="${esc(item.name)}">Rename</button>
+            <button class="file-row-btn danger" data-action="delete" data-name="${esc(item.name)}">Delete</button>
+          </div>
+        </div>`;
+      } else {
+        const iconSVG = fileIconSVG(item.icon || guessIcon(item.name));
+        html += `<div class="file-row" data-name="${esc(item.name)}" data-type="file">
+          <div class="file-row-icon">${iconSVG}</div>
+          <div class="file-row-body">
+            <div class="file-row-name">${esc(item.name)}</div>
+            <div class="file-row-meta">${esc(item.size || 'Unknown size')}${item.note ? ` · <span class="file-row-note">${esc(item.note)}</span>` : ''}</div>
+          </div>
+          <div class="file-row-actions">
+            <button class="file-row-btn" data-action="edit" data-name="${esc(item.name)}">Edit</button>
+            <button class="file-row-btn danger" data-action="delete" data-name="${esc(item.name)}">Remove</button>
+          </div>
+        </div>`;
+      }
+    }
+    html += '</div>';
+  } else if (children.length === 0) {
+    html += `<div class="empty-state">
+      <div class="empty-state-title">This folder is empty</div>
+      <div class="empty-state-desc">Drag files from your computer into the drop zone above</div>
+    </div>`;
+  }
+
+  content.innerHTML = html;
+
+  // Wire drop zone
+  const dz = document.getElementById('drop-zone');
+  if (dz) {
+    dz.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', handleFileDrop);
+    dz.addEventListener('click', () => document.getElementById('file-upload-input').click());
+  }
+
+  // Wire folder double-click to navigate
+  content.querySelectorAll('.file-row[data-type="folder"]').forEach(el => {
+    el.addEventListener('dblclick', () => {
+      selectedPath = [...selectedPath, el.dataset.name];
+      renderTree();
+      renderContent();
+    });
+  });
+
+  // Wire action buttons
+  content.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      const name = btn.dataset.name;
+      if (action === 'delete') deleteItem(name);
+      else if (action === 'rename') renameItem(name);
+      else if (action === 'edit') editFile(name);
+    });
+  });
+}
+
+/* ---- File operations ---- */
+
+function handleFileDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+
+  const files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
+  if (!files || files.length === 0) return;
+
+  const folder = getSelectedFolder();
+  if (!folder.children) folder.children = [];
+
+  let loaded = 0;
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result;
+      const key = pathKey(selectedPath, file.name);
+
+      // Store the file data
+      fileStore[key] = { data: base64, mime: file.type, size: file.size };
+
+      // Add to tree if not already there
+      const existing = folder.children.find(c => c.name === file.name);
+      if (!existing) {
+        folder.children.push({
+          type: 'file',
+          name: file.name,
+          icon: guessIcon(file.name),
+          size: formatSize(file.size),
+          _embedded: true
+        });
+      } else {
+        existing.size = formatSize(file.size);
+        existing._embedded = true;
+      }
+
+      loaded++;
+      if (loaded === files.length) {
+        markUnsaved();
+        renderTree();
+        renderContent();
+        toast(`Added ${loaded} file${loaded > 1 ? 's' : ''}`);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function deleteItem(name) {
+  if (!confirm(`Delete "${name}"? This can't be undone.`)) return;
+  const folder = getSelectedFolder();
+  folder.children = (folder.children || []).filter(c => c.name !== name);
+  // Remove from file store
+  const key = pathKey(selectedPath, name);
+  delete fileStore[key];
+  markUnsaved();
+  renderTree();
+  renderContent();
+  toast(`Deleted "${name}"`);
+}
+
+function renameItem(name) {
+  const newName = prompt(`Rename "${name}" to:`, name);
+  if (!newName || newName === name) return;
+  const folder = getSelectedFolder();
+  const item = (folder.children || []).find(c => c.name === name);
+  if (!item) return;
+
+  // Update file store key if it's a file
+  if (item.type === 'file') {
+    const oldKey = pathKey(selectedPath, name);
+    const newKey = pathKey(selectedPath, newName);
+    if (fileStore[oldKey]) {
+      fileStore[newKey] = fileStore[oldKey];
+      delete fileStore[oldKey];
+    }
+  }
+
+  item.name = newName;
+  markUnsaved();
+  renderTree();
+  renderContent();
+}
+
+function editFile(name) {
+  const folder = getSelectedFolder();
+  const item = (folder.children || []).find(c => c.name === name && c.type === 'file');
+  if (!item) return;
+
+  showModal('Edit File', `
+    <div class="form-group">
+      <label class="form-label">Display Name</label>
+      <input class="form-input" id="edit-name" value="${esc(item.name)}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">File Type Icon</label>
+      <select class="form-select" id="edit-icon">
+        <option value="pdf" ${item.icon === 'pdf' ? 'selected' : ''}>PDF</option>
+        <option value="xlsx" ${item.icon === 'xlsx' ? 'selected' : ''}>Excel</option>
+        <option value="docx" ${item.icon === 'docx' ? 'selected' : ''}>Word</option>
+        <option value="file" ${(!item.icon || item.icon === 'file') ? 'selected' : ''}>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Note (shown to students, optional)</label>
+      <input class="form-input" id="edit-note" value="${esc(item.note || '')}" placeholder="e.g., Check expiration date">
+    </div>
+  `, () => {
+    const newName = document.getElementById('edit-name').value.trim();
+    if (newName && newName !== item.name) {
+      const oldKey = pathKey(selectedPath, item.name);
+      const newKey = pathKey(selectedPath, newName);
+      if (fileStore[oldKey]) {
+        fileStore[newKey] = fileStore[oldKey];
+        delete fileStore[oldKey];
+      }
+      item.name = newName;
+    }
+    item.icon = document.getElementById('edit-icon').value;
+    item.note = document.getElementById('edit-note').value.trim() || undefined;
+    markUnsaved();
+    renderTree();
+    renderContent();
+  });
+}
+
+/* ---- Folder operations ---- */
+
+document.getElementById('btn-new-folder').addEventListener('click', () => addFolder([]));
+document.getElementById('btn-add-subfolder').addEventListener('click', () => addFolder(selectedPath));
+
+function addFolder(parentPath) {
+  const name = prompt('Folder name:');
+  if (!name) return;
+  const parent = getNode(parentPath) || driveTree;
+  if (!parent.children) parent.children = [];
+
+  // Check for duplicate
+  if (parent.children.find(c => c.name === name && c.type === 'folder')) {
+    alert('A folder with that name already exists.');
+    return;
+  }
+
+  parent.children.push({ type: 'folder', name, children: [] });
+  markUnsaved();
+  renderTree();
+  renderContent();
+  toast(`Created folder "${name}"`);
+}
+
+document.getElementById('btn-rename-folder').addEventListener('click', () => {
+  if (selectedPath.length === 0) return;
+  const current = selectedPath[selectedPath.length - 1];
+  const newName = prompt(`Rename "${current}" to:`, current);
+  if (!newName || newName === current) return;
+
+  const parentPath = selectedPath.slice(0, -1);
+  const parent = getNode(parentPath) || driveTree;
+  const folder = (parent.children || []).find(c => c.name === current && c.type === 'folder');
+  if (folder) {
+    folder.name = newName;
+    selectedPath[selectedPath.length - 1] = newName;
+    markUnsaved();
+    renderTree();
+    renderContent();
+  }
+});
+
+document.getElementById('btn-delete-folder').addEventListener('click', () => {
+  if (selectedPath.length === 0) return;
+  const name = selectedPath[selectedPath.length - 1];
+  if (!confirm(`Delete folder "${name}" and ALL its contents?`)) return;
+
+  const parentPath = selectedPath.slice(0, -1);
+  const parent = getNode(parentPath) || driveTree;
+  parent.children = (parent.children || []).filter(c => !(c.name === name && c.type === 'folder'));
+  selectedPath = parentPath;
+  markUnsaved();
+  renderTree();
+  renderContent();
+  toast(`Deleted folder "${name}"`);
+});
+
+/* ---- File upload via button ---- */
+document.getElementById('file-upload-input').addEventListener('change', (e) => {
+  handleFileDrop(e);
+  e.target.value = ''; // reset so same file can be re-added
+});
+
+/* ---- Import existing manifest ---- */
+document.getElementById('btn-import').addEventListener('click', () => {
+  document.getElementById('import-input').click();
+});
+
+document.getElementById('import-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      // The manifest sets window.__CCO_KDRIVE — we eval it in a sandbox
+      const code = reader.result;
+      const sandbox = {};
+      const fn = new Function('window', code + '\nreturn window.__CCO_KDRIVE;');
+      const imported = fn(sandbox) || sandbox.__CCO_KDRIVE;
+      if (!imported || !imported.children) {
+        alert('Could not parse manifest. Make sure it\'s a kdrive-manifest.js file.');
+        return;
+      }
+      driveTree = imported;
+      fileStore = {};
+      selectedPath = [];
+      unsavedChanges = false;
+      renderTree();
+      renderContent();
+      toast('Loaded K Drive manifest');
+      updateStatus();
+    } catch (err) {
+      alert('Error reading file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* ---- Save / Export ---- */
+
+document.getElementById('btn-save').addEventListener('click', async () => {
+  // Build a clean tree (strip internal fields) and generate the manifest JS
+  const cleanTree = cleanForExport(driveTree);
+  const manifestCode = `/* K Drive Manifest — auto-generated by K Drive Manager */\nwindow.__CCO_KDRIVE = ${JSON.stringify(cleanTree, null, 2)};\n`;
+
+  // Check if we have any embedded files
+  const embeddedCount = Object.keys(fileStore).length;
+
+  if (embeddedCount === 0) {
+    // No new files — just download the manifest
+    downloadText('kdrive-manifest.js', manifestCode);
+    unsavedChanges = false;
+    updateStatus();
+    toast('Saved manifest — drop it in content/kdrive/');
+  } else {
+    // Package everything into a zip
+    try {
+      const zip = new JSZip();
+      const kdrive = zip.folder('kdrive');
+
+      // Add manifest
+      kdrive.file('kdrive-manifest.js', manifestCode);
+
+      // Add all embedded files
+      const filesFolder = kdrive.folder('files');
+      for (const [key, data] of Object.entries(fileStore)) {
+        const filename = key.split('/').pop();
+        // Convert data URL to binary
+        const base64Data = data.data.split(',')[1];
+        filesFolder.file(filename, base64Data, { base64: true });
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'kdrive-package.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      unsavedChanges = false;
+      updateStatus();
+      toast(`Saved package with ${embeddedCount} file${embeddedCount > 1 ? 's' : ''} — unzip into content/`);
+    } catch (err) {
+      alert('Error creating package: ' + err.message);
+    }
+  }
+});
+
+function cleanForExport(node) {
+  const clean = { label: node.label };
+  if (node.children) {
+    clean.children = node.children.map(child => {
+      if (child.type === 'folder') {
+        return {
+          type: 'folder',
+          name: child.name,
+          children: child.children ? child.children.map(c => cleanChild(c)) : []
+        };
+      }
+      return cleanChild(child);
+    });
+  }
+  return clean;
+}
+
+function cleanChild(item) {
+  if (item.type === 'folder') {
+    return {
+      type: 'folder',
+      name: item.name,
+      children: (item.children || []).map(c => cleanChild(c))
+    };
+  }
+  const out = {
+    type: 'file',
+    name: item.name,
+    icon: item.icon || guessIcon(item.name),
+    size: item.size || ''
+  };
+  if (item.note) out.note = item.note;
+  if (item.dynamic) out.dynamic = item.dynamic;
+  // If not embedded, keep the original href
+  if (item.href && !item._embedded) out.href = item.href;
+  // If embedded, point to files/ folder
+  if (item._embedded) out.href = 'content/kdrive/files/' + item.name;
+  return out;
+}
+
+/* ---- Helpers ---- */
+
+function guessIcon(filename) {
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  if (ext === 'pdf') return 'pdf';
+  if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') return 'xlsx';
+  if (ext === 'docx' || ext === 'doc') return 'docx';
+  return 'file';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function fileIconSVG(type) {
+  switch (type) {
+    case 'pdf':
+      return '<svg viewBox="0 0 28 28" fill="none"><rect x="4" y="2" width="20" height="24" rx="2" stroke="#D32F2F" stroke-width="1.2" fill="#FFF5F5"/><text x="14" y="17" text-anchor="middle" fill="#D32F2F" font-size="7" font-weight="bold" font-family="Segoe UI,sans-serif">PDF</text></svg>';
+    case 'xlsx':
+      return '<svg viewBox="0 0 28 28" fill="none"><rect x="4" y="2" width="20" height="24" rx="2" stroke="#217346" stroke-width="1.2" fill="#F0FFF4"/><text x="14" y="17" text-anchor="middle" fill="#217346" font-size="7" font-weight="bold" font-family="Segoe UI,sans-serif">XLS</text></svg>';
+    case 'docx':
+      return '<svg viewBox="0 0 28 28" fill="none"><rect x="4" y="2" width="20" height="24" rx="2" stroke="#2B579A" stroke-width="1.2" fill="#F0F4FF"/><text x="14" y="17" text-anchor="middle" fill="#2B579A" font-size="7" font-weight="bold" font-family="Segoe UI,sans-serif">DOC</text></svg>';
+    default:
+      return '<svg viewBox="0 0 28 28" fill="none"><rect x="4" y="2" width="20" height="24" rx="2" stroke="#888" stroke-width="1.2" fill="#FAFAFA"/><line x1="9" y1="10" x2="19" y2="10" stroke="#ccc" stroke-width="1"/><line x1="9" y1="14" x2="17" y2="14" stroke="#ccc" stroke-width="1"/><line x1="9" y1="18" x2="15" y2="18" stroke="#ccc" stroke-width="1"/></svg>';
+  }
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function markUnsaved() {
+  unsavedChanges = true;
+  updateStatus();
+}
+
+function updateStatus() {
+  const el = document.getElementById('status-text');
+  const count = document.getElementById('status-count');
+  const totalFiles = countAllFiles(driveTree);
+  const totalFolders = countAllFolders(driveTree);
+
+  if (unsavedChanges) {
+    el.innerHTML = '<span class="status-unsaved">● Unsaved changes</span> — click "Save K Drive" to export';
+  } else {
+    el.textContent = 'All changes saved.';
+  }
+  count.textContent = `${totalFolders} folder${totalFolders !== 1 ? 's' : ''} · ${totalFiles} file${totalFiles !== 1 ? 's' : ''}`;
+}
+
+function countAllFiles(node) {
+  let c = 0;
+  for (const child of (node.children || [])) {
+    if (child.type === 'file') c++;
+    else c += countAllFiles(child);
+  }
+  return c;
+}
+function countAllFolders(node) {
+  let c = 0;
+  for (const child of (node.children || [])) {
+    if (child.type === 'folder') { c++; c += countAllFolders(child); }
+  }
+  return c;
+}
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: 'application/javascript' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function toast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+/* ---- Modal helper ---- */
+
+function showModal(title, bodyHTML, onSave) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">${esc(title)}</div>
+      <div class="modal-body">${bodyHTML}</div>
+      <div class="modal-footer">
+        <button class="btn btn-sm" id="modal-cancel">Cancel</button>
+        <button class="btn btn-sm btn-primary" id="modal-save" style="background:#0078D4;color:#fff;">Save</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#modal-cancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#modal-save').addEventListener('click', () => {
+    onSave();
+    overlay.remove();
+  });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  // Focus first input
+  const firstInput = overlay.querySelector('input, select');
+  if (firstInput) setTimeout(() => firstInput.focus(), 50);
+}
+
+/* ---- Warn before leaving with unsaved changes ---- */
+window.addEventListener('beforeunload', (e) => {
+  if (unsavedChanges) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+/* ---- Auto-load manifest from same directory if available ---- */
+(function tryAutoLoad() {
+  // Check if kdrive-manifest.js is loadable via script tag
+  // We'll just try to reference it and see if __CCO_KDRIVE is already set
+  if (window.__CCO_KDRIVE) {
+    driveTree = window.__CCO_KDRIVE;
+    selectedPath = [];
+    renderTree();
+    renderContent();
+    toast('Auto-loaded existing K Drive');
+    return;
+  }
+  renderTree();
+  renderContent();
+})();
+
+</script>
+
+<!-- Try to auto-load the existing manifest (optional — won't error if missing) -->
+<script src="content/kdrive/kdrive-manifest.js" onerror=""></script>
+<script>
+  // If the manifest script loaded after our main script, pick it up
+  if (window.__CCO_KDRIVE && driveTree.children.length === 0) {
+    driveTree = window.__CCO_KDRIVE;
+    selectedPath = [];
+    renderTree();
+    renderContent();
+  }
+</script>
+
+</body>
+</html>
