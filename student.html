@@ -60,25 +60,23 @@
     </div>
   </div>
 
-  <!-- v0.2.9: Three-column layout — Emails/Texts | Reading pane | Notes -->
+  <!-- v0.2.14: Three-column layout — Inbox | Reading pane + Notes | Texts -->
   <div class="student-grid-v2">
 
-    <!-- LEFT: emails list on top, texts list below -->
+    <!-- LEFT: email inbox list (Outlook-style) -->
     <aside class="student-left-col">
-
-      <div class="panel inbox-panel">
-        <div class="panel-header panel-header-tight">
+      <div class="panel inbox-panel outlook-inbox">
+        <div class="panel-header panel-header-tight outlook-inbox-header">
           <div class="panel-header-title">
-            <div class="micro">Inbox</div>
-            <div class="title">Emails</div>
+            <div class="outlook-inbox-title">Inbox</div>
           </div>
-          <span class="mono muted" id="mail-count" style="font-size: 11px;">0</span>
+          <span class="outlook-mail-count" id="mail-count">0</span>
         </div>
         <div class="panel-body panel-body-tight">
           <div class="mail-col-list" id="mail-col-list">
-            <div class="mail-empty-state">
+            <div class="mail-empty-state outlook-empty">
               <div class="mail-empty-icon">
-                <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="12" width="36" height="24" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 14l18 12L42 14" stroke="currentColor" stroke-width="1.5"/></svg>
+                <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="12" width="36" height="24" rx="2" stroke="#0078D4" stroke-width="1.5"/><path d="M6 14l18 12L42 14" stroke="#0078D4" stroke-width="1.5"/></svg>
               </div>
               <div class="mail-empty-title">No messages</div>
               <div class="mail-empty-desc">Inbox will populate as the exercise runs.</div>
@@ -86,7 +84,32 @@
           </div>
         </div>
       </div>
+    </aside>
 
+    <!-- MIDDLE: reading pane (email OR SMS thread) + notes below -->
+    <main class="student-reading-col">
+      <div class="panel reading-panel outlook-reading">
+        <div id="reading-pane" class="reading-pane">
+          <div class="reading-empty outlook-empty-reading">
+            <svg viewBox="0 0 56 56" fill="none" style="width:48px;height:48px;margin-bottom:12px;opacity:0.35;"><rect x="6" y="10" width="44" height="36" rx="3" stroke="#0078D4" stroke-width="1.5"/><path d="M6 14l22 14L50 14" stroke="#0078D4" stroke-width="1.5"/></svg>
+            <p style="color:#605E5C;font-size:13px;">Select an item to read</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes: burnt sticky notes beneath reading pane -->
+      <div class="sticky-notes-tray" id="sticky-notes-tray">
+        <div class="sticky-note" id="sticky-note-main">
+          <div class="sticky-note-header">
+            <span class="sticky-note-label" id="notes-header">Notes</span>
+          </div>
+          <textarea id="notes-textarea" class="sticky-note-textarea" placeholder="Free-text notes. Autosaves per persona."></textarea>
+        </div>
+      </div>
+    </main>
+
+    <!-- RIGHT: SMS texts -->
+    <aside class="student-texts-col">
       <div class="panel texts-panel">
         <div class="panel-header panel-header-tight">
           <div class="panel-header-title">
@@ -101,34 +124,6 @@
               No SMS threads yet.
             </div>
           </div>
-        </div>
-      </div>
-
-    </aside>
-
-    <!-- MIDDLE: reading pane (email OR SMS thread) -->
-    <main class="student-reading-col">
-      <div class="panel reading-panel">
-        <div id="reading-pane" class="reading-pane">
-          <div class="reading-empty">
-            <div class="micro">Select a message</div>
-            <p>Click an email or SMS thread from the left column to read it here.</p>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <!-- RIGHT: notes scratchpad -->
-    <aside class="student-notes-col">
-      <div class="panel notes-panel">
-        <div class="panel-header panel-header-tight">
-          <div class="panel-header-title">
-            <div class="micro">Scratchpad</div>
-            <div class="title" id="notes-header">Notes</div>
-          </div>
-        </div>
-        <div class="panel-body panel-body-tight">
-          <textarea id="notes-textarea" class="notes-textarea" placeholder="Free-text notes. Autosaves to this laptop per persona."></textarea>
         </div>
       </div>
     </aside>
