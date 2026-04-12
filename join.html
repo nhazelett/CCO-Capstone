@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join Exercise — CCO Capstone</title>
+<style>
+  /* ============================================================
+     Jackbox-style join page — dark bg, big room code, mobile-first
+     ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0E0B06;
+    color: #EDE4D0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-x: hidden;
+  }
+
+  /* Subtle radial glow behind the card */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 35%, rgba(0, 120, 212, 0.08), transparent 70%);
+    pointer-events: none;
+  }
+
+  .join-card {
+    width: 100%;
+    max-width: 440px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .join-logo {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .join-logo svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 10px;
+  }
+  .join-logo-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #FFF4DF;
+    letter-spacing: -0.02em;
+  }
+  .join-logo-sub {
+    font-size: 12px;
+    color: #72634B;
+    margin-top: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* ---- Step 1: Room code ---- */
+  .join-step { display: none; }
+  .join-step.active { display: block; }
+
+  .step-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #FFF4DF;
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+  .step-sub {
+    font-size: 14px;
+    color: #A89677;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .code-input {
+    width: 100%;
+    padding: 18px;
+    font-size: 32px;
+    font-weight: 700;
+    font-family: 'Segoe UI Mono', 'Cascadia Mono', 'Consolas', monospace;
+    text-align: center;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #FFF4DF;
+    background: #1A150D;
+    border: 2px solid rgba(0, 120, 212, 0.3);
+    border-radius: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .code-input:focus {
+    border-color: #0078D4;
+    box-shadow: 0 0 20px rgba(0, 120, 212, 0.15);
+  }
+  .code-input::placeholder {
+    color: #4A3D28;
+    letter-spacing: 0.15em;
+    font-weight: 400;
+  }
+
+  .join-btn {
+    width: 100%;
+    padding: 16px;
+    margin-top: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #FFFFFF;
+    background: #0078D4;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: 0.02em;
+  }
+  .join-btn:hover { background: #106EBE; }
+  .join-btn:active { transform: scale(0.98); }
+  .join-btn:disabled {
+    background: #3A3224;
+    color: #72634B;
+    cursor: not-allowed;
+  }
+
+  .join-error {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #D9552A;
+    text-align: center;
+    min-height: 20px;
+  }
+
+  /* ---- Step 2: Who are you? ---- */
+  .name-input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #FFF4DF;
+    background: #1A150D;
+    border: 2px solid rgba(220, 190, 140, 0.12);
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 14px;
+  }
+  .name-input:focus {
+    border-color: #0078D4;
+  }
+  .name-input::placeholder {
+    color: #4A3D28;
+  }
+
+  .role-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .role-btn {
+    padding: 16px 12px;
+    border-radius: 10px;
+    border: 2px solid rgba(220, 190, 140, 0.12);
+    background: #1A150D;
+    color: #A89677;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .role-btn:hover {
+    border-color: rgba(0, 120, 212, 0.4);
+    background: #211B10;
+  }
+  .role-btn.selected {
+    border-color: #0078D4;
+    background: rgba(0, 120, 212, 0.10);
+    color: #4FC3D7;
+  }
+  .role-btn-icon {
+    font-size: 24px;
+    line-height: 1;
+  }
+  .role-btn-label {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .role-btn-desc {
+    font-size: 11px;
+    color: #72634B;
+    line-height: 1.3;
+  }
+
+  .shop-row {
+    display: none;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .shop-row.visible { display: flex; }
+  .shop-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: 2px solid rgba(220, 190, 140, 0.12);
+    background: #1A150D;
+    color: #A89677;
+    cursor: pointer;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .shop-btn:hover { border-color: rgba(0, 120, 212, 0.3); }
+  .shop-btn.selected {
+    border-color: #0078D4;
+    background: rgba(0, 120, 212, 0.10);
+    color: #4FC3D7;
+  }
+
+  /* ---- Step 3: Waiting / connected ---- */
+  .session-info {
+    text-align: center;
+    padding: 24px 0;
+  }
+  .session-code-display {
+    font-family: 'Segoe UI Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: #4FC3D7;
+    letter-spacing: 0.2em;
+    margin-bottom: 8px;
+  }
+  .session-status {
+    font-size: 14px;
+    color: #A89677;
+    margin-bottom: 20px;
+  }
+  .session-roster {
+    text-align: left;
+    background: #1A150D;
+    border: 1px solid rgba(220, 190, 140, 0.08);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+  }
+  .roster-head {
+    font-size: 10px;
+    font-weight: 700;
+    color: #72634B;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+  .roster-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(220, 190, 140, 0.05);
+    font-size: 13px;
+  }
+  .roster-item:last-child { border-bottom: none; }
+  .roster-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #7B8F5C;
+    flex-shrink: 0;
+  }
+  .roster-name { color: #EDE4D0; font-weight: 600; }
+  .roster-role {
+    font-size: 11px;
+    color: #72634B;
+    margin-left: auto;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .roster-you {
+    font-size: 10px;
+    color: #0078D4;
+    font-weight: 700;
+  }
+
+  .go-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #FFFFFF;
+    background: #0078D4;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .go-btn:hover { background: #106EBE; }
+
+  /* Pulse animation for the "connected" dot */
+  @keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 rgba(123, 143, 92, 0); }
+    50% { box-shadow: 0 0 8px rgba(123, 143, 92, 0.5); }
+  }
+  .roster-dot { animation: pulse-green 2s ease-in-out infinite; }
+
+  /* ---- Footer ---- */
+  .join-footer {
+    margin-top: 32px;
+    font-size: 11px;
+    color: #4A3D28;
+    text-align: center;
+  }
+  .join-footer a { color: #72634B; text-decoration: none; }
+  .join-footer a:hover { color: #A89677; }
+</style>
+</head>
+<body>
+
+<div class="join-card">
+
+  <div class="join-logo">
+    <svg viewBox="0 0 48 48" fill="none">
+      <rect x="2" y="2" width="44" height="44" rx="6" stroke="#4FC3D7" stroke-width="1.5"/>
+      <path d="M14 24 L20 30 L34 16" stroke="#4FC3D7" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    </svg>
+    <div class="join-logo-title">CCO Capstone</div>
+    <div class="join-logo-sub">Contingency Contracting Trainer</div>
+  </div>
+
+  <!-- STEP 1: Enter room code -->
+  <div class="join-step active" id="step-code">
+    <div class="step-title">Enter room code</div>
+    <div class="step-sub">Get the code from your exercise lead</div>
+    <input type="text" class="code-input" id="code-input" placeholder="ABC123" maxlength="8" autocomplete="off" spellcheck="false" />
+    <button class="join-btn" id="code-btn" disabled>Join</button>
+    <div class="join-error" id="code-error"></div>
+  </div>
+
+  <!-- STEP 2: Who are you? -->
+  <div class="join-step" id="step-identity">
+    <div class="step-title">Who are you?</div>
+    <div class="step-sub">Tell us your name and pick a role</div>
+    <input type="text" class="name-input" id="name-input" placeholder="Your name (e.g., SSgt Rivera)" maxlength="60" autocomplete="off" spellcheck="false" />
+    <div class="role-grid" id="role-grid">
+      <div class="role-btn" data-role="player">
+        <div class="role-btn-icon">🎖️</div>
+        <div class="role-btn-label">Player</div>
+        <div class="role-btn-desc">Student seat — receive injects</div>
+      </div>
+      <div class="role-btn" data-role="observer">
+        <div class="role-btn-icon">👁️</div>
+        <div class="role-btn-label">Observer</div>
+        <div class="role-btn-desc">Watch and grade</div>
+      </div>
+      <div class="role-btn" data-role="trainer">
+        <div class="role-btn-icon">📋</div>
+        <div class="role-btn-label">Trainer</div>
+        <div class="role-btn-desc">Run the exercise</div>
+      </div>
+      <div class="role-btn" data-role="whitecell">
+        <div class="role-btn-icon">⚡</div>
+        <div class="role-btn-label">White Cell</div>
+        <div class="role-btn-desc">Role-play & inject support</div>
+      </div>
+    </div>
+    <div class="shop-row" id="shop-row">
+      <div class="shop-btn" data-shop="CONS">Contracting (CONS)</div>
+      <div class="shop-btn" data-shop="FM">Finance (FM)</div>
+    </div>
+    <button class="join-btn" id="identity-btn" disabled>Join exercise</button>
+    <div class="join-error" id="identity-error"></div>
+  </div>
+
+  <!-- STEP 3: Connected — roster view -->
+  <div class="join-step" id="step-connected">
+    <div class="session-info">
+      <div class="session-code-display" id="connected-code"></div>
+      <div class="session-status" id="connected-status">Connected — waiting for exercise to start</div>
+    </div>
+    <div class="session-roster" id="connected-roster">
+      <div class="roster-head">Who's in</div>
+      <div id="roster-list"></div>
+    </div>
+    <button class="go-btn" id="go-btn">Open my dashboard →</button>
+  </div>
+
+</div>
+
+<div class="join-footer">
+  <a href="index.html">CCO Capstone</a> · UNCLASSIFIED · Training use only
+</div>
+
+<script src="content/content-bundle.js"></script>
+<script src="js/scenario-loader.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/net-loader.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---- Elements ----
+  var codeInput    = document.getElementById('code-input');
+  var codeBtn      = document.getElementById('code-btn');
+  var codeError    = document.getElementById('code-error');
+  var nameInput    = document.getElementById('name-input');
+  var identityBtn  = document.getElementById('identity-btn');
+  var identityError = document.getElementById('identity-error');
+  var goBtn        = document.getElementById('go-btn');
+
+  var stepCode     = document.getElementById('step-code');
+  var stepIdentity = document.getElementById('step-identity');
+  var stepConnected = document.getElementById('step-connected');
+
+  var selectedRole = null;
+  var selectedShop = null;
+  var sessionCode  = null;
+  var myId         = null;      // unique joiner ID
+  var db           = null;      // Firebase database ref (set after SDK loads)
+
+  // ---- Pre-fill from URL hash ----
+  // Allow links like join.html#BSQDH8 to skip step 1
+  var hashCode = (location.hash || '').replace(/^#/, '').replace(/[?&]net=1/g, '').trim();
+  if (hashCode && hashCode.length >= 4) {
+    codeInput.value = hashCode.toUpperCase();
+    codeBtn.disabled = false;
+  }
+
+  // ---- Step 1: Room code ----
+  codeInput.addEventListener('input', function () {
+    var v = codeInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    codeInput.value = v;
+    codeBtn.disabled = v.length < 4;
+    codeError.textContent = '';
+  });
+
+  codeBtn.addEventListener('click', function () {
+    var code = codeInput.value.trim().toUpperCase();
+    if (code.length < 4) return;
+    sessionCode = code;
+
+    // Try to verify session exists via Firebase
+    if (window.firebase && firebase.database) {
+      if (!db) {
+        try {
+          if (!firebase.apps.length) firebase.initializeApp(window.CCOFirebaseConfig);
+          db = firebase.database();
+        } catch (e) {
+          console.warn('Firebase init in join:', e);
+        }
+      }
+      if (db) {
+        codeBtn.textContent = 'Checking…';
+        codeBtn.disabled = true;
+        db.ref('sessions/' + code).once('value').then(function (snap) {
+          if (snap.exists()) {
+            showStep('identity');
+          } else {
+            // Session not in Firebase yet — still allow joining (might be local-only
+            // or STARTEX hasn't synced yet). Warn but proceed.
+            codeError.textContent = 'Session not found in cloud yet — it may still be starting.';
+            showStep('identity');
+          }
+          codeBtn.textContent = 'Join';
+          codeBtn.disabled = false;
+        }).catch(function () {
+          // Firebase offline — proceed anyway
+          showStep('identity');
+          codeBtn.textContent = 'Join';
+          codeBtn.disabled = false;
+        });
+        return;
+      }
+    }
+    // No Firebase — go straight to identity
+    showStep('identity');
+  });
+
+  // Also allow Enter key
+  codeInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !codeBtn.disabled) codeBtn.click();
+  });
+
+  // ---- Step 2: Identity ----
+  document.getElementById('role-grid').addEventListener('click', function (e) {
+    var btn = e.target.closest('.role-btn');
+    if (!btn) return;
+    document.querySelectorAll('.role-btn').forEach(function (b) { b.classList.remove('selected'); });
+    btn.classList.add('selected');
+    selectedRole = btn.dataset.role;
+    // Show shop picker for players
+    var shopRow = document.getElementById('shop-row');
+    if (selectedRole === 'player') {
+      shopRow.classList.add('visible');
+    } else {
+      shopRow.classList.remove('visible');
+      selectedShop = null;
+      document.querySelectorAll('.shop-btn').forEach(function (b) { b.classList.remove('selected'); });
+    }
+    checkIdentityReady();
+  });
+
+  document.getElementById('shop-row').addEventListener('click', function (e) {
+    var btn = e.target.closest('.shop-btn');
+    if (!btn) return;
+    document.querySelectorAll('.shop-btn').forEach(function (b) { b.classList.remove('selected'); });
+    btn.classList.add('selected');
+    selectedShop = btn.dataset.shop;
+    checkIdentityReady();
+  });
+
+  nameInput.addEventListener('input', checkIdentityReady);
+
+  function checkIdentityReady() {
+    var nameOk = nameInput.value.trim().length >= 2;
+    var roleOk = !!selectedRole;
+    var shopOk = selectedRole !== 'player' || !!selectedShop;
+    identityBtn.disabled = !(nameOk && roleOk && shopOk);
+  }
+
+  identityBtn.addEventListener('click', function () {
+    var name = nameInput.value.trim();
+    if (!name || !selectedRole) return;
+
+    myId = 'join-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+
+    var joiner = {
+      id: myId,
+      name: name,
+      role: selectedRole,
+      shop: selectedShop || null,
+      joinedAt: new Date().toISOString(),
+      online: true
+    };
+
+    // Write to Firebase joiners list
+    if (db) {
+      identityBtn.textContent = 'Joining…';
+      identityBtn.disabled = true;
+      db.ref('sessions/' + sessionCode + '/joiners/' + myId).set(joiner).then(function () {
+        // Set up presence — remove when disconnected
+        var presRef = db.ref('sessions/' + sessionCode + '/joiners/' + myId + '/online');
+        presRef.onDisconnect().set(false);
+        startRosterWatch();
+        showStep('connected');
+        identityBtn.textContent = 'Join exercise';
+        identityBtn.disabled = false;
+      }).catch(function (err) {
+        identityError.textContent = 'Join failed: ' + (err.message || err);
+        identityBtn.textContent = 'Join exercise';
+        identityBtn.disabled = false;
+      });
+    } else {
+      // No Firebase — store locally and proceed
+      startRosterWatch();
+      showStep('connected');
+    }
+  });
+
+  // ---- Step 3: Connected ----
+  function startRosterWatch() {
+    document.getElementById('connected-code').textContent = sessionCode;
+
+    if (!db) return;
+    db.ref('sessions/' + sessionCode + '/joiners').on('value', function (snap) {
+      var joiners = snap.val() || {};
+      renderRoster(joiners);
+    });
+
+    // Also watch for exercise state to update status
+    db.ref('sessions/' + sessionCode + '/state/clock/running').on('value', function (snap) {
+      var running = snap.val();
+      var statusEl = document.getElementById('connected-status');
+      if (running) {
+        statusEl.textContent = 'Exercise is LIVE — jump in!';
+        statusEl.style.color = '#7B8F5C';
+      } else {
+        statusEl.textContent = 'Connected — waiting for exercise to start';
+        statusEl.style.color = '#A89677';
+      }
+    });
+  }
+
+  function renderRoster(joiners) {
+    var list = document.getElementById('roster-list');
+    var entries = Object.values(joiners).sort(function (a, b) {
+      var order = { trainer: 0, whitecell: 1, player: 2, observer: 3 };
+      return (order[a.role] || 9) - (order[b.role] || 9);
+    });
+
+    list.innerHTML = entries.map(function (j) {
+      var roleLabel = j.role === 'whitecell' ? 'White Cell' : (j.role || '').toUpperCase();
+      if (j.role === 'player' && j.shop) roleLabel = j.shop;
+      var youBadge = (j.id === myId) ? ' <span class="roster-you">· YOU</span>' : '';
+      var dotColor = j.online !== false ? '#7B8F5C' : '#4A3D28';
+      return '<div class="roster-item">' +
+        '<div class="roster-dot" style="background:' + dotColor + ';"></div>' +
+        '<span class="roster-name">' + esc(j.name) + youBadge + '</span>' +
+        '<span class="roster-role">' + esc(roleLabel) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  goBtn.addEventListener('click', function () {
+    if (!sessionCode) return;
+    var base = '#session=' + encodeURIComponent(sessionCode) + '&net=1';
+    var dest = 'student.html';
+    if (selectedRole === 'trainer' || selectedRole === 'whitecell') {
+      dest = 'trainer.html';
+    } else if (selectedRole === 'observer') {
+      dest = 'inspector.html';
+    }
+    // For players, pass identity so persona picker can auto-select
+    if (selectedRole === 'player' && myId) {
+      base += '&joinId=' + encodeURIComponent(myId);
+      base += '&joinName=' + encodeURIComponent(nameInput.value.trim());
+      if (selectedShop) base += '&joinShop=' + encodeURIComponent(selectedShop);
+    }
+    window.location.href = dest + base;
+  });
+
+  // ---- Helpers ----
+  function showStep(name) {
+    [stepCode, stepIdentity, stepConnected].forEach(function (s) { s.classList.remove('active'); });
+    document.getElementById('step-' + name).classList.add('active');
+    if (name === 'identity') nameInput.focus();
+    if (name === 'code') codeInput.focus();
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // Auto-focus
+  codeInput.focus();
+
+})();
+</script>
+</body>
+</html>

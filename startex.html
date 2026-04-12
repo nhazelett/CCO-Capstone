@@ -29,6 +29,7 @@
     <a href="student.html">Student</a>
     <a href="inspector.html">Inspector</a>
     <a href="mobile.html">Mobile</a>
+    <a href="join.html">Join</a>
     <a href="builder.html">Builder</a>
   </nav>
   <div class="topbar-right">
@@ -861,6 +862,15 @@ function showLaunchCompletePanel(code, config) {
       <p class="launch-complete-sub">Phase: <strong>Pre-exercise · waiting for kickoff</strong>. Open the trainer dashboard first, then share the links below with everyone in the session. When everyone's joined, the trainer clicks <strong>Start Exercise</strong> to begin Day 1.</p>
     </div>
 
+    <div class="join-share-box" style="margin: 0 0 20px; padding: 18px 20px; background: rgba(0, 120, 212, 0.08); border: 1px solid rgba(0, 120, 212, 0.3); border-radius: 8px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 200px;">
+        <div class="micro" style="color: #0078D4; margin-bottom: 4px;">Share this with everyone</div>
+        <div style="font-size: 14px; color: var(--text-primary);">Anyone can join at <strong>join.html</strong> with room code:</div>
+        <div style="font-family: monospace; font-size: 28px; font-weight: 700; color: #4FC3D7; letter-spacing: 0.15em; margin-top: 4px;">${code}</div>
+      </div>
+      <button class="btn btn-sm" id="copy-join-link-btn" style="white-space: nowrap;">Copy join link</button>
+    </div>
+
     <div class="launch-complete-grid">
       ${groups.map(g => `
         <div class="launch-group">
@@ -900,6 +910,22 @@ function showLaunchCompletePanel(code, config) {
   document.getElementById('launch-open-trainer-btn').addEventListener('click', () => {
     window.open('trainer.html#session=' + encodeURIComponent(code) + _netSuffix, '_blank');
   });
+
+  // Copy join link button
+  var copyBtn = document.getElementById('copy-join-link-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      var base = location.origin + location.pathname.replace(/startex\.html.*/, '');
+      var joinUrl = base + 'join.html#' + encodeURIComponent(code);
+      navigator.clipboard.writeText(joinUrl).then(() => {
+        copyBtn.textContent = 'Copied ✓';
+        setTimeout(() => { copyBtn.textContent = 'Copy join link'; }, 2000);
+      }).catch(() => {
+        // Fallback — select text
+        prompt('Copy this link:', joinUrl);
+      });
+    });
+  }
 }
 
 document.getElementById('startex-btn').addEventListener('click', async () => {
