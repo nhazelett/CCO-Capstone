@@ -21,9 +21,25 @@
 (function () {
   'use strict';
 
+  // Master try-catch: if ANYTHING throws, show it on the badge.
+  var _earlyBadge = document.getElementById('cco-net-badge');
+  try { _initFirebase(); } catch (err) {
+    console.error('[firebase-storage] Init crashed:', err);
+    if (_earlyBadge) {
+      _earlyBadge.textContent = '✗ NET: ' + (err.message || err);
+      _earlyBadge.style.borderColor = 'rgba(217, 85, 42, 0.7)';
+      _earlyBadge.style.color = '#D9552A';
+      _earlyBadge.style.background = 'rgba(217, 85, 42, 0.15)';
+      _earlyBadge.style.opacity = '1';
+    }
+    return;
+  }
+
+  function _initFirebase() {
+
   // Guard: only run if Firebase SDK + config + Engine are all present.
   // v0.2.14: update the net-loader badge with failure reason if a guard trips.
-  var _earlyBadge = document.getElementById('cco-net-badge');
+  var _earlyBadge2 = _earlyBadge; // closure ref
   function _guardFail(msg) {
     console.warn('[firebase-storage] ' + msg);
     if (_earlyBadge) {
@@ -279,4 +295,5 @@
   console.log('[firebase-storage] Adapter loaded. Hooks installed.' +
     (_boundSession ? ' Bound to ' + _boundSession + '.' : ' Waiting for session.'));
 
+  } // end _initFirebase
 })();
