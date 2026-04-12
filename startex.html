@@ -800,8 +800,15 @@ document.querySelectorAll('[data-add-roster]').forEach(btn => {
 // the phase to 'cold-open' — that's the true kickoff moment.
 // ==========================================================================
 
+// v0.2.13: detect if this page was loaded with ?net=1 so we can propagate
+// the network flag to every link the launch panel generates. Without this,
+// trainer/student/inspector windows open in local-only mode even though
+// the user intended network mode.
+const _netFlag = /[?&]net=1/.test(location.search) || /[&?]net=1/.test(location.hash);
+const _netSuffix = _netFlag ? '&net=1' : '';
+
 function buildRoleLinks(code, config) {
-  const base = '#session=' + encodeURIComponent(code);
+  const base = '#session=' + encodeURIComponent(code) + _netSuffix;
   const links = [];
   links.push({
     group: 'Trainer',
@@ -891,7 +898,7 @@ function showLaunchCompletePanel(code, config) {
     });
   });
   document.getElementById('launch-open-trainer-btn').addEventListener('click', () => {
-    window.open('trainer.html#session=' + encodeURIComponent(code), '_blank');
+    window.open('trainer.html#session=' + encodeURIComponent(code) + _netSuffix, '_blank');
   });
 }
 
