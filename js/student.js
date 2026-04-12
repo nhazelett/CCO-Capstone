@@ -373,6 +373,8 @@ function renderAll() {
   renderNotesPanel();
   renderPhoneBadges();
   startSignalNoise();
+  if (relayActiveChat) renderSignalChat();
+  else renderRelayChatList();
 }
 
 // v0.2.12: unclaimed inject tray. When a leadership-tagged inject fires
@@ -1231,9 +1233,16 @@ function initPhone() {
     });
   });
 
-  // Back buttons → home screen
+  // Back buttons → home screen (or relay chat list first)
   document.querySelectorAll('.phone-back-btn[data-back]').forEach(btn => {
     btn.addEventListener('click', () => {
+      // If in a relay chat, go back to chat list first
+      if (activePhoneApp === 'signal' && relayActiveChat) {
+        relayActiveChat = null;
+        renderRelayView();
+        renderPhoneBadges();
+        return;
+      }
       closePhoneApp();
     });
   });
@@ -1244,27 +1253,35 @@ function initPhone() {
 
 function openPhoneApp(appName) {
   activePhoneApp = appName;
-  const home = document.getElementById('phone-home');
+  // Hide all views, show the target
+  document.querySelectorAll('.phone-view').forEach(v => v.style.display = 'none');
   const appView = document.getElementById('phone-app-' + appName);
-  if (home) home.style.display = 'none';
   if (appView) appView.style.display = 'flex';
+  // Update status bar bg for app views (white content needs dark text)
+  const top = document.querySelector('.phone-top');
+  if (top) top.style.background = '#F8F8F8';
+  const statusBar = document.querySelector('.phone-status-bar');
+  if (statusBar) statusBar.style.color = '#1a1a1a';
 
-  // Mark signal as seen when opening relay
+  // Show relay chat list when opening
   if (appName === 'signal') {
-    signalSeenCount = signalMessages.length;
+    relayActiveChat = null;
+    renderRelayView();
     renderPhoneBadges();
   }
 }
 
 function closePhoneApp() {
-  // Hide current app, show home
-  if (activePhoneApp) {
-    const appView = document.getElementById('phone-app-' + activePhoneApp);
-    if (appView) appView.style.display = 'none';
-  }
+  // Hide all views, show home
+  document.querySelectorAll('.phone-view').forEach(v => v.style.display = 'none');
   activePhoneApp = null;
   const home = document.getElementById('phone-home');
-  if (home) home.style.display = '';
+  if (home) home.style.display = 'flex';
+  // Restore dark status bar for home wallpaper
+  const top = document.querySelector('.phone-top');
+  if (top) top.style.background = '#000';
+  const statusBar = document.querySelector('.phone-status-bar');
+  if (statusBar) statusBar.style.color = '#fff';
 }
 
 function renderPhoneClock() {
@@ -1301,10 +1318,10 @@ function renderPhoneBadges() {
     }
   }
 
-  // Signal badge — count unseen signal messages
+  // Relay badge — total unseen across all group chats
   const sigBadge = document.getElementById('phone-badge-signal');
   if (sigBadge) {
-    const unseen = signalUnseenCount();
+    const unseen = relayTotalUnseen();
     if (unseen > 0) {
       sigBadge.textContent = unseen;
       sigBadge.hidden = false;
@@ -1314,111 +1331,228 @@ function renderPhoneBadges() {
   }
 }
 
-// Signal chat state
-let signalMessages = [];
-let signalSeenCount = 0;
-let signalNoiseTimer = null;
+// ===== RELAY — multi-group chat system =====
+let relayActiveChat = null; // null = chat list, or group id string
+let relayNoiseStarted = false;
 
-function signalUnseenCount() {
-  return Math.max(0, signalMessages.length - signalSeenCount);
-}
-
-// The noise library — deployment chatter that populates Signal throughout.
-// Some messages are pure noise; some hint at upcoming injects (marked with hintFor).
-const SIGNAL_NOISE_LIBRARY = [
-  { sender: 'TSgt Williams', text: 'Anyone know where the spare generator keys are? CE can\'t find them.', delay: 0 },
-  { sender: 'SSgt Parker', text: 'Laundry room is PACKED. Someone took my PT gear out of the dryer and just left it on the floor 😤', delay: 45 },
-  { sender: 'MSgt Rodriguez', text: 'Reminder: DFAC hours changed — dinner is now 1700-1900, not 1800-2000.', delay: 90 },
-  { sender: 'TSgt Kim', text: 'Top wants everyone at the 0700 stand-up tomorrow. No exceptions.', delay: 150 },
-  { sender: 'SrA Davis', text: 'WiFi at the CLU is trash again. Anyone else having issues?', delay: 210 },
-  { sender: 'SSgt Parker', text: 'Seriously though, WHO is taking people\'s stuff from the laundry?? This is the third time this week.', delay: 280, hintFor: 'security-cameras' },
-  { sender: 'MSgt Rodriguez', text: 'Fuel delivery was short again this morning. Only 80% of what we ordered.', delay: 350, hintFor: 'fuel-delivery' },
-  { sender: 'TSgt Williams', text: 'CE says the AC in Building 3 is down. It\'s going to be a rough day in there.', delay: 420 },
-  { sender: 'SSgt Chen', text: 'Anyone have the number for the local vendor who does the office supply runs? Binder clips are apparently a hot commodity.', delay: 490, hintFor: 'bpa-supplies' },
-  { sender: 'SrA Davis', text: 'Shout out to whoever left donuts in the break room. You\'re a hero. 🍩', delay: 540 },
-  { sender: 'TSgt Kim', text: 'Top III meeting notes: Commander wants a brief on contracting backlog by COB Friday.', delay: 600, hintFor: 'commander-brief' },
-  { sender: 'SSgt Parker', text: 'Ok now clothes are MISSING from the laundry. Not just moved — GONE. Top needs to do something about this.', delay: 680, hintFor: 'security-cameras' },
-  { sender: 'MSgt Rodriguez', text: 'FM says the MIPR for airfield lighting is still sitting there from last rotation. Anyone tracking?', delay: 760, hintFor: 'mipr-stale' },
-  { sender: 'TSgt Williams', text: 'Porta-johns outside the gym need serviced. Putting in a request but just FYI.', delay: 830 },
-  { sender: 'SSgt Chen', text: 'The BPA for office supplies — is that still valid? I heard it might be expiring soon.', delay: 900, hintFor: 'bpa-expiring' },
-  { sender: 'SrA Davis', text: 'Mail run is at 1400 if anyone needs to send packages.', delay: 960 },
-  { sender: 'TSgt Kim', text: 'Commander asked about security cameras for the laundry and common areas. Said "figure it out." Classic.', delay: 1040, hintFor: 'security-cameras' },
-  { sender: 'MSgt Rodriguez', text: 'DFAC repair still not funded. CE is getting antsy. Says the fryer is a safety hazard.', delay: 1120, hintFor: 'dfac-repair' },
-  { sender: 'SSgt Parker', text: 'Update: found half my PT gear in the trash. Filing a report with SF.', delay: 1200 },
-  { sender: 'TSgt Williams', text: 'Friendly reminder to hydrate. It\'s 115°F outside. Don\'t be a statistic.', delay: 1280 },
+// Group definitions
+const RELAY_GROUPS = [
+  { id: 'eces-deployed', name: '455 ECES Deployed', members: 12, icon: 'group', color: '#3A76F0' },
+  { id: 'ce-work',       name: 'CE Work Orders',    members: 8,  icon: 'wrench', color: '#FF9800' },
+  { id: 'lodging',       name: 'Lodging / Billeting', members: 6, icon: 'bed', color: '#9C27B0' },
+  { id: 'top3',          name: 'Top III / 5&6',     members: 9,  icon: 'star', color: '#D4A017' },
+  { id: 'buy-sell',      name: 'Buy-Sell-Trade',    members: 47, icon: 'tag', color: '#4CAF50' },
+  { id: 'announcements', name: 'Base Announcements', members: 84, icon: 'megaphone', color: '#607D8B' },
 ];
 
+// Per-group message arrays & seen counts
+const relayMessages = {};
+const relaySeen = {};
+RELAY_GROUPS.forEach(g => { relayMessages[g.id] = []; relaySeen[g.id] = 0; });
+
+// Noise libraries per group
+const RELAY_NOISE = {
+  'eces-deployed': [
+    { sender: 'TSgt Williams', text: 'Anyone know where the spare generator keys are? CE can\'t find them.', delay: 0 },
+    { sender: 'SSgt Parker', text: 'Laundry room is PACKED. Someone took my PT gear out of the dryer 😤', delay: 45 },
+    { sender: 'MSgt Rodriguez', text: 'Reminder: DFAC hours changed — dinner is now 1700-1900.', delay: 90 },
+    { sender: 'TSgt Kim', text: 'Top wants everyone at the 0700 stand-up tomorrow. No exceptions.', delay: 150 },
+    { sender: 'SrA Davis', text: 'WiFi at the CLU is trash again. Anyone else having issues?', delay: 210 },
+    { sender: 'SSgt Parker', text: 'Seriously WHO is taking people\'s stuff from the laundry?? Third time this week.', delay: 350 },
+    { sender: 'MSgt Rodriguez', text: 'Fuel delivery was short again. Only 80% of what we ordered.', delay: 450, hintFor: 'fuel-delivery' },
+    { sender: 'SrA Davis', text: 'Shout out to whoever left donuts in the break room 🍩', delay: 540 },
+    { sender: 'SSgt Parker', text: 'Ok now clothes are MISSING from the laundry. Not just moved — GONE.', delay: 700 },
+    { sender: 'TSgt Williams', text: 'Friendly reminder to hydrate. 115°F outside. Don\'t be a statistic.', delay: 900 },
+    { sender: 'SSgt Parker', text: 'Update: found half my PT gear in the trash. Filing a report with SF.', delay: 1100 },
+  ],
+  'ce-work': [
+    { sender: 'TSgt Ramos (CE)', text: 'Work order 24-0891: AC in Bldg 3 is down. Parts on order.', delay: 60 },
+    { sender: 'SSgt Neal (CE)', text: 'Anyone tracking the latrine service schedule? South side hasn\'t been hit in 3 days.', delay: 200 },
+    { sender: 'TSgt Ramos (CE)', text: 'Perimeter fence Section 6 — contractor says they need another week. Weather delay.', delay: 400 },
+    { sender: 'MSgt Ford (CE)', text: 'DFAC fryer is officially a safety write-up. Fire marshal flagged it yesterday.', delay: 600, hintFor: 'dfac-repair' },
+    { sender: 'TSgt Ramos (CE)', text: 'Generator 3 making weird noises. Not critical yet but monitoring.', delay: 800 },
+    { sender: 'SSgt Neal (CE)', text: 'Airfield lighting sections 2 and 5 are intermittent. Coordination needed.', delay: 1000, hintFor: 'mipr-stale' },
+  ],
+  'lodging': [
+    { sender: 'A1C Torres', text: 'Room 214 AC is leaking again. Put in a work order but FYI.', delay: 30 },
+    { sender: 'SrA Kim', text: 'Is there a washer that actually works? I\'ve tried 3 of them.', delay: 180 },
+    { sender: 'SSgt Morgan', text: 'New arrivals tonight — 4 pax. Rooms 301-304. Keys at the desk.', delay: 350 },
+    { sender: 'A1C Torres', text: 'The hot water is out in the east wing. Again.', delay: 550 },
+    { sender: 'SrA Kim', text: 'Someone left food in the common area fridge for like 2 weeks 🤢', delay: 750 },
+    { sender: 'SSgt Morgan', text: 'Reminder: quiet hours 2200-0600. Some people work nights.', delay: 950 },
+  ],
+  'top3': [
+    { sender: 'CMSgt Alvarez', text: 'Stand-up tomorrow 0700. Bring your slides or don\'t bother showing up.', delay: 100 },
+    { sender: 'SMSgt Blackwell', text: 'Morale event Friday — volleyball tournament. Sign-up sheet at the MWR tent.', delay: 300 },
+    { sender: 'CMSgt Alvarez', text: 'Commander wants a brief on contracting backlog by COB Friday.', delay: 500, hintFor: 'commander-brief' },
+    { sender: 'MSgt Rodriguez', text: 'Fitness testing next rotation. Start running now or regret it later.', delay: 700 },
+    { sender: 'SMSgt Blackwell', text: 'Reminder: NCO of the quarter packages due NLT Wednesday.', delay: 850 },
+    { sender: 'CMSgt Alvarez', text: 'Commander asked about security cameras for laundry area. "Figure it out."', delay: 1050, hintFor: 'security-cameras' },
+  ],
+  'buy-sell': [
+    { sender: 'SrA Davis', text: 'Selling a barely used Keurig. $25 OBO. CLU room 112.', delay: 120 },
+    { sender: 'A1C Brown', text: 'Anyone have a spare HDMI cable? Will trade for snacks.', delay: 280 },
+    { sender: 'SSgt Chen', text: 'Free protein powder (chocolate). Bought the wrong flavor. MWR tent.', delay: 440 },
+    { sender: 'SrA Patel', text: 'ISO: decent pillow. The issued ones are literally rocks.', delay: 620 },
+    { sender: 'A1C Brown', text: 'Selling a rug I bought at the bazaar. 8x10, looks Afghan-ish. $40.', delay: 820 },
+    { sender: 'SrA Davis', text: 'Anyone want a PS5? Screen cracked on my monitor so it\'s useless to me now. $200.', delay: 1020 },
+    { sender: 'SSgt Chen', text: 'FREE: 6 cases of Rip-Its (citrus). Under my bunk. First come first serve.', delay: 1200 },
+  ],
+  'announcements': [
+    { sender: 'PA Office', text: '🔔 DFAC hours update: Breakfast 0530-0730, Lunch 1130-1330, Dinner 1700-1900.', delay: 0 },
+    { sender: 'Safety', text: '⚠️ Heat Cat 5 today. Mandatory hydration breaks every 30 min for outdoor work.', delay: 160 },
+    { sender: 'MWR', text: 'Gym closed 1400-1600 for equipment maintenance. Outdoor track still available.', delay: 380 },
+    { sender: 'PA Office', text: '🔔 Mail run: 1400 daily at the TMO yard. Outgoing packages accepted until 1345.', delay: 560 },
+    { sender: 'Safety', text: '⚠️ UXO found near east perimeter yesterday. Stay on paved paths. Report anything suspicious to EOD.', delay: 740 },
+    { sender: 'Chaplain', text: 'Chapel services: Sunday 0900 (Protestant), 1100 (Catholic). All welcome.', delay: 920 },
+    { sender: 'PA Office', text: '🔔 USO visit next Thursday. Movie night + care packages. Location TBD.', delay: 1100 },
+  ],
+};
+
+function relayTotalUnseen() {
+  let total = 0;
+  RELAY_GROUPS.forEach(g => {
+    total += Math.max(0, relayMessages[g.id].length - relaySeen[g.id]);
+  });
+  return total;
+}
+
 function startSignalNoise() {
-  if (signalNoiseTimer) return;
+  if (relayNoiseStarted) return;
   const s = Engine.getState();
   if (!s.clock || !s.clock.running) return;
+  relayNoiseStarted = true;
 
-  // Use exerciseMs from clock state to get real elapsed seconds
   const clockState = s.clock || {};
   const elapsed = Math.floor((clockState.exerciseMs || 0) / 1000);
 
-  // Add all messages whose delay has passed
-  SIGNAL_NOISE_LIBRARY.forEach(msg => {
-    const triggerSec = msg.delay;
-    if (elapsed >= triggerSec && !signalMessages.find(m => m._src === msg)) {
-      signalMessages.push({
-        _src: msg,
-        sender: msg.sender,
-        text: msg.text,
-        time: formatSignalTime(triggerSec),
-        hintFor: msg.hintFor || null
-      });
-    }
-  });
-
-  // Set timers for future messages
-  SIGNAL_NOISE_LIBRARY.forEach(msg => {
-    const triggerSec = msg.delay;
-    if (elapsed < triggerSec) {
-      const waitMs = (triggerSec - elapsed) * 1000;
-      setTimeout(() => {
-        if (!signalMessages.find(m => m._src === msg)) {
-          signalMessages.push({
-            _src: msg,
-            sender: msg.sender,
-            text: msg.text,
-            time: formatSignalTime(triggerSec),
-            hintFor: msg.hintFor || null
-          });
-          renderSignalChat();
-          renderPhoneBadges();
-          // Pulse the Signal icon on home screen if not in the app
-          if (activePhoneApp !== 'signal') {
-            const icon = document.getElementById('phone-icon-signal');
-            if (icon) { icon.classList.add('phone-icon-pulse'); setTimeout(() => icon.classList.remove('phone-icon-pulse'), 800); }
+  // For each group, process its noise library
+  RELAY_GROUPS.forEach(g => {
+    const lib = RELAY_NOISE[g.id] || [];
+    lib.forEach(msg => {
+      const triggerSec = msg.delay;
+      if (elapsed >= triggerSec && !relayMessages[g.id].find(m => m._src === msg)) {
+        relayMessages[g.id].push({
+          _src: msg, sender: msg.sender, text: msg.text,
+          time: formatSignalTime(triggerSec), hintFor: msg.hintFor || null
+        });
+      } else if (elapsed < triggerSec) {
+        setTimeout(() => {
+          if (!relayMessages[g.id].find(m => m._src === msg)) {
+            relayMessages[g.id].push({
+              _src: msg, sender: msg.sender, text: msg.text,
+              time: formatSignalTime(triggerSec), hintFor: msg.hintFor || null
+            });
+            renderRelayChatList();
+            if (relayActiveChat === g.id) renderSignalChat();
+            renderPhoneBadges();
+            // Pulse icon on home if not in relay
+            if (activePhoneApp !== 'signal') {
+              const icon = document.getElementById('phone-icon-signal');
+              if (icon) { icon.classList.add('phone-icon-pulse'); setTimeout(() => icon.classList.remove('phone-icon-pulse'), 800); }
+            }
           }
-        }
-      }, waitMs);
-    }
+        }, (triggerSec - elapsed) * 1000);
+      }
+    });
   });
 }
 
 function formatSignalTime(delaySec) {
-  // Convert delay seconds to time string using the exercise day start
   const s = Engine.getState ? Engine.getState() : {};
-  const dayStart = (s.clock && s.clock.dayStart) || 420; // default 0700
+  const dayStart = (s.clock && s.clock.dayStart) || 420;
   const totalMin = dayStart + Math.floor(delaySec / 60);
   const h = Math.floor((totalMin % (24 * 60)) / 60);
   const m = totalMin % 60;
   return pad(h) + ':' + pad(m);
 }
 
-function renderSignalChat() {
-  const container = document.getElementById('signal-chat');
+function relayGroupIcon(type) {
+  switch (type) {
+    case 'group': return '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 19c0-3.5 3-6.5 7-6.5s7 3 7 6.5" stroke="currentColor" stroke-width="1.3"/></svg>';
+    case 'wrench': return '<svg viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3-3a6 6 0 01-7.5 7.5L7 19a2 2 0 01-3-3l5.2-6.2a6 6 0 017.5-7.5l-3 3z" stroke="currentColor" stroke-width="1.3"/></svg>';
+    case 'bed': return '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M3 17v2m18-2v2M6 11V8a2 2 0 012-2h8a2 2 0 012 2v3" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="9" r="1.5" stroke="currentColor" stroke-width="1"/></svg>';
+    case 'star': return '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2l3.1 6.3L22 9.3l-5 4.8 1.2 6.9L12 17.8 5.8 21l1.2-6.9-5-4.8 6.9-1L12 2z" stroke="currentColor" stroke-width="1.3"/></svg>';
+    case 'tag': return '<svg viewBox="0 0 24 24" fill="none"><path d="M20.6 11.4L12 20l-8-8V4h8l8.6 7.4z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>';
+    case 'megaphone': return '<svg viewBox="0 0 24 24" fill="none"><path d="M18 8a4 4 0 010 8M4 9v6h3l5 4V5L7 9H4z" stroke="currentColor" stroke-width="1.3"/></svg>';
+    default: return '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.3"/></svg>';
+  }
+}
+
+// Render the chat list (main Relay screen)
+function renderRelayChatList() {
+  const container = document.getElementById('relay-chat-list');
   if (!container) return;
 
-  if (signalMessages.length === 0) {
+  container.innerHTML = RELAY_GROUPS.map(g => {
+    const msgs = relayMessages[g.id];
+    const unseen = Math.max(0, msgs.length - relaySeen[g.id]);
+    const last = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    const preview = last ? last.text.slice(0, 60) : 'No messages yet';
+    const previewSender = last ? last.sender.split(' ')[0] : '';
+    return `
+      <div class="relay-chat-row ${unseen > 0 ? 'unread' : ''}" data-group="${esc(g.id)}">
+        <div class="relay-chat-avatar" style="background: ${g.color}; color: #fff;">
+          ${relayGroupIcon(g.icon)}
+        </div>
+        <div class="relay-chat-body">
+          <div class="relay-chat-head">
+            <span class="relay-chat-name">${esc(g.name)}</span>
+            <span class="relay-chat-time">${last ? esc(last.time) : ''}</span>
+          </div>
+          <div class="relay-chat-preview">${previewSender ? '<b>' + esc(previewSender) + ':</b> ' : ''}${esc(preview)}</div>
+        </div>
+        ${unseen > 0 ? `<div class="relay-chat-badge">${unseen}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.relay-chat-row').forEach(el => {
+    el.addEventListener('click', () => {
+      relayActiveChat = el.dataset.group;
+      relaySeen[relayActiveChat] = relayMessages[relayActiveChat].length;
+      renderRelayView();
+      renderPhoneBadges();
+    });
+  });
+}
+
+// Render the active chat or the list
+function renderRelayView() {
+  const list = document.getElementById('relay-chat-list');
+  const chat = document.getElementById('signal-chat');
+  const title = document.getElementById('relay-title');
+  const backBtn = document.getElementById('relay-back-btn');
+
+  if (relayActiveChat) {
+    // Show chat view
+    if (list) list.style.display = 'none';
+    if (chat) chat.style.display = 'flex';
+    const group = RELAY_GROUPS.find(g => g.id === relayActiveChat);
+    if (title) title.textContent = group ? group.name : 'Relay';
+    renderSignalChat();
+  } else {
+    // Show chat list
+    if (list) list.style.display = '';
+    if (chat) chat.style.display = 'none';
+    if (title) title.textContent = 'Relay';
+    renderRelayChatList();
+  }
+}
+
+function renderSignalChat() {
+  const container = document.getElementById('signal-chat');
+  if (!container || !relayActiveChat) return;
+
+  const msgs = relayMessages[relayActiveChat] || [];
+
+  if (msgs.length === 0) {
     container.innerHTML = '<div class="signal-empty">No messages yet. Chat will populate during the exercise.</div>';
     return;
   }
 
   container.innerHTML = '<div class="signal-date-sep">Today</div>' +
-    signalMessages.map(m => `
+    msgs.map(m => `
       <div class="signal-msg signal-msg-in">
         <div class="signal-msg-sender">${esc(m.sender)}</div>
         <div class="signal-msg-text">${esc(m.text)}</div>
@@ -1426,13 +1560,10 @@ function renderSignalChat() {
       </div>
     `).join('');
 
-  // Auto-scroll to bottom
   container.scrollTop = container.scrollHeight;
 
-  // Mark as seen if signal tab is active
-  if (activePhoneApp === 'signal') {
-    signalSeenCount = signalMessages.length;
-  }
+  // Mark as seen
+  relaySeen[relayActiveChat] = msgs.length;
 }
 
 function kdriveOpenShopTracker() {
