@@ -249,8 +249,10 @@ let _presenceTickInterval = null;
 
   // ===== BOMB BUTTON — ALARM RED instant launch =====
   // 3-hour cooldown after each manual launch (scheduled alarm injects bypass cooldown).
+  // Scoped to the active session so a new STARTEX resets it automatically.
   const BOMB_COOLDOWN_MS = 3 * 60 * 60 * 1000; // 3 hours in ms
-  const BOMB_COOLDOWN_KEY = 'cco-capstone-bomb-cooldown';
+  const bombSession = (Engine.getSession && Engine.getSession()) || 'default';
+  const BOMB_COOLDOWN_KEY = `cco-capstone-bomb-cooldown:${bombSession}`;
   const bombBtn = document.getElementById('bomb-btn');
 
   function getBombCooldownEnd() {
