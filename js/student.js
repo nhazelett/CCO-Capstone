@@ -319,6 +319,7 @@ function renderStudentKickoffBanner() {
 
   initKDrive();
   initPhone();
+  initAlarmSystem();
   renderAll();
 
   document.addEventListener('engine:tick', () => {
@@ -1426,36 +1427,100 @@ function startSignalNoise() {
   const clockState = s.clock || {};
   const elapsed = Math.floor((clockState.exerciseMs || 0) / 1000);
 
-  // For each group, process its noise library
+  // Layer 1: Ambient noise — fires on fixed delay from exercise start
   RELAY_GROUPS.forEach(g => {
     const lib = RELAY_NOISE[g.id] || [];
     lib.forEach(msg => {
-      const triggerSec = msg.delay;
-      if (elapsed >= triggerSec && !relayMessages[g.id].find(m => m._src === msg)) {
-        relayMessages[g.id].push({
-          _src: msg, sender: msg.sender, text: msg.text,
-          time: formatSignalTime(triggerSec), hintFor: msg.hintFor || null
-        });
-      } else if (elapsed < triggerSec) {
-        setTimeout(() => {
-          if (!relayMessages[g.id].find(m => m._src === msg)) {
-            relayMessages[g.id].push({
-              _src: msg, sender: msg.sender, text: msg.text,
-              time: formatSignalTime(triggerSec), hintFor: msg.hintFor || null
-            });
-            renderRelayChatList();
-            if (relayActiveChat === g.id) renderSignalChat();
-            renderPhoneBadges();
-            // Pulse icon on home if not in relay
-            if (activePhoneApp !== 'signal') {
-              const icon = document.getElementById('phone-icon-signal');
-              if (icon) { icon.classList.add('phone-icon-pulse'); setTimeout(() => icon.classList.remove('phone-icon-pulse'), 800); }
-            }
-          }
-        }, (triggerSec - elapsed) * 1000);
-      }
+      scheduleRelayMsg(g.id, msg, msg.delay, elapsed);
     });
   });
+
+  // Layer 2: Inject-linked noise — fires relative to each inject's trigger time
+  scheduleInjectLinkedNoise(elapsed);
+}
+
+// Schedule inject-linked relay noise from inject definitions.
+// Each inject can have a relay_noise array:
+//   { group: 'ce-work', sender: 'TSgt Ramos', text: '...', offset: -10 }
+// offset is in minutes relative to inject fire time. Negative = before.
+function scheduleInjectLinkedNoise(elapsedSec) {
+  const s = Engine.getState();
+  const dayStart = (s.clock && s.clock.dayStart) || 420;
+
+  (s.injects || []).forEach(inj => {
+    if (!inj.relay_noise || !Array.isArray(inj.relay_noise)) return;
+    // Get this inject's resolved fire time in totalMinutes
+    const fireMin = Engine.getResolvedTriggerMinutes
+      ? Engine.getResolvedTriggerMinutes(inj.id)
+      : null;
+    if (fireMin == null) return;
+
+    inj.relay_noise.forEach((noise, idx) => {
+      const group = noise.group;
+      if (!relayMessages[group]) return; // unknown group, skip
+
+      const offsetMin = noise.offset || 0;
+      const noiseFireMin = fireMin + offsetMin;
+      // Convert totalMinutes to seconds elapsed from exercise start
+      const noiseFireSec = (noiseFireMin - dayStart) * 60;
+
+      const msgKey = `inject-${inj.id}-${idx}`;
+      const msgObj = {
+        _key: msgKey,
+        sender: noise.sender,
+        text: noise.text,
+        time: formatSignalTimeFromMin(noiseFireMin),
+        hintFor: inj.id
+      };
+
+      scheduleRelayMsg(group, msgObj, noiseFireSec, elapsedSec, msgKey);
+    });
+  });
+}
+
+function scheduleRelayMsg(groupId, msg, delaySec, elapsedSec, uniqueKey) {
+  const key = uniqueKey || msg;
+  const arr = relayMessages[groupId];
+  if (!arr) return;
+
+  if (elapsedSec >= delaySec) {
+    // Should already be visible
+    if (!arr.find(m => m._src === key)) {
+      arr.push({
+        _src: key,
+        sender: msg.sender,
+        text: msg.text,
+        time: msg.time || formatSignalTime(delaySec),
+        hintFor: msg.hintFor || null
+      });
+    }
+  } else {
+    const waitMs = (delaySec - elapsedSec) * 1000;
+    setTimeout(() => {
+      if (!arr.find(m => m._src === key)) {
+        arr.push({
+          _src: key,
+          sender: msg.sender,
+          text: msg.text,
+          time: msg.time || formatSignalTime(delaySec),
+          hintFor: msg.hintFor || null
+        });
+        renderRelayChatList();
+        if (relayActiveChat === groupId) renderSignalChat();
+        renderPhoneBadges();
+        if (activePhoneApp !== 'signal') {
+          const icon = document.getElementById('phone-icon-signal');
+          if (icon) { icon.classList.add('phone-icon-pulse'); setTimeout(() => icon.classList.remove('phone-icon-pulse'), 800); }
+        }
+      }
+    }, waitMs);
+  }
+}
+
+function formatSignalTimeFromMin(totalMin) {
+  const h = Math.floor((totalMin % (24 * 60)) / 60);
+  const m = totalMin % 60;
+  return pad(h) + ':' + pad(m);
 }
 
 function formatSignalTime(delaySec) {
@@ -1564,6 +1629,208 @@ function renderSignalChat() {
 
   // Mark as seen
   relaySeen[relayActiveChat] = msgs.length;
+}
+
+/* ==========================================================================
+   ALARM SYSTEM — Giant Voice / kinetic inject fullscreen takeover
+   Web Audio API siren + red overlay. No audio files needed.
+   ========================================================================== */
+let alarmActive = false;
+let alarmAudioCtx = null;
+let alarmOscillators = [];
+let alarmGainNode = null;
+let alarmCheckInterval = null;
+let alarmFiredInjects = new Set(); // track which injects already triggered an alarm
+
+// Web Audio siren — two detuned oscillators swept between freqs for that
+// classic air-raid / Giant Voice sound. Runs entirely in-browser.
+function startAlarmAudio() {
+  try {
+    alarmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    alarmGainNode = alarmAudioCtx.createGain();
+    alarmGainNode.gain.setValueAtTime(0.55, alarmAudioCtx.currentTime);
+    alarmGainNode.connect(alarmAudioCtx.destination);
+
+    // Primary siren: sweep 440→880→440 Hz
+    const osc1 = alarmAudioCtx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(440, alarmAudioCtx.currentTime);
+    osc1.connect(alarmGainNode);
+    osc1.start();
+
+    // Secondary tone: offset for dissonance
+    const osc2 = alarmAudioCtx.createOscillator();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(444, alarmAudioCtx.currentTime);
+    const gain2 = alarmAudioCtx.createGain();
+    gain2.gain.setValueAtTime(0.15, alarmAudioCtx.currentTime);
+    osc2.connect(gain2);
+    gain2.connect(alarmGainNode);
+    osc2.start();
+
+    alarmOscillators = [osc1, osc2];
+
+    // Sweep the primary oscillator up and down continuously
+    function sweepSiren() {
+      if (!alarmActive || !alarmAudioCtx) return;
+      const now = alarmAudioCtx.currentTime;
+      osc1.frequency.linearRampToValueAtTime(880, now + 1.5);
+      osc1.frequency.linearRampToValueAtTime(440, now + 3.0);
+      osc2.frequency.linearRampToValueAtTime(660, now + 1.5);
+      osc2.frequency.linearRampToValueAtTime(444, now + 3.0);
+      setTimeout(sweepSiren, 3000);
+    }
+    sweepSiren();
+  } catch (e) {
+    console.warn('Alarm audio failed:', e);
+  }
+}
+
+function stopAlarmAudio() {
+  try {
+    alarmOscillators.forEach(o => { try { o.stop(); } catch (_) {} });
+    alarmOscillators = [];
+    if (alarmGainNode) { alarmGainNode.disconnect(); alarmGainNode = null; }
+    if (alarmAudioCtx) { alarmAudioCtx.close(); alarmAudioCtx = null; }
+  } catch (e) { console.warn('Alarm audio cleanup:', e); }
+}
+
+// Build the alarm warning icon SVG
+function alarmIconSVG() {
+  return `<svg viewBox="0 0 100 100" fill="none">
+    <polygon points="50,8 95,88 5,88" stroke="#FF1744" stroke-width="4" fill="rgba(255,23,68,0.15)"/>
+    <text x="50" y="72" text-anchor="middle" fill="#FF1744" font-size="42" font-weight="900" font-family="sans-serif">!</text>
+  </svg>`;
+}
+
+// Show the full-page alarm overlay
+function showAlarmOverlay(alarm, injectId) {
+  if (alarmActive) return; // already blaring
+  alarmActive = true;
+
+  const title = alarm.title || 'ALARM RED';
+  const message = alarm.message || 'TAKE COVER IMMEDIATELY';
+  const source = alarm.source || 'GIANT VOICE';
+  const durationSec = alarm.duration_seconds || 20;
+
+  // Full-page overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'alarm-overlay';
+  overlay.id = 'alarm-overlay';
+  overlay.innerHTML = `
+    <div class="alarm-overlay-inner">
+      <div class="alarm-icon">${alarmIconSVG()}</div>
+      <div class="alarm-title">${esc(title)}</div>
+      <div class="alarm-message">${esc(message)}</div>
+      <div class="alarm-source">${esc(source)}</div>
+      <button class="alarm-ack-btn" id="alarm-ack-btn">&#x2714; Acknowledge</button>
+      <div class="alarm-countdown" id="alarm-countdown">Auto-dismiss in ${durationSec}s</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Edge flash bars
+  ['top', 'bottom', 'left', 'right'].forEach(side => {
+    const bar = document.createElement('div');
+    bar.className = `alarm-edge-flash alarm-edge-${side}`;
+    bar.dataset.alarmEdge = '1';
+    document.body.appendChild(bar);
+  });
+
+  // Phone-screen overlay (inside the simulated phone)
+  const phoneFrame = document.querySelector('.phone-frame');
+  if (phoneFrame) {
+    const phoneAlarm = document.createElement('div');
+    phoneAlarm.className = 'phone-alarm-overlay';
+    phoneAlarm.id = 'phone-alarm-overlay';
+    phoneAlarm.innerHTML = `
+      <div class="alarm-icon">${alarmIconSVG()}</div>
+      <div class="alarm-title">${esc(title)}</div>
+      <div class="alarm-message">${esc(message)}</div>
+      <div class="alarm-source">${esc(source)}</div>
+    `;
+    phoneFrame.appendChild(phoneAlarm);
+  }
+
+  // Start the siren
+  startAlarmAudio();
+
+  // Countdown
+  let remaining = durationSec;
+  const countdownEl = document.getElementById('alarm-countdown');
+  const countdownTimer = setInterval(() => {
+    remaining--;
+    if (countdownEl) countdownEl.textContent = `Auto-dismiss in ${remaining}s`;
+    if (remaining <= 0) {
+      clearInterval(countdownTimer);
+      dismissAlarm();
+    }
+  }, 1000);
+
+  // Acknowledge button
+  const ackBtn = document.getElementById('alarm-ack-btn');
+  if (ackBtn) {
+    ackBtn.addEventListener('click', () => {
+      clearInterval(countdownTimer);
+      dismissAlarm();
+    });
+  }
+
+  // Also push a relay message to announcements
+  if (relayMessages['announcements']) {
+    const now = Engine.getExerciseTime ? Engine.getExerciseTime() : null;
+    const timeStr = now && now.shortTime ? now.shortTime : '--:--';
+    const alarmMsg = {
+      _src: `alarm-${injectId}`,
+      sender: source,
+      text: `⚠️ ${title} — ${message}`,
+      time: timeStr,
+      hintFor: injectId
+    };
+    if (!relayMessages['announcements'].find(m => m._src === alarmMsg._src)) {
+      relayMessages['announcements'].push(alarmMsg);
+      renderRelayChatList();
+      renderPhoneBadges();
+    }
+  }
+}
+
+function dismissAlarm() {
+  alarmActive = false;
+  stopAlarmAudio();
+
+  const overlay = document.getElementById('alarm-overlay');
+  if (overlay) overlay.remove();
+
+  const phoneAlarm = document.getElementById('phone-alarm-overlay');
+  if (phoneAlarm) phoneAlarm.remove();
+
+  document.querySelectorAll('[data-alarm-edge]').forEach(el => el.remove());
+}
+
+// Check if any fired inject has an alarm field that hasn't been triggered yet
+function checkForAlarmInjects() {
+  const s = Engine.getState();
+  if (!s.clock || !s.clock.running) return;
+
+  (s.injects || []).forEach(inj => {
+    if (!inj.alarm) return;
+    if (alarmFiredInjects.has(inj.id)) return;
+
+    // Check if this inject has been fired by the trainer (state.fired is a Set)
+    if (s.fired && s.fired.has(inj.id)) {
+      alarmFiredInjects.add(inj.id);
+      showAlarmOverlay(inj.alarm, inj.id);
+    }
+  });
+}
+
+// Hook into the engine sync loop
+function initAlarmSystem() {
+  // Check on every sync and at interval
+  document.addEventListener('engine:sync', checkForAlarmInjects);
+  document.addEventListener('engine:inject-fired', checkForAlarmInjects);
+  alarmCheckInterval = setInterval(checkForAlarmInjects, 2000);
 }
 
 function kdriveOpenShopTracker() {

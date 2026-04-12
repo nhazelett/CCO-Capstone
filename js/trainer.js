@@ -247,6 +247,128 @@ let _presenceTickInterval = null;
     Engine.fireNextInject();
   });
 
+  // ===== BOMB BUTTON — ALARM RED instant launch =====
+  // 3-hour cooldown after each manual launch (scheduled alarm injects bypass cooldown).
+  const BOMB_COOLDOWN_MS = 3 * 60 * 60 * 1000; // 3 hours in ms
+  const BOMB_COOLDOWN_KEY = 'cco-capstone-bomb-cooldown';
+  const bombBtn = document.getElementById('bomb-btn');
+
+  function getBombCooldownEnd() {
+    try { return parseInt(localStorage.getItem(BOMB_COOLDOWN_KEY) || '0', 10); } catch (_) { return 0; }
+  }
+  function setBombCooldown() {
+    try { localStorage.setItem(BOMB_COOLDOWN_KEY, String(Date.now() + BOMB_COOLDOWN_MS)); } catch (_) {}
+  }
+  function isBombOnCooldown() {
+    return Date.now() < getBombCooldownEnd();
+  }
+
+  function updateBombBtn() {
+    if (!bombBtn) return;
+    if (isBombOnCooldown()) {
+      bombBtn.classList.add('on-cooldown');
+      const remaining = Math.ceil((getBombCooldownEnd() - Date.now()) / 60000);
+      const h = Math.floor(remaining / 60);
+      const m = remaining % 60;
+      const label = bombBtn.querySelector('.bomb-label');
+      if (label) label.innerHTML = `COOLDOWN <span class="bomb-cooldown-label">${h}h ${m}m</span>`;
+      bombBtn.title = `Cooldown active — ${h}h ${m}m remaining`;
+    } else {
+      bombBtn.classList.remove('on-cooldown');
+      const label = bombBtn.querySelector('.bomb-label');
+      if (label) label.textContent = 'ALARM RED';
+      bombBtn.title = 'Launch alarm — triggers ALARM RED on all student screens';
+    }
+  }
+
+  // Update cooldown display every 30 seconds
+  setInterval(updateBombBtn, 30000);
+  updateBombBtn();
+
+  if (bombBtn) {
+    bombBtn.addEventListener('click', () => {
+      if (isBombOnCooldown()) {
+        const remaining = Math.ceil((getBombCooldownEnd() - Date.now()) / 60000);
+        const h = Math.floor(remaining / 60);
+        const m = remaining % 60;
+        showModal('Cooldown Active', `<p>The ALARM RED button is on cooldown for ${h}h ${m}m. This prevents alarm fatigue during the exercise.</p><p class="muted" style="font-size:12px;margin-top:12px;">Scheduled alarm injects (like IM-29) fire normally regardless of cooldown.</p>`);
+        return;
+      }
+
+      // Show confirmation modal
+      const overlay = document.createElement('div');
+      overlay.className = 'bomb-confirm-overlay';
+      overlay.id = 'bomb-confirm-overlay';
+      overlay.innerHTML = `
+        <div class="bomb-confirm-card">
+          <div class="bomb-confirm-icon">
+            <svg viewBox="0 0 100 100" fill="none">
+              <circle cx="50" cy="55" r="30" stroke="#FF1744" stroke-width="3" fill="rgba(255,23,68,0.08)"/>
+              <path d="M50 25V15" stroke="#FF1744" stroke-width="3" stroke-linecap="round"/>
+              <path d="M50 15L60 5" stroke="#FF6B35" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M58 8L65 11" stroke="#FF6B35" stroke-width="2" stroke-linecap="round"/>
+              <path d="M57 3L62 6" stroke="#FF6B35" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="42" cy="50" r="4" fill="rgba(255,23,68,0.15)"/>
+            </svg>
+          </div>
+          <div class="bomb-confirm-title">Launch ALARM RED?</div>
+          <div class="bomb-confirm-desc">
+            This will immediately trigger a base-wide alarm on every student workstation and connected phone.
+            Sirens will blare. Screens will flash red. Students must shelter in place.<br><br>
+            <strong>3-hour cooldown</strong> starts after launch.
+          </div>
+          <div class="bomb-confirm-actions">
+            <button class="bomb-confirm-launch" id="bomb-confirm-yes">LAUNCH</button>
+            <button class="bomb-confirm-cancel" id="bomb-confirm-no">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      document.getElementById('bomb-confirm-yes').addEventListener('click', () => {
+        overlay.remove();
+        const s = Engine.getState();
+
+        // Find any unfired inject with an alarm field (IM-29 is the primary)
+        const alarmInject = s.injects.find(i => i.alarm && !s.fired.has(i.id));
+        if (alarmInject) {
+          Engine.fireInjectById(alarmInject.id);
+        } else {
+          // All alarm injects already fired — create an ad-hoc one
+          const adHocId = 'ADHOC-ALARM-' + Date.now();
+          s.injects.push({
+            id: adHocId,
+            title: 'Ad-hoc ALARM RED',
+            alarm: {
+              title: 'ALARM RED',
+              message: 'INCOMING — TAKE COVER IMMEDIATELY\nI SAY AGAIN — ALARM RED — TAKE COVER',
+              source: 'GIANT VOICE',
+              sound: 'siren',
+              duration_seconds: 25
+            },
+            inbox_items: [],
+            sms_items: [],
+            expected_actions: []
+          });
+          Engine.fireInjectById(adHocId);
+        }
+
+        // Start cooldown
+        setBombCooldown();
+        updateBombBtn();
+        renderAll();
+      });
+
+      document.getElementById('bomb-confirm-no').addEventListener('click', () => {
+        overlay.remove();
+      });
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+      });
+    });
+  }
+
   // White cell controls
   document.querySelectorAll('.wc-btn').forEach(btn => {
     btn.addEventListener('click', () => handleWhiteCellAction(btn.dataset.wc));

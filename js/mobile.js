@@ -781,3 +781,137 @@ const DebugDrawer = (function () {
 
 // Attach on next tick so the Engine init above has finished
 setTimeout(() => { try { DebugDrawer.attach(); } catch (e) { console.error('Debug drawer attach failed', e); } }, 0);
+
+/* ==========================================================================
+   ALARM SYSTEM (Mobile) — Giant Voice / kinetic inject fullscreen takeover
+   Mirrors student.js alarm but takes over the phone PWA screen directly.
+   ========================================================================== */
+const mobileAlarmFired = new Set();
+let mobileAlarmActive = false;
+let mobileAlarmCtx = null;
+let mobileAlarmOsc = [];
+
+function mobileStartSiren() {
+  try {
+    mobileAlarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const gain = mobileAlarmCtx.createGain();
+    gain.gain.setValueAtTime(0.55, mobileAlarmCtx.currentTime);
+    gain.connect(mobileAlarmCtx.destination);
+
+    const osc1 = mobileAlarmCtx.createOscillator();
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(440, mobileAlarmCtx.currentTime);
+    osc1.connect(gain);
+    osc1.start();
+
+    const osc2 = mobileAlarmCtx.createOscillator();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(444, mobileAlarmCtx.currentTime);
+    const g2 = mobileAlarmCtx.createGain();
+    g2.gain.setValueAtTime(0.15, mobileAlarmCtx.currentTime);
+    osc2.connect(g2);
+    g2.connect(gain);
+    osc2.start();
+
+    mobileAlarmOsc = [osc1, osc2];
+
+    function sweep() {
+      if (!mobileAlarmActive || !mobileAlarmCtx) return;
+      const t = mobileAlarmCtx.currentTime;
+      osc1.frequency.linearRampToValueAtTime(880, t + 1.5);
+      osc1.frequency.linearRampToValueAtTime(440, t + 3.0);
+      osc2.frequency.linearRampToValueAtTime(660, t + 1.5);
+      osc2.frequency.linearRampToValueAtTime(444, t + 3.0);
+      setTimeout(sweep, 3000);
+    }
+    sweep();
+  } catch (e) { console.warn('Mobile siren error:', e); }
+}
+
+function mobileStopSiren() {
+  mobileAlarmOsc.forEach(o => { try { o.stop(); } catch (_) {} });
+  mobileAlarmOsc = [];
+  if (mobileAlarmCtx) { try { mobileAlarmCtx.close(); } catch (_) {} mobileAlarmCtx = null; }
+}
+
+function mobileShowAlarm(alarm, injectId) {
+  if (mobileAlarmActive) return;
+  mobileAlarmActive = true;
+
+  const title = alarm.title || 'ALARM RED';
+  const message = alarm.message || 'TAKE COVER IMMEDIATELY';
+  const source = alarm.source || 'GIANT VOICE';
+  const dur = alarm.duration_seconds || 20;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'mobile-alarm-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 99999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #1a0000; animation: mAlarmPulse 1s ease-in-out infinite;
+    user-select: none; text-align: center; padding: 24px;
+  `;
+  overlay.innerHTML = `
+    <style>
+      @keyframes mAlarmPulse { 0%,100%{background:#1a0000} 50%{background:#4a0000} }
+      @keyframes mAlarmFlash { 0%,100%{opacity:1} 50%{opacity:0.2} }
+      @keyframes mAlarmText { 0%,100%{color:#FF1744} 50%{color:#FF6B6B} }
+      @keyframes mBtnGlow { 0%,100%{box-shadow:0 0 15px rgba(255,23,68,0.3)} 50%{box-shadow:0 0 30px rgba(255,23,68,0.6)} }
+    </style>
+    <svg viewBox="0 0 100 100" fill="none" style="width:80px;height:80px;margin-bottom:20px;animation:mAlarmFlash 0.6s step-end infinite;">
+      <polygon points="50,8 95,88 5,88" stroke="#FF1744" stroke-width="4" fill="rgba(255,23,68,0.15)"/>
+      <text x="50" y="72" text-anchor="middle" fill="#FF1744" font-size="42" font-weight="900" font-family="sans-serif">!</text>
+    </svg>
+    <div style="font-size:32px;font-weight:900;color:#FF1744;letter-spacing:0.06em;text-transform:uppercase;text-shadow:0 0 40px rgba(255,23,68,0.6);margin-bottom:12px;animation:mAlarmText 0.8s step-end infinite;">${esc(title)}</div>
+    <div style="font-size:16px;font-weight:600;color:#FFCDD2;line-height:1.5;margin-bottom:24px;">${esc(message)}</div>
+    <div style="font-size:11px;font-weight:700;color:rgba(255,205,210,0.5);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:28px;">${esc(source)}</div>
+    <button id="mobile-alarm-ack" style="padding:12px 32px;background:rgba(255,23,68,0.2);border:2px solid #FF1744;border-radius:6px;color:#FFCDD2;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;animation:mBtnGlow 1.5s ease-in-out infinite;">&#x2714; Acknowledge</button>
+    <div id="mobile-alarm-cd" style="margin-top:12px;font-family:monospace;font-size:11px;color:rgba(255,205,210,0.4);">Auto-dismiss in ${dur}s</div>
+  `;
+  document.body.appendChild(overlay);
+
+  mobileStartSiren();
+
+  // Try to vibrate on real phones
+  try { if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500]); } catch (_) {}
+
+  let remain = dur;
+  const cd = overlay.querySelector('#mobile-alarm-cd');
+  const timer = setInterval(() => {
+    remain--;
+    if (cd) cd.textContent = `Auto-dismiss in ${remain}s`;
+    if (remain <= 0) { clearInterval(timer); mobileDismissAlarm(); }
+  }, 1000);
+
+  overlay.querySelector('#mobile-alarm-ack').addEventListener('click', () => {
+    clearInterval(timer);
+    mobileDismissAlarm();
+  });
+}
+
+function mobileDismissAlarm() {
+  mobileAlarmActive = false;
+  mobileStopSiren();
+  const el = document.getElementById('mobile-alarm-overlay');
+  if (el) el.remove();
+  try { if (navigator.vibrate) navigator.vibrate(0); } catch (_) {}
+}
+
+function mobileCheckAlarms() {
+  const s = Engine.getState();
+  if (!s.clock || !s.clock.running) return;
+  (s.injects || []).forEach(inj => {
+    if (!inj.alarm) return;
+    if (mobileAlarmFired.has(inj.id)) return;
+    // Check if this inject has been fired (state.fired is a Set)
+    if (s.fired && s.fired.has(inj.id)) {
+      mobileAlarmFired.add(inj.id);
+      mobileShowAlarm(inj.alarm, inj.id);
+    }
+  });
+}
+
+// Hook alarm checks into the mobile sync loop
+document.addEventListener('engine:sync', mobileCheckAlarms);
+document.addEventListener('engine:inject-fired', mobileCheckAlarms);
+setInterval(mobileCheckAlarms, 2000);

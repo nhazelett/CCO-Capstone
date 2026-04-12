@@ -79,6 +79,14 @@
         ]
       },
       {
+        "id": "morales",
+        "name": "TSgt Morales",
+        "title": "Outgoing CCO",
+        "initials": "JM",
+        "color": "#A0AEC0",
+        "tone": "Tired. Rushing. Friendly but distracted. Types fast with typos. Genuinely wants to help but is already checked out mentally. Uses abbreviations and emojis when relieved."
+      },
+      {
         "id": "group-sncos",
         "name": "455 SNCO Group",
         "title": "Group chat",
@@ -120,9 +128,29 @@
       "hour": 8,
       "minute": 0
     },
+    "relay_noise": [
+      {"group": "eces-deployed", "sender": "SrA Davis", "text": "New contracting team just landed. Saw them at the terminal looking confused.", "offset": -15},
+      {"group": "eces-deployed", "sender": "TSgt Williams", "text": "Hope the new CONS team is better than the last one. We've had stuff sitting for weeks.", "offset": -5},
+      {"group": "top3", "sender": "CMSgt Alvarez", "text": "New CCO team is here. Give them 24 hrs to get situated before you start flooding them.", "offset": 5},
+      {"group": "ce-work", "sender": "MSgt Ford (CE)", "text": "Is the new contracting team in yet? I've got 3 work orders that need contract support.", "offset": 20}
+    ],
     "duration_minutes": 90,
     "description": "Students receive the inherited contract portfolio and must inventory what they have before the first real requirement drops.",
     "scenario_for_students": "You have just arrived at FOS Eagle Crest and relieved the previous contracting team. The outgoing CCO, TSgt Morales, leaves in 20 minutes on the rotator. His office is a mess of half-labeled file folders, a desktop cluttered with Word docs, and a laminated org chart from 2 CCOs ago. Your first task: inventory what you inherited. What contracts are active? What is expiring? What is on fire? You have 90 minutes before the first customer walks through your door.",
+    "sms_items": [
+      {
+        "id": "sms-turnover",
+        "contact_id": "morales",
+        "delay_minutes": 0,
+        "messages": [
+          "Hey guys, I'm in line for the rotator. Sorry for the lack of turnover but here's everything real quick",
+          "Unit cell phone is on the right side of your desk. You're already connected to all the orgs on Relay. Everyone uses it here.",
+          "K drive is mapped — it's got all your contracts, the tracker spreadsheet, templates, everything. Start there.",
+          "Your email is up and running, I forwarded a couple things before I left.",
+          "That's all I got! I'll be out of touch for awhile while I fly but hit me up if you need anything 🤙"
+        ]
+      }
+    ],
     "inbox_items": [
       {
         "id": "msg1",
@@ -2159,6 +2187,13 @@
   window.__CCO_DATA.injects["IM-29"] = {
     "id": "IM-29",
     "observer_note": "Rocket attack — Pivot moment. Observe the trainer's emotional tone shift into 'real world' and back. Too casual = failure. Too dramatic = failure.",
+    "alarm": {
+      "title": "ALARM RED",
+      "message": "ROCKET ATTACK — TAKE COVER IMMEDIATELY\nI SAY AGAIN — ALARM RED — TAKE COVER",
+      "source": "GIANT VOICE",
+      "sound": "siren",
+      "duration_seconds": 25
+    },
     "quick_fires": [
       {"label": "PAUSE — alert warning", "from": "Giant Voice", "subject": "ALARM RED — rocket attack", "body": "[GIANT VOICE: ALARM RED. ALARM RED. Rocket attack. Take cover. I say again, ALARM RED.]"},
       {"label": "RESUME — all clear + post-incident", "from": "Wing Ops", "subject": "ALARM GREEN — damage assessment", "body": "All clear. Damage to Bldg 214 (the contracting warehouse). Contracts will need to assess: inventory loss, site remediation, emergency replacements. First meeting 1400. — Wing Ops"}
@@ -2235,6 +2270,27 @@
         "priority": "medium",
         "objective": false
       }
+    ],
+    "relay_noise": [
+      {"group": "eces-deployed", "sender": "TSgt Williams", "text": "INCOMING INCOMING INCOMING", "offset": 0},
+      {"group": "eces-deployed", "sender": "SSgt Parker", "text": "TWO IMPACTS NORTH SIDE. Everyone check in NOW.", "offset": 1},
+      {"group": "eces-deployed", "sender": "SrA Davis", "text": "Im good. In the CLU. Holy shit.", "offset": 2},
+      {"group": "eces-deployed", "sender": "MSgt Rodriguez", "text": "Sound off. I need accountability. EVERYONE.", "offset": 3},
+      {"group": "eces-deployed", "sender": "TSgt Kim", "text": "All my guys accounted for. Bldg 6.", "offset": 4},
+      {"group": "eces-deployed", "sender": "SSgt Parker", "text": "Smoke coming from near the warehouse area", "offset": 5},
+      {"group": "ce-work", "sender": "MSgt Ford (CE)", "text": "CE crew was en route to north side. Checking now.", "offset": 2},
+      {"group": "ce-work", "sender": "TSgt Ramos (CE)", "text": "All CE accounted for. Crew diverted before impact. Close call.", "offset": 8},
+      {"group": "ce-work", "sender": "MSgt Ford (CE)", "text": "Damage assessment team standing by for all-clear.", "offset": 15},
+      {"group": "top3", "sender": "CMSgt Alvarez", "text": "ACCOUNTABILITY. Every section chief report in. NOW.", "offset": 1},
+      {"group": "top3", "sender": "SMSgt Blackwell", "text": "MWR and services all good. Sheltered in place.", "offset": 5},
+      {"group": "top3", "sender": "CMSgt Alvarez", "text": "Still waiting on CONS and CE to check in.", "offset": 8},
+      {"group": "announcements", "sender": "Wing Ops", "text": "⚠️ ALARM RED. ALL PERSONNEL SHELTER IN PLACE. THIS IS NOT A DRILL.", "offset": 0},
+      {"group": "announcements", "sender": "Wing Ops", "text": "⚠️ Two impacts reported north perimeter. Remain sheltered. Accountability recall in progress.", "offset": 5},
+      {"group": "lodging", "sender": "SSgt Morgan", "text": "Everyone in the east wing OK?? Sound off", "offset": 2},
+      {"group": "lodging", "sender": "A1C Torres", "text": "Fine here. Loud as hell though.", "offset": 4},
+      {"group": "buy-sell", "sender": "SrA Davis", "text": "Yo did that just happen?? Everyone good??", "offset": 1},
+      {"group": "buy-sell", "sender": "A1C Brown", "text": "That was way too close. Im shaking.", "offset": 3},
+      {"group": "buy-sell", "sender": "SSgt Chen", "text": "Stay off the chats and check in with your leadership. For real.", "offset": 6}
     ],
     "teaching_point": "When the base is attacked, your job is not to be a hero — it is to be alive, accounted for, and ready to work once cleared. Check on your people first, your documentation second. Contractors notice how CCOs behave under fire, and their future performance is shaped by whether you calmed them or panicked them."
   };

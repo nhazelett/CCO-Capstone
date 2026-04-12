@@ -2921,3 +2921,190 @@ body.student-body .outlook-reading .micro {
   padding: 1px 6px;
   border-radius: 8px;
 }
+
+/* ==========================================================================
+   v0.2.16 — EMERGENCY ALARM OVERLAY
+   Giant Voice / ALARM RED / kinetic inject fullscreen takeover
+   ========================================================================== */
+
+/* Full-page overlay — sits on top of everything */
+.alarm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1a0000;
+  animation: alarm-bg-pulse 1s ease-in-out infinite;
+  cursor: default;
+  user-select: none;
+}
+@keyframes alarm-bg-pulse {
+  0%, 100% { background: #1a0000; }
+  50%      { background: #4a0000; }
+}
+
+.alarm-overlay-inner {
+  text-align: center;
+  max-width: 600px;
+  padding: 0 32px;
+}
+
+/* Flashing warning icon */
+.alarm-icon {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 24px;
+  animation: alarm-icon-flash 0.6s step-end infinite;
+}
+@keyframes alarm-icon-flash {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+.alarm-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.alarm-title {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 900;
+  color: #FF1744;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 0 40px rgba(255, 23, 68, 0.6), 0 0 80px rgba(255, 23, 68, 0.3);
+  margin-bottom: 16px;
+  animation: alarm-text-flash 0.8s step-end infinite;
+}
+@keyframes alarm-text-flash {
+  0%, 100% { color: #FF1744; }
+  50%      { color: #FF6B6B; }
+}
+
+.alarm-message {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: clamp(16px, 2.5vw, 22px);
+  font-weight: 600;
+  color: #FFCDD2;
+  line-height: 1.5;
+  margin-bottom: 32px;
+  text-shadow: 0 0 20px rgba(255, 23, 68, 0.3);
+}
+
+.alarm-source {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 205, 210, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 40px;
+}
+
+.alarm-ack-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 40px;
+  background: rgba(255, 23, 68, 0.2);
+  border: 2px solid #FF1744;
+  border-radius: 6px;
+  color: #FFCDD2;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  animation: alarm-btn-glow 1.5s ease-in-out infinite;
+}
+@keyframes alarm-btn-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(255, 23, 68, 0.3); }
+  50%      { box-shadow: 0 0 30px rgba(255, 23, 68, 0.6), 0 0 60px rgba(255, 23, 68, 0.2); }
+}
+.alarm-ack-btn:hover {
+  background: rgba(255, 23, 68, 0.4);
+  transform: scale(1.02);
+}
+.alarm-ack-btn:active {
+  transform: scale(0.98);
+}
+
+.alarm-countdown {
+  margin-top: 16px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: rgba(255, 205, 210, 0.4);
+}
+
+/* Phone-screen version of the alarm (inside the simulated phone) */
+.phone-alarm-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1a0000;
+  animation: alarm-bg-pulse 1s ease-in-out infinite;
+  border-radius: inherit;
+}
+.phone-alarm-overlay .alarm-icon {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 14px;
+}
+.phone-alarm-overlay .alarm-title {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+.phone-alarm-overlay .alarm-message {
+  font-size: 13px;
+  margin-bottom: 20px;
+  padding: 0 16px;
+}
+.phone-alarm-overlay .alarm-source {
+  font-size: 10px;
+  margin-bottom: 20px;
+}
+.phone-alarm-overlay .alarm-ack-btn {
+  padding: 10px 28px;
+  font-size: 12px;
+}
+
+/* Screen-edge red flash bars for extra intensity */
+.alarm-edge-flash {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  animation: alarm-edge-pulse 0.5s ease-in-out infinite;
+}
+@keyframes alarm-edge-pulse {
+  0%, 100% { opacity: 0; }
+  50%      { opacity: 1; }
+}
+.alarm-edge-top {
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(180deg, #FF1744, transparent);
+}
+.alarm-edge-bottom {
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(0deg, #FF1744, transparent);
+}
+.alarm-edge-left {
+  top: 0; bottom: 0; left: 0;
+  width: 4px;
+  background: linear-gradient(90deg, #FF1744, transparent);
+}
+.alarm-edge-right {
+  top: 0; bottom: 0; right: 0;
+  width: 4px;
+  background: linear-gradient(270deg, #FF1744, transparent);
+}

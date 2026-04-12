@@ -662,6 +662,15 @@ const Engine = (function () {
     if (queued.length > 0) fireInject(queued[0]);
   }
 
+  // v0.2.16: fire a specific inject by ID (used by bomb button, etc.)
+  function fireInjectById(id) {
+    const inj = state.injects.find(i => i.id === id);
+    if (!inj) { console.warn('fireInjectById: unknown inject', id); return false; }
+    if (state.fired.has(id)) { console.warn('fireInjectById: already fired', id); return false; }
+    fireInject(inj);
+    return true;
+  }
+
   function triggerMinutes(inj) {
     const resolved = state._resolvedTriggers && state._resolvedTriggers[inj.id];
     if (resolved != null) return resolved;
@@ -1482,7 +1491,7 @@ const Engine = (function () {
     loadInjects, loadPhoneScript, loadContacts,
     startExercise, prelaunchExercise, beginExerciseNow,
     pause, resume, endExercise,
-    flagForHotwash, fireNextInject,
+    flagForHotwash, fireNextInject, fireInjectById,
     markInboxRead, markSmsRead, sendCustomSms,
     getExerciseTime, loadState, resetState, enableSync,
     setReadOnly,
