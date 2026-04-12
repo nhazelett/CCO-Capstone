@@ -1633,17 +1633,22 @@ function renderSignalChat() {
 
 /* ==========================================================================
    ALARM SYSTEM — Giant Voice / kinetic inject fullscreen takeover
-   Web Audio API siren + red overlay. No audio files needed.
+   Web Audio API siren + red overlay with iPhone-style snooze loop.
+   Siren plays for duration_seconds, snoozes 60s, replays, repeats
+   until the student hits Acknowledge on their screen or phone.
    ========================================================================== */
-let alarmActive = false;
+let alarmActive = false;        // true while the alarm loop is running (siren OR snooze)
+let alarmSirenPlaying = false;  // true only while audio is actually blaring
 let alarmAudioCtx = null;
 let alarmOscillators = [];
 let alarmGainNode = null;
 let alarmCheckInterval = null;
-let alarmFiredInjects = new Set(); // track which injects already triggered an alarm
+let alarmFiredInjects = new Set();
+let alarmSnoozeTimer = null;
+let alarmCountdownTimer = null;
+const ALARM_SNOOZE_SEC = 60;    // silence between siren bursts
 
-// Web Audio siren — two detuned oscillators swept between freqs for that
-// classic air-raid / Giant Voice sound. Runs entirely in-browser.
+// Web Audio siren — two detuned oscillators swept between freqs
 function startAlarmAudio() {
   try {
     alarmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1651,14 +1656,12 @@ function startAlarmAudio() {
     alarmGainNode.gain.setValueAtTime(0.55, alarmAudioCtx.currentTime);
     alarmGainNode.connect(alarmAudioCtx.destination);
 
-    // Primary siren: sweep 440→880→440 Hz
     const osc1 = alarmAudioCtx.createOscillator();
     osc1.type = 'sawtooth';
     osc1.frequency.setValueAtTime(440, alarmAudioCtx.currentTime);
     osc1.connect(alarmGainNode);
     osc1.start();
 
-    // Secondary tone: offset for dissonance
     const osc2 = alarmAudioCtx.createOscillator();
     osc2.type = 'square';
     osc2.frequency.setValueAtTime(444, alarmAudioCtx.currentTime);
@@ -1669,10 +1672,10 @@ function startAlarmAudio() {
     osc2.start();
 
     alarmOscillators = [osc1, osc2];
+    alarmSirenPlaying = true;
 
-    // Sweep the primary oscillator up and down continuously
     function sweepSiren() {
-      if (!alarmActive || !alarmAudioCtx) return;
+      if (!alarmSirenPlaying || !alarmAudioCtx) return;
       const now = alarmAudioCtx.currentTime;
       osc1.frequency.linearRampToValueAtTime(880, now + 1.5);
       osc1.frequency.linearRampToValueAtTime(440, now + 3.0);
@@ -1687,6 +1690,7 @@ function startAlarmAudio() {
 }
 
 function stopAlarmAudio() {
+  alarmSirenPlaying = false;
   try {
     alarmOscillators.forEach(o => { try { o.stop(); } catch (_) {} });
     alarmOscillators = [];
@@ -1695,7 +1699,6 @@ function stopAlarmAudio() {
   } catch (e) { console.warn('Alarm audio cleanup:', e); }
 }
 
-// Build the alarm warning icon SVG
 function alarmIconSVG() {
   return `<svg viewBox="0 0 100 100" fill="none">
     <polygon points="50,8 95,88 5,88" stroke="#FF1744" stroke-width="4" fill="rgba(255,23,68,0.15)"/>
@@ -1703,15 +1706,51 @@ function alarmIconSVG() {
   </svg>`;
 }
 
-// Show the full-page alarm overlay
+// Kick off the alarm loop for a given inject
 function showAlarmOverlay(alarm, injectId) {
-  if (alarmActive) return; // already blaring
+  if (alarmActive) return;
   alarmActive = true;
+
+  // Stash alarm config for snooze replays
+  window._alarmConfig = { alarm, injectId };
+
+  // Push relay announcement once
+  if (relayMessages['announcements']) {
+    const now = Engine.getExerciseTime ? Engine.getExerciseTime() : null;
+    const timeStr = now && now.shortTime ? now.shortTime : '--:--';
+    const source = alarm.source || 'GIANT VOICE';
+    const alarmMsg = {
+      _src: `alarm-${injectId}`,
+      sender: source,
+      text: `⚠️ ${alarm.title || 'ALARM RED'} — ${alarm.message || 'TAKE COVER'}`,
+      time: timeStr,
+      hintFor: injectId
+    };
+    if (!relayMessages['announcements'].find(m => m._src === alarmMsg._src)) {
+      relayMessages['announcements'].push(alarmMsg);
+      renderRelayChatList();
+      renderPhoneBadges();
+    }
+  }
+
+  // Start the first siren burst
+  alarmStartBurst();
+}
+
+// Play one burst of siren + overlay, then snooze and repeat
+function alarmStartBurst() {
+  if (!alarmActive) return;
+  const cfg = window._alarmConfig;
+  if (!cfg) return;
+  const { alarm } = cfg;
 
   const title = alarm.title || 'ALARM RED';
   const message = alarm.message || 'TAKE COVER IMMEDIATELY';
   const source = alarm.source || 'GIANT VOICE';
   const durationSec = alarm.duration_seconds || 20;
+
+  // Remove any leftover overlay (from previous burst)
+  alarmClearVisuals();
 
   // Full-page overlay
   const overlay = document.createElement('div');
@@ -1724,7 +1763,7 @@ function showAlarmOverlay(alarm, injectId) {
       <div class="alarm-message">${esc(message)}</div>
       <div class="alarm-source">${esc(source)}</div>
       <button class="alarm-ack-btn" id="alarm-ack-btn">&#x2714; Acknowledge</button>
-      <div class="alarm-countdown" id="alarm-countdown">Auto-dismiss in ${durationSec}s</div>
+      <div class="alarm-countdown" id="alarm-countdown">Snooze in ${durationSec}s</div>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -1752,60 +1791,90 @@ function showAlarmOverlay(alarm, injectId) {
     phoneFrame.appendChild(phoneAlarm);
   }
 
-  // Start the siren
+  // Start audio
   startAlarmAudio();
 
-  // Countdown
+  // Countdown → snooze (NOT dismiss)
   let remaining = durationSec;
   const countdownEl = document.getElementById('alarm-countdown');
-  const countdownTimer = setInterval(() => {
+  alarmCountdownTimer = setInterval(() => {
     remaining--;
-    if (countdownEl) countdownEl.textContent = `Auto-dismiss in ${remaining}s`;
+    if (countdownEl) countdownEl.textContent = `Snooze in ${remaining}s`;
     if (remaining <= 0) {
-      clearInterval(countdownTimer);
-      dismissAlarm();
+      clearInterval(alarmCountdownTimer);
+      alarmCountdownTimer = null;
+      alarmEnterSnooze();
     }
   }, 1000);
 
-  // Acknowledge button
+  // Acknowledge = full stop, no more snoozes
   const ackBtn = document.getElementById('alarm-ack-btn');
   if (ackBtn) {
     ackBtn.addEventListener('click', () => {
-      clearInterval(countdownTimer);
-      dismissAlarm();
+      acknowledgeAlarm();
     });
-  }
-
-  // Also push a relay message to announcements
-  if (relayMessages['announcements']) {
-    const now = Engine.getExerciseTime ? Engine.getExerciseTime() : null;
-    const timeStr = now && now.shortTime ? now.shortTime : '--:--';
-    const alarmMsg = {
-      _src: `alarm-${injectId}`,
-      sender: source,
-      text: `⚠️ ${title} — ${message}`,
-      time: timeStr,
-      hintFor: injectId
-    };
-    if (!relayMessages['announcements'].find(m => m._src === alarmMsg._src)) {
-      relayMessages['announcements'].push(alarmMsg);
-      renderRelayChatList();
-      renderPhoneBadges();
-    }
   }
 }
 
-function dismissAlarm() {
-  alarmActive = false;
+// Go quiet for ALARM_SNOOZE_SEC, then replay
+function alarmEnterSnooze() {
   stopAlarmAudio();
+  alarmClearVisuals();
 
+  if (!alarmActive) return;
+
+  // Show a subdued "snooze" banner so they know it's coming back
+  const snooze = document.createElement('div');
+  snooze.className = 'alarm-overlay';
+  snooze.id = 'alarm-overlay';
+  snooze.style.animation = 'none';
+  snooze.style.background = '#0a0a0a';
+  snooze.innerHTML = `
+    <div class="alarm-overlay-inner">
+      <div class="alarm-icon" style="opacity:0.3;animation:none;">${alarmIconSVG()}</div>
+      <div class="alarm-title" style="animation:none;color:#884444;font-size:clamp(24px,4vw,40px);">ALARM ACTIVE</div>
+      <div class="alarm-message" style="color:#664444;">Siren will sound again in <span id="alarm-snooze-cd">${ALARM_SNOOZE_SEC}</span>s</div>
+      <button class="alarm-ack-btn" id="alarm-ack-btn" style="margin-top:24px;">&#x2714; Acknowledge</button>
+    </div>
+  `;
+  document.body.appendChild(snooze);
+
+  // Acknowledge during snooze
+  const ackBtn = document.getElementById('alarm-ack-btn');
+  if (ackBtn) ackBtn.addEventListener('click', () => acknowledgeAlarm());
+
+  // Snooze countdown
+  let snoozeRemaining = ALARM_SNOOZE_SEC;
+  const cdEl = document.getElementById('alarm-snooze-cd');
+  alarmSnoozeTimer = setInterval(() => {
+    snoozeRemaining--;
+    if (cdEl) cdEl.textContent = snoozeRemaining;
+    if (snoozeRemaining <= 0) {
+      clearInterval(alarmSnoozeTimer);
+      alarmSnoozeTimer = null;
+      // Replay the burst
+      alarmStartBurst();
+    }
+  }, 1000);
+}
+
+// Remove all visual alarm elements (overlay, phone overlay, edge bars)
+function alarmClearVisuals() {
   const overlay = document.getElementById('alarm-overlay');
   if (overlay) overlay.remove();
-
   const phoneAlarm = document.getElementById('phone-alarm-overlay');
   if (phoneAlarm) phoneAlarm.remove();
-
   document.querySelectorAll('[data-alarm-edge]').forEach(el => el.remove());
+}
+
+// Full acknowledgement — kill everything, no more snoozes
+function acknowledgeAlarm() {
+  alarmActive = false;
+  if (alarmCountdownTimer) { clearInterval(alarmCountdownTimer); alarmCountdownTimer = null; }
+  if (alarmSnoozeTimer) { clearInterval(alarmSnoozeTimer); alarmSnoozeTimer = null; }
+  stopAlarmAudio();
+  alarmClearVisuals();
+  window._alarmConfig = null;
 }
 
 // Check if any fired inject has an alarm field that hasn't been triggered yet
@@ -1817,7 +1886,6 @@ function checkForAlarmInjects() {
     if (!inj.alarm) return;
     if (alarmFiredInjects.has(inj.id)) return;
 
-    // Check if this inject has been fired by the trainer (state.fired is a Set)
     if (s.fired && s.fired.has(inj.id)) {
       alarmFiredInjects.add(inj.id);
       showAlarmOverlay(inj.alarm, inj.id);
@@ -1825,9 +1893,7 @@ function checkForAlarmInjects() {
   });
 }
 
-// Hook into the engine sync loop
 function initAlarmSystem() {
-  // Check on every sync and at interval
   document.addEventListener('engine:sync', checkForAlarmInjects);
   document.addEventListener('engine:inject-fired', checkForAlarmInjects);
   alarmCheckInterval = setInterval(checkForAlarmInjects, 2000);

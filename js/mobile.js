@@ -788,8 +788,12 @@ setTimeout(() => { try { DebugDrawer.attach(); } catch (e) { console.error('Debu
    ========================================================================== */
 const mobileAlarmFired = new Set();
 let mobileAlarmActive = false;
+let mobileAlarmSirenPlaying = false;
 let mobileAlarmCtx = null;
 let mobileAlarmOsc = [];
+let mobileAlarmSnoozeTimer = null;
+let mobileAlarmCountdownTimer = null;
+const MOBILE_ALARM_SNOOZE_SEC = 60;  // silence between siren bursts
 
 function mobileStartSiren() {
   try {
@@ -814,9 +818,10 @@ function mobileStartSiren() {
     osc2.start();
 
     mobileAlarmOsc = [osc1, osc2];
+    mobileAlarmSirenPlaying = true;
 
     function sweep() {
-      if (!mobileAlarmActive || !mobileAlarmCtx) return;
+      if (!mobileAlarmSirenPlaying || !mobileAlarmCtx) return;
       const t = mobileAlarmCtx.currentTime;
       osc1.frequency.linearRampToValueAtTime(880, t + 1.5);
       osc1.frequency.linearRampToValueAtTime(440, t + 3.0);
@@ -825,23 +830,53 @@ function mobileStartSiren() {
       setTimeout(sweep, 3000);
     }
     sweep();
+
+    // Vibrate on real phones — long pattern for siren duration
+    try { if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200, 500]); } catch (_) {}
   } catch (e) { console.warn('Mobile siren error:', e); }
 }
 
 function mobileStopSiren() {
+  mobileAlarmSirenPlaying = false;
   mobileAlarmOsc.forEach(o => { try { o.stop(); } catch (_) {} });
   mobileAlarmOsc = [];
   if (mobileAlarmCtx) { try { mobileAlarmCtx.close(); } catch (_) {} mobileAlarmCtx = null; }
+  try { if (navigator.vibrate) navigator.vibrate(0); } catch (_) {}
 }
 
+function mobileAlarmIconSVG() {
+  return `<svg viewBox="0 0 100 100" fill="none" style="width:80px;height:80px;">
+    <polygon points="50,8 95,88 5,88" stroke="#FF1744" stroke-width="4" fill="rgba(255,23,68,0.15)"/>
+    <text x="50" y="72" text-anchor="middle" fill="#FF1744" font-size="42" font-weight="900" font-family="sans-serif">!</text>
+  </svg>`;
+}
+
+// Kick off the alarm loop for a given inject
 function mobileShowAlarm(alarm, injectId) {
   if (mobileAlarmActive) return;
   mobileAlarmActive = true;
 
+  // Stash config for snooze replays
+  window._mobileAlarmConfig = { alarm, injectId };
+
+  // Start the first siren burst
+  mobileAlarmStartBurst();
+}
+
+// Play one burst of siren + overlay, then snooze and repeat
+function mobileAlarmStartBurst() {
+  if (!mobileAlarmActive) return;
+  const cfg = window._mobileAlarmConfig;
+  if (!cfg) return;
+  const { alarm } = cfg;
+
   const title = alarm.title || 'ALARM RED';
   const message = alarm.message || 'TAKE COVER IMMEDIATELY';
   const source = alarm.source || 'GIANT VOICE';
-  const dur = alarm.duration_seconds || 20;
+  const durationSec = alarm.duration_seconds || 20;
+
+  // Remove any leftover overlay
+  mobileAlarmClearVisuals();
 
   const overlay = document.createElement('div');
   overlay.id = 'mobile-alarm-overlay';
@@ -858,43 +893,93 @@ function mobileShowAlarm(alarm, injectId) {
       @keyframes mAlarmText { 0%,100%{color:#FF1744} 50%{color:#FF6B6B} }
       @keyframes mBtnGlow { 0%,100%{box-shadow:0 0 15px rgba(255,23,68,0.3)} 50%{box-shadow:0 0 30px rgba(255,23,68,0.6)} }
     </style>
-    <svg viewBox="0 0 100 100" fill="none" style="width:80px;height:80px;margin-bottom:20px;animation:mAlarmFlash 0.6s step-end infinite;">
-      <polygon points="50,8 95,88 5,88" stroke="#FF1744" stroke-width="4" fill="rgba(255,23,68,0.15)"/>
-      <text x="50" y="72" text-anchor="middle" fill="#FF1744" font-size="42" font-weight="900" font-family="sans-serif">!</text>
-    </svg>
+    ${mobileAlarmIconSVG().replace('style="width:80px;height:80px;"', 'style="width:80px;height:80px;margin-bottom:20px;animation:mAlarmFlash 0.6s step-end infinite;"')}
     <div style="font-size:32px;font-weight:900;color:#FF1744;letter-spacing:0.06em;text-transform:uppercase;text-shadow:0 0 40px rgba(255,23,68,0.6);margin-bottom:12px;animation:mAlarmText 0.8s step-end infinite;">${esc(title)}</div>
-    <div style="font-size:16px;font-weight:600;color:#FFCDD2;line-height:1.5;margin-bottom:24px;">${esc(message)}</div>
+    <div style="font-size:16px;font-weight:600;color:#FFCDD2;line-height:1.5;margin-bottom:24px;white-space:pre-line;">${esc(message)}</div>
     <div style="font-size:11px;font-weight:700;color:rgba(255,205,210,0.5);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:28px;">${esc(source)}</div>
-    <button id="mobile-alarm-ack" style="padding:12px 32px;background:rgba(255,23,68,0.2);border:2px solid #FF1744;border-radius:6px;color:#FFCDD2;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;animation:mBtnGlow 1.5s ease-in-out infinite;">&#x2714; Acknowledge</button>
-    <div id="mobile-alarm-cd" style="margin-top:12px;font-family:monospace;font-size:11px;color:rgba(255,205,210,0.4);">Auto-dismiss in ${dur}s</div>
+    <button id="mobile-alarm-ack" style="padding:14px 36px;background:rgba(255,23,68,0.2);border:2px solid #FF1744;border-radius:6px;color:#FFCDD2;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;animation:mBtnGlow 1.5s ease-in-out infinite;">&#x2714; Acknowledge</button>
+    <div id="mobile-alarm-cd" style="margin-top:12px;font-family:monospace;font-size:12px;color:rgba(255,205,210,0.4);">Snooze in ${durationSec}s</div>
   `;
   document.body.appendChild(overlay);
 
+  // Start audio + vibration
   mobileStartSiren();
 
-  // Try to vibrate on real phones
-  try { if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500]); } catch (_) {}
-
-  let remain = dur;
-  const cd = overlay.querySelector('#mobile-alarm-cd');
-  const timer = setInterval(() => {
-    remain--;
-    if (cd) cd.textContent = `Auto-dismiss in ${remain}s`;
-    if (remain <= 0) { clearInterval(timer); mobileDismissAlarm(); }
+  // Countdown → snooze (NOT dismiss)
+  let remaining = durationSec;
+  const cdEl = overlay.querySelector('#mobile-alarm-cd');
+  mobileAlarmCountdownTimer = setInterval(() => {
+    remaining--;
+    if (cdEl) cdEl.textContent = `Snooze in ${remaining}s`;
+    if (remaining <= 0) {
+      clearInterval(mobileAlarmCountdownTimer);
+      mobileAlarmCountdownTimer = null;
+      mobileAlarmEnterSnooze();
+    }
   }, 1000);
 
+  // Acknowledge = full stop
   overlay.querySelector('#mobile-alarm-ack').addEventListener('click', () => {
-    clearInterval(timer);
-    mobileDismissAlarm();
+    mobileAcknowledgeAlarm();
   });
 }
 
-function mobileDismissAlarm() {
-  mobileAlarmActive = false;
+// Go quiet for MOBILE_ALARM_SNOOZE_SEC, then replay
+function mobileAlarmEnterSnooze() {
   mobileStopSiren();
-  const el = document.getElementById('mobile-alarm-overlay');
-  if (el) el.remove();
-  try { if (navigator.vibrate) navigator.vibrate(0); } catch (_) {}
+  mobileAlarmClearVisuals();
+
+  if (!mobileAlarmActive) return;
+
+  // Subdued "snooze" overlay so they know it's coming back
+  const snooze = document.createElement('div');
+  snooze.id = 'mobile-alarm-overlay';
+  snooze.style.cssText = `
+    position: fixed; inset: 0; z-index: 99999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #0a0a0a;
+    user-select: none; text-align: center; padding: 24px;
+  `;
+  snooze.innerHTML = `
+    ${mobileAlarmIconSVG().replace('style="width:80px;height:80px;"', 'style="width:80px;height:80px;margin-bottom:20px;opacity:0.3;"')}
+    <div style="font-size:28px;font-weight:900;color:#884444;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px;">ALARM ACTIVE</div>
+    <div style="font-size:14px;font-weight:600;color:#664444;line-height:1.5;margin-bottom:28px;">Siren will sound again in <span id="mobile-alarm-snooze-cd">${MOBILE_ALARM_SNOOZE_SEC}</span>s</div>
+    <button id="mobile-alarm-ack" style="padding:14px 36px;background:rgba(255,23,68,0.15);border:2px solid #884444;border-radius:6px;color:#FFCDD2;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;">&#x2714; Acknowledge</button>
+  `;
+  document.body.appendChild(snooze);
+
+  // Acknowledge during snooze
+  snooze.querySelector('#mobile-alarm-ack').addEventListener('click', () => mobileAcknowledgeAlarm());
+
+  // Snooze countdown → replay
+  let snoozeRemaining = MOBILE_ALARM_SNOOZE_SEC;
+  const cdEl = document.getElementById('mobile-alarm-snooze-cd');
+  mobileAlarmSnoozeTimer = setInterval(() => {
+    snoozeRemaining--;
+    if (cdEl) cdEl.textContent = snoozeRemaining;
+    if (snoozeRemaining <= 0) {
+      clearInterval(mobileAlarmSnoozeTimer);
+      mobileAlarmSnoozeTimer = null;
+      // Replay the burst
+      mobileAlarmStartBurst();
+    }
+  }, 1000);
+}
+
+// Remove all visual alarm elements
+function mobileAlarmClearVisuals() {
+  const overlay = document.getElementById('mobile-alarm-overlay');
+  if (overlay) overlay.remove();
+}
+
+// Full acknowledgement — kill everything, no more snoozes
+function mobileAcknowledgeAlarm() {
+  mobileAlarmActive = false;
+  if (mobileAlarmCountdownTimer) { clearInterval(mobileAlarmCountdownTimer); mobileAlarmCountdownTimer = null; }
+  if (mobileAlarmSnoozeTimer) { clearInterval(mobileAlarmSnoozeTimer); mobileAlarmSnoozeTimer = null; }
+  mobileStopSiren();
+  mobileAlarmClearVisuals();
+  window._mobileAlarmConfig = null;
 }
 
 function mobileCheckAlarms() {
@@ -903,7 +988,6 @@ function mobileCheckAlarms() {
   (s.injects || []).forEach(inj => {
     if (!inj.alarm) return;
     if (mobileAlarmFired.has(inj.id)) return;
-    // Check if this inject has been fired (state.fired is a Set)
     if (s.fired && s.fired.has(inj.id)) {
       mobileAlarmFired.add(inj.id);
       mobileShowAlarm(inj.alarm, inj.id);
