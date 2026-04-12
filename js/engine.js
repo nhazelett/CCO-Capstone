@@ -22,6 +22,17 @@ const Engine = (function () {
   let currentSession = 'default';
   function stateKey()   { return `${STATE_KEY_PREFIX}:${currentSession}`; }
   function outboxKey()  { return `${OUTBOX_KEY_PREFIX}:${currentSession}`; }
+
+  // v0.2.13: network hooks for Firebase relay (or any future backend).
+  // firebase-storage.js installs callbacks here. When set, every saveState /
+  // outbox / presence write is mirrored to the relay. Inbound relay updates
+  // call applyRemoteState/applyRemoteOutbox which write to localStorage AND
+  // re-trigger the engine's sync, with _skipNetPush set so the write doesn't
+  // echo back to the relay.
+  let _netHooks = null;   // { onStateWrite, onOutboxWrite, onPresenceWrite, onPresenceStop }
+  let _skipNetPush = false;
+  function setNetworkHooks(hooks) { _netHooks = hooks; }
+  function isNetworked() { return !!_netHooks; }
   function presenceKey(clientId) {
     return `${PRESENCE_KEY_PREFIX}:${currentSession}:${clientId}`;
   }
@@ -1050,6 +1061,11 @@ const Engine = (function () {
         _lastUpdate: Date.now()
       };
       localStorage.setItem(stateKey(), JSON.stringify(snap));
+      // v0.2.13: relay to network backend if connected (and not already
+      // processing an inbound remote update — prevents echo loops).
+      if (_netHooks && _netHooks.onStateWrite && !_skipNetPush) {
+        try { _netHooks.onStateWrite(currentSession, snap); } catch (e) { console.warn('[net] state relay:', e); }
+      }
     } catch (e) { console.error('Save fail:', e); }
   }
 
@@ -1152,6 +1168,10 @@ const Engine = (function () {
       const list = raw ? JSON.parse(raw) : [];
       list.push(entry);
       localStorage.setItem(outboxKey(), JSON.stringify(list));
+      // v0.2.13: relay outbox writes to network backend
+      if (_netHooks && _netHooks.onOutboxWrite && !_skipNetPush) {
+        try { _netHooks.onOutboxWrite(currentSession, list); } catch (e) { console.warn('[net] outbox relay:', e); }
+      }
       return true;
     } catch (e) {
       console.error('[outbox] append fail:', e);
@@ -1281,6 +1301,51 @@ const Engine = (function () {
     return entry;
   }
 
+  // ----- v0.2.13: remote state application (inbound from network) -----
+  // Called by firebase-storage.js when it receives a remote state update.
+  // Writes to localStorage (so the local sync path + polling also see the
+  // new state), reloads engine state, and dispatches sync — all with
+  // _skipNetPush set so the write doesn't echo back to the relay.
+
+  function applyRemoteState(snapJson) {
+    _skipNetPush = true;
+    try {
+      const raw = typeof snapJson === 'string' ? snapJson : JSON.stringify(snapJson);
+      localStorage.setItem(stateKey(), raw);
+      loadState();
+      dispatch('engine:sync', null);
+    } finally {
+      _skipNetPush = false;
+    }
+  }
+
+  function applyRemoteOutbox(listJson) {
+    _skipNetPush = true;
+    try {
+      const raw = typeof listJson === 'string' ? listJson : JSON.stringify(listJson);
+      localStorage.setItem(outboxKey(), raw);
+      if (!state.readOnly) {
+        outboxDrain();
+      }
+    } finally {
+      _skipNetPush = false;
+    }
+  }
+
+  function applyRemotePresence(clientId, payload) {
+    // Write the remote client's presence entry to localStorage so
+    // listPresence() picks it up without changes.
+    try {
+      localStorage.setItem(presenceKey(clientId), JSON.stringify(payload));
+    } catch (e) { /* ignore */ }
+  }
+
+  function removeRemotePresence(clientId) {
+    try {
+      localStorage.removeItem(presenceKey(clientId));
+    } catch (e) { /* ignore */ }
+  }
+
   // ----- Cross-window sync -----
   // When one window writes state, other windows receive a 'storage' event
   // and reload the state. This is how the trainer, student, and mobile
@@ -1366,6 +1431,11 @@ const Engine = (function () {
           lastSeen: Date.now()
         });
         localStorage.setItem(presenceKey(_presenceClientId), JSON.stringify(payload));
+        // v0.2.13: relay presence to network backend
+        if (_netHooks && _netHooks.onPresenceWrite && !_skipNetPush) {
+          try { _netHooks.onPresenceWrite(currentSession, _presenceClientId, payload); }
+          catch (e) { /* ignore */ }
+        }
       } catch (e) { /* ignore */ }
     };
     write();
@@ -1374,6 +1444,9 @@ const Engine = (function () {
     // Best-effort cleanup on window close.
     window.addEventListener('beforeunload', () => {
       try { localStorage.removeItem(presenceKey(_presenceClientId)); } catch (e) {}
+      if (_netHooks && _netHooks.onPresenceStop) {
+        try { _netHooks.onPresenceStop(currentSession, _presenceClientId); } catch (e) {}
+      }
     });
     return _presenceClientId;
   }
@@ -1434,6 +1507,10 @@ const Engine = (function () {
     getRawStateString, getStateKeyName,
     getPhase, setPhase, markLaunched,
     startPresence, updatePresenceInfo, listPresence,
+    // v0.2.13 network relay hooks (firebase-storage.js)
+    setNetworkHooks, isNetworked,
+    applyRemoteState, applyRemoteOutbox,
+    applyRemotePresence, removeRemotePresence,
     getState: () => state,
     getContacts: () => state.contacts,
     getContact: (id) => state.contacts.find((c) => c.id === id),

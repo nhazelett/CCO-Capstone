@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "sessions": {
+      "$sessionCode": {
+        ".read":  true,
+        ".write": true,
+        "state":     { ".validate": "newData.isString() || newData.hasChildren()" },
+        "outbox":    { ".validate": true },
+        "config":    { ".validate": true },
+        "presence": {
+          "$clientId": {
+            ".validate": "newData.hasChild('clientId') && newData.hasChild('lastSeen')"
+          }
+        }
+      }
+    },
+    ".read":  false,
+    ".write": false
+  }
+}
