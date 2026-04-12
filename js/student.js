@@ -273,8 +273,10 @@ function renderStudentKickoffBanner() {
   Engine.loadState();
   Engine.enableSync();
 
-  // v0.2.11: if the URL carried an identity hint (?as=student:stu-1) use it
+  // v0.2.11: if the URL carried an identity hint (&as=student:stu-1) use it
   // to pre-select the persona. Trainer-generated launch links bake this in.
+  // When the user manually switches persona via the picker, the picker updates
+  // the URL hash to match, so on reload the URL and localStorage agree.
   if (Engine.readIdentityFromLocation) {
     const ident = Engine.readIdentityFromLocation();
     if (ident && ident.type === 'student' && ident.id) {
@@ -488,6 +490,14 @@ function showPersonaOverlay() {
         if (picked) {
           currentPersona = picked;
           savePersona(picked);
+          // Strip the &as= parameter from the URL hash so a page refresh
+          // doesn't override this manual selection back to the original link target.
+          try {
+            const hash = window.location.hash;
+            if (hash.includes('&as=')) {
+              window.location.hash = hash.replace(/&as=[^&]*/g, '&as=' + encodeURIComponent('student:' + picked.id));
+            }
+          } catch (_) {}
           hidePersonaOverlay();
           renderPersonaBar();
           renderAll();

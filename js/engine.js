@@ -935,7 +935,8 @@ const Engine = (function () {
     //   from            — sender display name (defaults to 'White Cell')
     //   injectId        — for threading to an inject context (optional)
     //   threadId        — for chaining under an existing thread (optional)
-    //   kind            — 'email' (default) — 'sms'/'doc' reserved for later
+    //   kind            — 'email' (default) | 'sms' — routes to correct channel
+    //   contactId       — required for kind:'sms' — the contact thread to push into
     // }
     if (!payload) return null;
 
@@ -952,9 +953,39 @@ const Engine = (function () {
     const injectId = payload.injectId || (queueEntry && queueEntry.injectId) || null;
     const threadId = payload.threadId || (queueEntry && queueEntry.threadId) || `reply-${Date.now()}`;
     const from = payload.from || 'White Cell';
-    const subject = payload.subject || (queueEntry ? `Re: ${queueEntry.subject}` : 'White Cell reply');
     const body = payload.body || '';
 
+    // Detect SMS: explicit kind:'sms', or threadId starts with 'sms-'
+    const isSms = payload.kind === 'sms' || (threadId && threadId.startsWith('sms-'));
+    const contactId = payload.contactId || (isSms && threadId ? threadId.replace(/^sms-/, '') : null);
+
+    if (queueEntry) {
+      queueEntry.handled = true;
+      queueEntry.handledAt = getExerciseTime().displayString;
+    }
+
+    if (isSms && contactId) {
+      // Route reply into the SMS thread so it shows up on the phone
+      const id = `sms-reply-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      if (!state.smsThreads[contactId]) state.smsThreads[contactId] = [];
+      const msg = {
+        id,
+        direction: 'in',
+        text: body,
+        time: getExerciseTime().displayString,
+        unread: true,
+        is_trainer_reply: true,
+        fromName: from
+      };
+      state.smsThreads[contactId].push(msg);
+      saveState();
+      dispatch('engine:sms-updated', { contactId });
+      dispatch('engine:trainer-queue-updated', { entry: queueEntry });
+      return msg;
+    }
+
+    // Default: email reply into inbox
+    const subject = payload.subject || (queueEntry ? `Re: ${queueEntry.subject}` : 'White Cell reply');
     const id = `reply-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const item = {
       id,
@@ -975,11 +1006,6 @@ const Engine = (function () {
       is_trainer_reply: true
     };
     state.inbox.unshift(item);
-
-    if (queueEntry) {
-      queueEntry.handled = true;
-      queueEntry.handledAt = getExerciseTime().displayString;
-    }
 
     saveState();
     dispatch('engine:inbox-updated');

@@ -1085,6 +1085,76 @@ function openReplyComposer(queueEntryId) {
   const s = Engine.getState();
   const inj = s.injects.find(i => i.id === entry.injectId);
 
+  // Detect if this is an SMS thread
+  const isSms = entry.threadId && entry.threadId.startsWith('sms-');
+  const smsContactId = isSms ? entry.threadId.replace(/^sms-/, '') : null;
+
+  if (isSms) {
+    // SMS-style composer — simple text reply that goes back into the phone thread
+    const contact = smsContactId ? Engine.getContact(smsContactId) : null;
+    const contactName = contact ? contact.name : smsContactId;
+
+    // Build recent thread preview
+    const thread = (s.smsThreads && s.smsThreads[smsContactId]) || [];
+    const recent = thread.slice(-5);
+    const threadHtml = recent.map(m => {
+      const isOut = m.direction === 'out';
+      const align = isOut ? 'right' : 'left';
+      const bg = isOut ? '#DCF8C6' : '#e8e8e8';
+      const color = '#222';
+      return `<div style="text-align:${align};margin:4px 0;">
+        <span style="display:inline-block;max-width:85%;padding:6px 10px;border-radius:12px;background:${bg};color:${color};font-size:12px;line-height:1.4;">${esc(m.text)}</span>
+        <div style="font-size:9px;color:#999;margin-top:1px;">${m.time || ''}</div>
+      </div>`;
+    }).join('');
+
+    const html = `
+      <div class="reply-composer">
+        <div class="reply-ctx">
+          <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">SMS thread with ${esc(contactName)}</div>
+          <div style="background:#f5f5f5;border-radius:8px;padding:10px;max-height:200px;overflow-y:auto;margin-bottom:12px;">
+            ${threadHtml || '<div style="color:#999;font-size:11px;text-align:center;">No messages yet</div>'}
+          </div>
+          <div style="font-size:11px;color:#888;margin-bottom:8px;"><strong>${esc(entry.personaName)}</strong> texted: "${esc(entry.body)}"</div>
+        </div>
+        <div class="reply-field">
+          <label class="field-label">Reply as</label>
+          <input type="text" id="reply-from" value="${esc(contactName)}" />
+        </div>
+        <div class="reply-field">
+          <label class="field-label">Message</label>
+          <textarea id="reply-body" rows="3" placeholder="Type a text message back..." style="font-size:14px;"></textarea>
+        </div>
+        <div class="reply-actions">
+          <button class="btn" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" id="reply-send">Send SMS</button>
+        </div>
+      </div>
+    `;
+    showModal('Text ' + contactName, html);
+
+    setTimeout(() => {
+      document.getElementById('reply-send').addEventListener('click', () => {
+        const from = document.getElementById('reply-from').value;
+        const body = document.getElementById('reply-body').value;
+        if (!body.trim()) { showToast('Message is empty'); return; }
+        Engine.trainerReply({
+          queueEntryId: entry.id,
+          toPersonaId: entry.personaId,
+          kind: 'sms',
+          contactId: smsContactId,
+          from, body,
+          threadId: entry.threadId
+        });
+        closeModal();
+        showToast('SMS sent as ' + from);
+        renderAll();
+      });
+    }, 50);
+    return;
+  }
+
+  // Email composer (original path)
   // Preload quick-fire templates for this inject (authored or default fallback).
   const templates = quickFiresFor(inj);
 
