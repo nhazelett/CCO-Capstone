@@ -967,8 +967,10 @@ document.getElementById('startex-btn').addEventListener('click', async () => {
       // Determine which injects are "in" based on scenario + length. Use a
       // simple selector: all injects from the active bundle. Builder scenarios
       // are already pre-filtered.
-      const bundle = (window.__CCO_DATA && window.__CCO_DATA.injects) || [];
-      const ids = bundle.map(i => i.id);
+      const injectsRaw = (window.__CCO_DATA && window.__CCO_DATA.injects) || {};
+      const ids = Array.isArray(injectsRaw)
+        ? injectsRaw.map(i => i.id)
+        : Object.keys(injectsRaw);
       await Engine.loadInjects(ids);
       Engine.prelaunchExercise(config);
     } catch (e) {
