@@ -999,8 +999,50 @@ document.getElementById('beta-test-btn').addEventListener('click', async () => {
   }
 
   // Beta test always forces network mode so cross-device join works
-  // (startex.html may not have been loaded with ?net=1)
   _netSuffix = '&net=1';
+
+  // Push state to Firebase directly so join page can find it immediately
+  // (don't wait for trainer dashboard to open and sync).
+  // Load Firebase SDK on demand if not already present.
+  (function pushToFirebase() {
+    function doPush() {
+      try {
+        if (!window.firebase || !firebase.database) return;
+        if (!firebase.apps.length && window.CCOFirebaseConfig) {
+          firebase.initializeApp(window.CCOFirebaseConfig);
+        }
+        var fbDb = firebase.database();
+        var stateSnap = localStorage.getItem('cco-capstone-state:' + sessionCode);
+        if (stateSnap && fbDb) {
+          fbDb.ref('sessions/' + sessionCode + '/state').set(JSON.parse(stateSnap));
+          console.log('[beta-test] Pushed state to Firebase for session ' + sessionCode);
+        }
+      } catch (e) {
+        console.warn('Beta test Firebase push failed (non-fatal):', e);
+      }
+    }
+
+    if (window.firebase && firebase.database && window.CCOFirebaseConfig) {
+      doPush();
+    } else {
+      // Dynamically load Firebase SDK + config in sequence, then push
+      var CDN = 'https://www.gstatic.com/firebasejs/10.12.2';
+      var scripts = [
+        CDN + '/firebase-app-compat.js',
+        CDN + '/firebase-database-compat.js',
+        'js/firebase-config.js'
+      ];
+      function loadNext(i) {
+        if (i >= scripts.length) { doPush(); return; }
+        var s = document.createElement('script');
+        s.src = scripts[i];
+        s.onload = function () { loadNext(i + 1); };
+        s.onerror = function () { console.warn('Failed to load: ' + scripts[i]); loadNext(i + 1); };
+        document.head.appendChild(s);
+      }
+      loadNext(0);
+    }
+  })();
 
   // Show the launch panel with join link, session code, and all role links
   showLaunchCompletePanel(sessionCode, config);

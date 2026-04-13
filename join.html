@@ -622,16 +622,26 @@
             exerciseState = snap.val();
             codeError.textContent = '';
           } else {
-            codeError.textContent = 'Session not synced to cloud yet. Make sure the Trainer dashboard is open with network mode.';
-            codeError.style.color = '#FFC107';
+            // Firebase has nothing — try localStorage (same browser as STARTEX)
+            tryLocalStorage(code);
+            if (!exerciseState) {
+              codeError.textContent = 'Session not synced to cloud yet. Make sure the Trainer dashboard is open with network mode.';
+              codeError.style.color = '#FFC107';
+            } else {
+              codeError.textContent = '';
+            }
           }
           watchFirebaseJoiners();
           codeBtn.textContent = 'Join';
           codeBtn.disabled = false;
           showStep('role');
         }).catch(function (err) {
-          codeError.textContent = 'Could not reach server — check your connection.';
-          codeError.style.color = '#D9552A';
+          // Firebase unreachable — try localStorage
+          tryLocalStorage(code);
+          if (!exerciseState) {
+            codeError.textContent = 'Could not reach server — check your connection.';
+            codeError.style.color = '#D9552A';
+          }
           watchFirebaseJoiners();
           codeBtn.textContent = 'Join';
           codeBtn.disabled = false;
@@ -642,15 +652,32 @@
     }
 
     // No Firebase — try localStorage
+    tryLocalStorage(code);
+    showStep('role');
+  });
+
+  function tryLocalStorage(code) {
     try {
+      // Try engine state first
       Engine.setSession(code);
       Engine.setReadOnly(true);
       Engine.loadState();
-      exerciseState = Engine.getState();
+      var s = Engine.getState();
+      if (s && s.config && s.config.students && s.config.students.length > 0) {
+        exerciseState = s;
+        return;
+      }
+      // Also try the config key directly (written by STARTEX before engine init)
+      var raw = localStorage.getItem('cco-capstone-config:' + code) ||
+                localStorage.getItem('cco-capstone-config');
+      if (raw) {
+        var cfg = JSON.parse(raw);
+        if (cfg && cfg.session_code === code && cfg.students && cfg.students.length > 0) {
+          exerciseState = { config: cfg };
+        }
+      }
     } catch (e) { /* ignore */ }
-
-    showStep('role');
-  });
+  }
 
   codeInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !codeBtn.disabled) codeBtn.click();
