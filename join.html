@@ -34,7 +34,7 @@
 
   .join-card {
     width: 100%;
-    max-width: 440px;
+    max-width: 480px;
     position: relative;
     z-index: 1;
   }
@@ -62,7 +62,7 @@
     text-transform: uppercase;
   }
 
-  /* ---- Step 1: Room code ---- */
+  /* ---- Steps ---- */
   .join-step { display: none; }
   .join-step.active { display: block; }
 
@@ -137,27 +137,7 @@
     min-height: 20px;
   }
 
-  /* ---- Step 2: Who are you? ---- */
-  .name-input {
-    width: 100%;
-    padding: 14px 16px;
-    font-size: 18px;
-    font-weight: 600;
-    color: #FFF4DF;
-    background: #1A150D;
-    border: 2px solid rgba(220, 190, 140, 0.12);
-    border-radius: 10px;
-    outline: none;
-    transition: border-color 0.2s;
-    margin-bottom: 14px;
-  }
-  .name-input:focus {
-    border-color: #0078D4;
-  }
-  .name-input::placeholder {
-    color: #4A3D28;
-  }
-
+  /* ---- Step 2: Pick your role ---- */
   .role-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -187,10 +167,7 @@
     background: rgba(0, 120, 212, 0.10);
     color: #4FC3D7;
   }
-  .role-btn-icon {
-    font-size: 24px;
-    line-height: 1;
-  }
+  .role-btn-icon { font-size: 24px; line-height: 1; }
   .role-btn-label {
     font-size: 13px;
     font-weight: 700;
@@ -203,33 +180,72 @@
     line-height: 1.3;
   }
 
-  .shop-row {
-    display: none;
+  /* ---- Step 2b: Seat picker for players ---- */
+  .seat-grid {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
-    margin-bottom: 14px;
+    margin-bottom: 18px;
   }
-  .shop-row.visible { display: flex; }
-  .shop-btn {
-    flex: 1;
-    padding: 12px;
-    border-radius: 8px;
+  .seat-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
     border: 2px solid rgba(220, 190, 140, 0.12);
     background: #1A150D;
-    color: #A89677;
     cursor: pointer;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 600;
     transition: all 0.15s;
   }
-  .shop-btn:hover { border-color: rgba(0, 120, 212, 0.3); }
-  .shop-btn.selected {
+  .seat-card:hover:not(.taken) {
+    border-color: rgba(0, 120, 212, 0.4);
+    background: #211B10;
+  }
+  .seat-card.selected {
     border-color: #0078D4;
     background: rgba(0, 120, 212, 0.10);
-    color: #4FC3D7;
   }
+  .seat-card.taken {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .seat-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .seat-info { flex: 1; min-width: 0; }
+  .seat-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #FFF4DF;
+  }
+  .seat-shop {
+    font-size: 10px;
+    color: #72634B;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+  .seat-status {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .seat-status.open { color: #7B8F5C; }
+  .seat-status.claimed { color: #D9552A; }
 
-  /* ---- Step 3: Waiting / connected ---- */
+  /* ---- Step 3: Connected ---- */
   .session-info {
     text-align: center;
     padding: 24px 0;
@@ -247,50 +263,57 @@
     color: #A89677;
     margin-bottom: 20px;
   }
-  .session-roster {
-    text-align: left;
+  .connected-identity {
+    text-align: center;
+    padding: 12px 16px;
+    background: rgba(0, 120, 212, 0.08);
+    border: 1px solid rgba(0, 120, 212, 0.2);
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: #A89677;
+  }
+  .connected-identity strong {
+    color: #FFF4DF;
+    font-weight: 600;
+  }
+
+  .phone-pair-section {
     background: #1A150D;
     border: 1px solid rgba(220, 190, 140, 0.08);
     border-radius: 10px;
-    padding: 14px 16px;
+    padding: 16px;
     margin-bottom: 18px;
+    text-align: center;
   }
-  .roster-head {
-    font-size: 10px;
+  .phone-pair-title {
+    font-size: 12px;
     font-weight: 700;
     color: #72634B;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
   }
-  .roster-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 0;
-    border-bottom: 1px solid rgba(220, 190, 140, 0.05);
-    font-size: 13px;
+  .phone-pair-link {
+    font-family: 'Segoe UI Mono', monospace;
+    font-size: 12px;
+    color: #4FC3D7;
+    background: rgba(0,0,0,0.3);
+    padding: 8px 12px;
+    border-radius: 6px;
+    word-break: break-all;
+    display: block;
+    margin-bottom: 8px;
+    cursor: pointer;
+    border: 1px solid rgba(79, 195, 215, 0.15);
+    transition: background 0.15s;
   }
-  .roster-item:last-child { border-bottom: none; }
-  .roster-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #7B8F5C;
-    flex-shrink: 0;
+  .phone-pair-link:hover {
+    background: rgba(79, 195, 215, 0.08);
   }
-  .roster-name { color: #EDE4D0; font-weight: 600; }
-  .roster-role {
+  .phone-pair-hint {
     font-size: 11px;
-    color: #72634B;
-    margin-left: auto;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .roster-you {
-    font-size: 10px;
-    color: #0078D4;
-    font-weight: 700;
+    color: #4A3D28;
   }
 
   .go-btn {
@@ -308,12 +331,28 @@
   }
   .go-btn:hover { background: #106EBE; }
 
-  /* Pulse animation for the "connected" dot */
+  .change-seat-btn {
+    display: block;
+    margin: 10px auto 0;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid rgba(220, 190, 140, 0.15);
+    border-radius: 6px;
+    color: #72634B;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .change-seat-btn:hover {
+    border-color: #A89677;
+    color: #A89677;
+  }
+
+  /* Pulse animation */
   @keyframes pulse-green {
     0%, 100% { box-shadow: 0 0 0 rgba(123, 143, 92, 0); }
     50% { box-shadow: 0 0 8px rgba(123, 143, 92, 0.5); }
   }
-  .roster-dot { animation: pulse-green 2s ease-in-out infinite; }
 
   /* ---- Footer ---- */
   .join-footer {
@@ -348,16 +387,15 @@
     <div class="join-error" id="code-error"></div>
   </div>
 
-  <!-- STEP 2: Who are you? -->
-  <div class="join-step" id="step-identity">
-    <div class="step-title">Who are you?</div>
-    <div class="step-sub">Tell us your name and pick a role</div>
-    <input type="text" class="name-input" id="name-input" placeholder="Your name (e.g., SSgt Rivera)" maxlength="60" autocomplete="off" spellcheck="false" />
+  <!-- STEP 2: Pick your role -->
+  <div class="join-step" id="step-role">
+    <div class="step-title">What's your role?</div>
+    <div class="step-sub">Select how you're participating</div>
     <div class="role-grid" id="role-grid">
       <div class="role-btn" data-role="player">
         <div class="role-btn-icon">🎖️</div>
         <div class="role-btn-label">Player</div>
-        <div class="role-btn-desc">Student seat — receive injects</div>
+        <div class="role-btn-desc">Take a student seat</div>
       </div>
       <div class="role-btn" data-role="observer">
         <div class="role-btn-icon">👁️</div>
@@ -375,25 +413,31 @@
         <div class="role-btn-desc">Role-play & inject support</div>
       </div>
     </div>
-    <div class="shop-row" id="shop-row">
-      <div class="shop-btn" data-shop="CONS">Contracting (CONS)</div>
-      <div class="shop-btn" data-shop="FM">Finance (FM)</div>
-    </div>
-    <button class="join-btn" id="identity-btn" disabled>Join exercise</button>
-    <div class="join-error" id="identity-error"></div>
+    <div class="join-error" id="role-error"></div>
   </div>
 
-  <!-- STEP 3: Connected — roster view -->
+  <!-- STEP 2b: Pick your seat (players only) -->
+  <div class="join-step" id="step-seat">
+    <div class="step-title">Pick your seat</div>
+    <div class="step-sub">First come, first served — taken seats are locked</div>
+    <div class="seat-grid" id="seat-grid"></div>
+    <div class="join-error" id="seat-error"></div>
+  </div>
+
+  <!-- STEP 3: Connected — ready to enter -->
   <div class="join-step" id="step-connected">
     <div class="session-info">
       <div class="session-code-display" id="connected-code"></div>
       <div class="session-status" id="connected-status">Connected — waiting for exercise to start</div>
     </div>
-    <div class="session-roster" id="connected-roster">
-      <div class="roster-head">Who's in</div>
-      <div id="roster-list"></div>
+    <div class="connected-identity" id="connected-identity"></div>
+    <div class="phone-pair-section" id="phone-pair" style="display:none;">
+      <div class="phone-pair-title">Pair your phone</div>
+      <div class="phone-pair-link" id="phone-pair-link" title="Tap to copy"></div>
+      <div class="phone-pair-hint">Open this link on your phone for alarm notifications</div>
     </div>
-    <button class="go-btn" id="go-btn">Open my dashboard →</button>
+    <button class="go-btn" id="go-btn">Open my workstation →</button>
+    <button class="change-seat-btn" id="change-seat-btn">Change seat</button>
   </div>
 
 </div>
@@ -414,23 +458,22 @@
   var codeInput    = document.getElementById('code-input');
   var codeBtn      = document.getElementById('code-btn');
   var codeError    = document.getElementById('code-error');
-  var nameInput    = document.getElementById('name-input');
-  var identityBtn  = document.getElementById('identity-btn');
-  var identityError = document.getElementById('identity-error');
   var goBtn        = document.getElementById('go-btn');
 
-  var stepCode     = document.getElementById('step-code');
-  var stepIdentity = document.getElementById('step-identity');
+  var stepCode      = document.getElementById('step-code');
+  var stepRole      = document.getElementById('step-role');
+  var stepSeat      = document.getElementById('step-seat');
   var stepConnected = document.getElementById('step-connected');
 
-  var selectedRole = null;
-  var selectedShop = null;
-  var sessionCode  = null;
-  var myId         = null;      // unique joiner ID
-  var db           = null;      // Firebase database ref (set after SDK loads)
+  var selectedRole   = null;
+  var selectedSeatId = null;  // student ID from roster (e.g. 's-ra')
+  var selectedSeat   = null;  // full student object
+  var sessionCode    = null;
+  var db             = null;
+  var exerciseState  = null;  // loaded from Firebase or localStorage
+  var seatPollTimer  = null;
 
   // ---- Pre-fill from URL hash ----
-  // Allow links like join.html#BSQDH8 to skip step 1
   var hashCode = (location.hash || '').replace(/^#/, '').replace(/[?&]net=1/g, '').trim();
   if (hashCode && hashCode.length >= 4) {
     codeInput.value = hashCode.toUpperCase();
@@ -450,7 +493,7 @@
     if (code.length < 4) return;
     sessionCode = code;
 
-    // Try to verify session exists via Firebase
+    // Try to load exercise state from Firebase
     if (window.firebase && firebase.database) {
       if (!db) {
         try {
@@ -461,180 +504,268 @@
         }
       }
       if (db) {
-        codeBtn.textContent = 'Checking…';
+        codeBtn.textContent = 'Connecting…';
         codeBtn.disabled = true;
-        db.ref('sessions/' + code).once('value').then(function (snap) {
+        db.ref('sessions/' + code + '/state').once('value').then(function (snap) {
           if (snap.exists()) {
-            showStep('identity');
-          } else {
-            // Session not in Firebase yet — still allow joining (might be local-only
-            // or STARTEX hasn't synced yet). Warn but proceed.
-            codeError.textContent = 'Session not found in cloud yet — it may still be starting.';
-            showStep('identity');
+            exerciseState = snap.val();
           }
           codeBtn.textContent = 'Join';
           codeBtn.disabled = false;
+          showStep('role');
         }).catch(function () {
-          // Firebase offline — proceed anyway
-          showStep('identity');
           codeBtn.textContent = 'Join';
           codeBtn.disabled = false;
+          showStep('role');
         });
         return;
       }
     }
-    // No Firebase — go straight to identity
-    showStep('identity');
+
+    // No Firebase — try localStorage
+    try {
+      Engine.setSession(code);
+      Engine.setReadOnly(true);
+      Engine.loadState();
+      exerciseState = Engine.getState();
+    } catch (e) { /* ignore */ }
+
+    showStep('role');
   });
 
-  // Also allow Enter key
   codeInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !codeBtn.disabled) codeBtn.click();
   });
 
-  // ---- Step 2: Identity ----
+  // ---- Step 2: Role pick ----
   document.getElementById('role-grid').addEventListener('click', function (e) {
     var btn = e.target.closest('.role-btn');
     if (!btn) return;
     document.querySelectorAll('.role-btn').forEach(function (b) { b.classList.remove('selected'); });
     btn.classList.add('selected');
     selectedRole = btn.dataset.role;
-    // Show shop picker for players
-    var shopRow = document.getElementById('shop-row');
+
     if (selectedRole === 'player') {
-      shopRow.classList.add('visible');
+      // Show seat picker
+      renderSeatGrid();
+      showStep('seat');
     } else {
-      shopRow.classList.remove('visible');
-      selectedShop = null;
-      document.querySelectorAll('.shop-btn').forEach(function (b) { b.classList.remove('selected'); });
+      // Non-players go straight to connected
+      selectedSeatId = null;
+      selectedSeat = null;
+      enterConnected();
     }
-    checkIdentityReady();
   });
 
-  document.getElementById('shop-row').addEventListener('click', function (e) {
-    var btn = e.target.closest('.shop-btn');
-    if (!btn) return;
-    document.querySelectorAll('.shop-btn').forEach(function (b) { b.classList.remove('selected'); });
-    btn.classList.add('selected');
-    selectedShop = btn.dataset.shop;
-    checkIdentityReady();
-  });
-
-  nameInput.addEventListener('input', checkIdentityReady);
-
-  function checkIdentityReady() {
-    var nameOk = nameInput.value.trim().length >= 2;
-    var roleOk = !!selectedRole;
-    var shopOk = selectedRole !== 'player' || !!selectedShop;
-    identityBtn.disabled = !(nameOk && roleOk && shopOk);
+  // ---- Step 2b: Seat picker (players only) ----
+  function getStudents() {
+    if (!exerciseState) return [];
+    var cfg = exerciseState.config || exerciseState;
+    return cfg.students || [];
   }
 
-  identityBtn.addEventListener('click', function () {
-    var name = nameInput.value.trim();
-    if (!name || !selectedRole) return;
+  function getClaimedSeats() {
+    // Check Firebase presence or localStorage presence for who's online
+    var claimed = {};
+    if (db) return claimed; // Firebase mode — we poll via listener instead
+    // localStorage mode — check presence keys
+    try {
+      var prefix = 'cco-capstone-presence:' + sessionCode + ':student:';
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf(prefix) === 0) {
+          try {
+            var val = JSON.parse(localStorage.getItem(key));
+            if (val && val.lastSeen && (Date.now() - val.lastSeen < 15000)) {
+              var studentId = key.replace(prefix, '');
+              claimed[studentId] = val.name || 'Someone';
+            }
+          } catch (e) {}
+        }
+      }
+    } catch (e) {}
+    return claimed;
+  }
 
-    myId = 'join-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+  function renderSeatGrid() {
+    var grid = document.getElementById('seat-grid');
+    var students = getStudents();
+    var claimed = getClaimedSeats();
 
-    var joiner = {
-      id: myId,
-      name: name,
-      role: selectedRole,
-      shop: selectedShop || null,
-      joinedAt: new Date().toISOString(),
-      online: true
-    };
-
-    // Write to Firebase joiners list
-    if (db) {
-      identityBtn.textContent = 'Joining…';
-      identityBtn.disabled = true;
-      db.ref('sessions/' + sessionCode + '/joiners/' + myId).set(joiner).then(function () {
-        // Set up presence — remove when disconnected
-        var presRef = db.ref('sessions/' + sessionCode + '/joiners/' + myId + '/online');
-        presRef.onDisconnect().set(false);
-        startRosterWatch();
-        showStep('connected');
-        identityBtn.textContent = 'Join exercise';
-        identityBtn.disabled = false;
-      }).catch(function (err) {
-        identityError.textContent = 'Join failed: ' + (err.message || err);
-        identityBtn.textContent = 'Join exercise';
-        identityBtn.disabled = false;
-      });
-    } else {
-      // No Firebase — store locally and proceed
-      startRosterWatch();
-      showStep('connected');
+    if (students.length === 0) {
+      grid.innerHTML = '<div style="text-align:center;color:#72634B;font-size:13px;padding:20px;">No student seats configured yet. The trainer may still be setting up.</div>';
+      return;
     }
-  });
+
+    grid.innerHTML = students.map(function (st) {
+      var isTaken = !!claimed[st.id];
+      var isMe = st.id === selectedSeatId;
+      var cls = 'seat-card';
+      if (isMe) cls += ' selected';
+      else if (isTaken) cls += ' taken';
+
+      return '<div class="' + cls + '" data-seat="' + esc(st.id) + '">' +
+        '<div class="seat-avatar" style="background:' + (st.color || '#555') + ';">' + esc(st.initials || '??') + '</div>' +
+        '<div class="seat-info">' +
+          '<div class="seat-name">' + esc(st.name) + '</div>' +
+          '<div class="seat-shop">' + esc(st.shop || 'CONS') + '</div>' +
+        '</div>' +
+        '<div class="seat-status ' + (isTaken ? 'claimed' : 'open') + '">' +
+          (isMe ? '✓ YOU' : (isTaken ? 'Taken' : 'Open')) +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    // Wire click handlers
+    grid.querySelectorAll('.seat-card:not(.taken)').forEach(function (card) {
+      card.addEventListener('click', function () {
+        var seatId = card.dataset.seat;
+        var students = getStudents();
+        var st = students.find(function (s) { return s.id === seatId; });
+        if (!st) return;
+
+        selectedSeatId = seatId;
+        selectedSeat = st;
+
+        // Claim the seat via presence
+        claimSeat(st);
+
+        enterConnected();
+      });
+    });
+  }
+
+  function claimSeat(st) {
+    // Start presence heartbeat so others see this seat as taken
+    if (Engine.setSession) Engine.setSession(sessionCode);
+    if (Engine.setReadOnly) Engine.setReadOnly(true);
+
+    var presenceId = 'student:' + st.id;
+    if (Engine.startPresence) {
+      Engine.startPresence(presenceId, {
+        role: 'student',
+        name: st.name,
+        identity: presenceId
+      });
+    }
+
+    // Also write to Firebase joiners if available
+    if (db) {
+      var joiner = {
+        id: presenceId,
+        name: st.name,
+        role: 'player',
+        seatId: st.id,
+        joinedAt: new Date().toISOString(),
+        online: true
+      };
+      db.ref('sessions/' + sessionCode + '/joiners/' + presenceId).set(joiner).catch(function () {});
+      var presRef = db.ref('sessions/' + sessionCode + '/joiners/' + presenceId + '/online');
+      presRef.onDisconnect().set(false);
+    }
+  }
 
   // ---- Step 3: Connected ----
-  function startRosterWatch() {
+  function enterConnected() {
     document.getElementById('connected-code').textContent = sessionCode;
 
-    if (!db) return;
-    db.ref('sessions/' + sessionCode + '/joiners').on('value', function (snap) {
-      var joiners = snap.val() || {};
-      renderRoster(joiners);
-    });
+    // Show identity
+    var identityEl = document.getElementById('connected-identity');
+    if (selectedRole === 'player' && selectedSeat) {
+      identityEl.innerHTML = 'You are <strong>' + esc(selectedSeat.name) + '</strong> (' + esc(selectedSeat.shop || 'CONS') + ')';
+      document.getElementById('change-seat-btn').style.display = '';
+    } else {
+      var roleLabel = selectedRole === 'whitecell' ? 'White Cell' :
+                      selectedRole === 'trainer' ? 'Trainer' :
+                      selectedRole === 'observer' ? 'Observer' : selectedRole;
+      identityEl.innerHTML = 'Joining as <strong>' + esc(roleLabel) + '</strong>';
+      document.getElementById('change-seat-btn').style.display = 'none';
+    }
 
-    // Also watch for exercise state to update status
-    db.ref('sessions/' + sessionCode + '/state/clock/running').on('value', function (snap) {
-      var running = snap.val();
-      var statusEl = document.getElementById('connected-status');
-      if (running) {
-        statusEl.textContent = 'Exercise is LIVE — jump in!';
-        statusEl.style.color = '#7B8F5C';
-      } else {
-        statusEl.textContent = 'Connected — waiting for exercise to start';
-        statusEl.style.color = '#A89677';
+    // Phone pairing link (players only)
+    var phonePair = document.getElementById('phone-pair');
+    if (selectedRole === 'player' && selectedSeat) {
+      var mobileUrl = location.origin + location.pathname.replace('join.html', 'mobile.html') +
+        '#session=' + encodeURIComponent(sessionCode) +
+        '&as=student:' + encodeURIComponent(selectedSeat.id) + '&net=1';
+      // For file:// protocol, build relative
+      if (location.protocol === 'file:') {
+        mobileUrl = 'mobile.html#session=' + encodeURIComponent(sessionCode) +
+          '&as=student:' + encodeURIComponent(selectedSeat.id) + '&net=1';
       }
-    });
+      var linkEl = document.getElementById('phone-pair-link');
+      linkEl.textContent = mobileUrl;
+      linkEl.addEventListener('click', function () {
+        try {
+          navigator.clipboard.writeText(mobileUrl);
+          linkEl.textContent = 'Copied!';
+          setTimeout(function () { linkEl.textContent = mobileUrl; }, 1500);
+        } catch (e) {
+          // Fallback: select text
+          var range = document.createRange();
+          range.selectNodeContents(linkEl);
+          var sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      });
+      phonePair.style.display = '';
+    } else {
+      phonePair.style.display = 'none';
+    }
+
+    // Watch exercise phase for "LIVE" status
+    if (db) {
+      db.ref('sessions/' + sessionCode + '/state/clock/running').on('value', function (snap) {
+        var running = snap.val();
+        var statusEl = document.getElementById('connected-status');
+        if (running) {
+          statusEl.textContent = 'Exercise is LIVE — jump in!';
+          statusEl.style.color = '#7B8F5C';
+        } else {
+          statusEl.textContent = 'Connected — waiting for exercise to start';
+          statusEl.style.color = '#A89677';
+        }
+      });
+    }
+
+    showStep('connected');
   }
 
-  function renderRoster(joiners) {
-    var list = document.getElementById('roster-list');
-    var entries = Object.values(joiners).sort(function (a, b) {
-      var order = { trainer: 0, whitecell: 1, player: 2, observer: 3 };
-      return (order[a.role] || 9) - (order[b.role] || 9);
-    });
-
-    list.innerHTML = entries.map(function (j) {
-      var roleLabel = j.role === 'whitecell' ? 'White Cell' : (j.role || '').toUpperCase();
-      if (j.role === 'player' && j.shop) roleLabel = j.shop;
-      var youBadge = (j.id === myId) ? ' <span class="roster-you">· YOU</span>' : '';
-      var dotColor = j.online !== false ? '#7B8F5C' : '#4A3D28';
-      return '<div class="roster-item">' +
-        '<div class="roster-dot" style="background:' + dotColor + ';"></div>' +
-        '<span class="roster-name">' + esc(j.name) + youBadge + '</span>' +
-        '<span class="roster-role">' + esc(roleLabel) + '</span>' +
-        '</div>';
-    }).join('');
-  }
-
+  // "Open my workstation" button
   goBtn.addEventListener('click', function () {
     if (!sessionCode) return;
     var base = '#session=' + encodeURIComponent(sessionCode) + '&net=1';
     var dest = 'student.html';
+
     if (selectedRole === 'trainer' || selectedRole === 'whitecell') {
       dest = 'trainer.html';
     } else if (selectedRole === 'observer') {
       dest = 'inspector.html';
     }
-    // For players, pass identity so persona picker can auto-select
-    if (selectedRole === 'player' && myId) {
-      base += '&joinId=' + encodeURIComponent(myId);
-      base += '&joinName=' + encodeURIComponent(nameInput.value.trim());
-      if (selectedShop) base += '&joinShop=' + encodeURIComponent(selectedShop);
+
+    // For players, pass the persona identity so student.js auto-selects
+    if (selectedRole === 'player' && selectedSeat) {
+      base += '&as=student:' + encodeURIComponent(selectedSeat.id);
     }
+
     window.location.href = dest + base;
+  });
+
+  // "Change seat" button
+  document.getElementById('change-seat-btn').addEventListener('click', function () {
+    // Release current seat presence
+    selectedSeatId = null;
+    selectedSeat = null;
+    renderSeatGrid();
+    showStep('seat');
   });
 
   // ---- Helpers ----
   function showStep(name) {
-    [stepCode, stepIdentity, stepConnected].forEach(function (s) { s.classList.remove('active'); });
-    document.getElementById('step-' + name).classList.add('active');
-    if (name === 'identity') nameInput.focus();
+    [stepCode, stepRole, stepSeat, stepConnected].forEach(function (s) { s.classList.remove('active'); });
+    var target = document.getElementById('step-' + name);
+    if (target) target.classList.add('active');
     if (name === 'code') codeInput.focus();
   }
 
