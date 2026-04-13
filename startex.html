@@ -811,7 +811,7 @@ document.querySelectorAll('[data-add-roster]').forEach(btn => {
 // trainer/student/inspector windows open in local-only mode even though
 // the user intended network mode.
 const _netFlag = /[?&]net=1/.test(location.search) || /[&?]net=1/.test(location.hash);
-const _netSuffix = _netFlag ? '&net=1' : '';
+let _netSuffix = _netFlag ? '&net=1' : '';
 
 function buildRoleLinks(code, config) {
   const base = '#session=' + encodeURIComponent(code) + _netSuffix;
@@ -873,7 +873,10 @@ function showLaunchCompletePanel(code, config) {
         <div style="font-size: 14px; color: var(--text-primary);">Anyone can join at <strong>join.html</strong> with room code:</div>
         <div style="font-family: monospace; font-size: 28px; font-weight: 700; color: #4FC3D7; letter-spacing: 0.15em; margin-top: 4px;">${code}</div>
       </div>
-      <button class="btn btn-sm" id="copy-join-link-btn" style="white-space: nowrap;">Copy join link</button>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <a class="btn btn-sm" id="open-join-btn" href="join.html#${encodeURIComponent(code)}" target="_blank" rel="noopener" style="text-decoration: none; text-align: center; background: linear-gradient(135deg, #F5B845 0%, #E56B3D 100%); color: #1A150D; font-weight: 700; border: none;">Join Exercise →</a>
+        <button class="btn btn-sm" id="copy-join-link-btn" style="white-space: nowrap;">Copy join link</button>
+      </div>
     </div>
 
     <div class="launch-complete-grid">
@@ -994,6 +997,10 @@ document.getElementById('beta-test-btn').addEventListener('click', async () => {
       return;
     }
   }
+
+  // Beta test always forces network mode so cross-device join works
+  // (startex.html may not have been loaded with ?net=1)
+  _netSuffix = '&net=1';
 
   // Show the launch panel with join link, session code, and all role links
   showLaunchCompletePanel(sessionCode, config);
