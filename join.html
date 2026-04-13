@@ -331,6 +331,80 @@
   }
   .go-btn:hover { background: #106EBE; }
 
+  /* ---- Lobby roster ---- */
+  .lobby-roster {
+    background: #1A150D;
+    border: 1px solid rgba(220, 190, 140, 0.08);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+  }
+  .lobby-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .lobby-head-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #72634B;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .lobby-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: #4FC3D7;
+    font-family: 'Segoe UI Mono', monospace;
+  }
+  .lobby-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(220, 190, 140, 0.05);
+    font-size: 13px;
+  }
+  .lobby-item:last-child { border-bottom: none; }
+  .lobby-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: pulse-green 2s ease-in-out infinite;
+  }
+  .lobby-name {
+    color: #EDE4D0;
+    font-weight: 600;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lobby-you {
+    font-size: 9px;
+    font-weight: 700;
+    color: #0078D4;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-left: 4px;
+  }
+  .lobby-role {
+    font-size: 10px;
+    color: #72634B;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+  .lobby-empty {
+    text-align: center;
+    padding: 12px;
+    font-size: 12px;
+    color: #4A3D28;
+  }
+
   .change-seat-btn {
     display: block;
     margin: 10px auto 0;
@@ -431,6 +505,15 @@
       <div class="session-status" id="connected-status">Connected — waiting for exercise to start</div>
     </div>
     <div class="connected-identity" id="connected-identity"></div>
+    <div class="lobby-roster" id="lobby-roster">
+      <div class="lobby-head">
+        <span class="lobby-head-title">Who's in</span>
+        <span class="lobby-count" id="lobby-count">0</span>
+      </div>
+      <div id="lobby-list">
+        <div class="lobby-empty">Waiting for players to join…</div>
+      </div>
+    </div>
     <div class="phone-pair-section" id="phone-pair" style="display:none;">
       <div class="phone-pair-title">Pair your phone</div>
       <div class="phone-pair-link" id="phone-pair-link" title="Tap to copy"></div>
@@ -510,10 +593,12 @@
           if (snap.exists()) {
             exerciseState = snap.val();
           }
+          watchFirebaseJoiners();
           codeBtn.textContent = 'Join';
           codeBtn.disabled = false;
           showStep('role');
         }).catch(function () {
+          watchFirebaseJoiners();
           codeBtn.textContent = 'Join';
           codeBtn.disabled = false;
           showStep('role');
@@ -546,8 +631,10 @@
     selectedRole = btn.dataset.role;
 
     if (selectedRole === 'player') {
-      // Show seat picker
+      // Show seat picker with live refresh
       renderSeatGrid();
+      if (seatPollTimer) clearInterval(seatPollTimer);
+      seatPollTimer = setInterval(renderSeatGrid, 3000);
       showStep('seat');
     } else {
       // Non-players go straight to connected
@@ -565,25 +652,32 @@
   }
 
   function getClaimedSeats() {
-    // Check Firebase presence or localStorage presence for who's online
     var claimed = {};
-    if (db) return claimed; // Firebase mode — we poll via listener instead
-    // localStorage mode — check presence keys
-    try {
-      var prefix = 'cco-capstone-presence:' + sessionCode + ':student:';
-      for (var i = 0; i < localStorage.length; i++) {
-        var key = localStorage.key(i);
-        if (key && key.indexOf(prefix) === 0) {
-          try {
-            var val = JSON.parse(localStorage.getItem(key));
-            if (val && val.lastSeen && (Date.now() - val.lastSeen < 15000)) {
-              var studentId = key.replace(prefix, '');
-              claimed[studentId] = val.name || 'Someone';
-            }
-          } catch (e) {}
+
+    // Source 1: Engine.listPresence() — works in both local and networked modes
+    if (Engine.listPresence) {
+      var entries = Engine.listPresence(15000);
+      entries.forEach(function (e) {
+        var cid = e.clientId || e.identity || '';
+        // Presence IDs like "student:s-ra" → extract the student ID
+        var m = cid.match(/^student:(.+)$/);
+        if (m) {
+          claimed[m[1]] = e.name || 'Someone';
         }
-      }
-    } catch (e) {}
+      });
+    }
+
+    // Source 2: Firebase joiners (for cross-machine participants)
+    if (window._firebaseJoiners) {
+      var joiners = window._firebaseJoiners;
+      Object.keys(joiners).forEach(function (k) {
+        var j = joiners[k];
+        if (j.seatId && j.online !== false) {
+          claimed[j.seatId] = j.name || 'Someone';
+        }
+      });
+    }
+
     return claimed;
   }
 
@@ -665,9 +759,16 @@
     }
   }
 
+  var myPresenceId = null;
+  var lobbyTimer = null;
+
   // ---- Step 3: Connected ----
   function enterConnected() {
     document.getElementById('connected-code').textContent = sessionCode;
+
+    // Ensure engine has the right session
+    if (Engine.setSession) Engine.setSession(sessionCode);
+    if (Engine.setReadOnly) Engine.setReadOnly(true);
 
     // Show identity
     var identityEl = document.getElementById('connected-identity');
@@ -680,7 +781,38 @@
                       selectedRole === 'observer' ? 'Observer' : selectedRole;
       identityEl.innerHTML = 'Joining as <strong>' + esc(roleLabel) + '</strong>';
       document.getElementById('change-seat-btn').style.display = 'none';
+
+      // Start presence for non-player roles too
+      var presenceId = selectedRole + ':join-' + Date.now().toString(36);
+      myPresenceId = presenceId;
+      if (Engine.startPresence) {
+        Engine.startPresence(presenceId, {
+          role: selectedRole,
+          name: roleLabel,
+          identity: presenceId
+        });
+      }
+      // Firebase joiner entry for non-players
+      if (db) {
+        var joiner = {
+          id: presenceId,
+          name: roleLabel,
+          role: selectedRole,
+          joinedAt: new Date().toISOString(),
+          online: true
+        };
+        db.ref('sessions/' + sessionCode + '/joiners/' + presenceId).set(joiner).catch(function () {});
+        db.ref('sessions/' + sessionCode + '/joiners/' + presenceId + '/online').onDisconnect().set(false);
+      }
     }
+
+    // If player, myPresenceId was set in claimSeat
+    if (selectedRole === 'player' && selectedSeat) {
+      myPresenceId = 'student:' + selectedSeat.id;
+    }
+
+    // Stop seat polling since we've moved past it
+    if (seatPollTimer) { clearInterval(seatPollTimer); seatPollTimer = null; }
 
     // Phone pairing link (players only)
     var phonePair = document.getElementById('phone-pair');
@@ -688,7 +820,6 @@
       var mobileUrl = location.origin + location.pathname.replace('join.html', 'mobile.html') +
         '#session=' + encodeURIComponent(sessionCode) +
         '&as=student:' + encodeURIComponent(selectedSeat.id) + '&net=1';
-      // For file:// protocol, build relative
       if (location.protocol === 'file:') {
         mobileUrl = 'mobile.html#session=' + encodeURIComponent(sessionCode) +
           '&as=student:' + encodeURIComponent(selectedSeat.id) + '&net=1';
@@ -701,7 +832,6 @@
           linkEl.textContent = 'Copied!';
           setTimeout(function () { linkEl.textContent = mobileUrl; }, 1500);
         } catch (e) {
-          // Fallback: select text
           var range = document.createRange();
           range.selectNodeContents(linkEl);
           var sel = window.getSelection();
@@ -729,7 +859,97 @@
       });
     }
 
+    // Start live lobby roster
+    renderLobbyRoster();
+    if (lobbyTimer) clearInterval(lobbyTimer);
+    lobbyTimer = setInterval(renderLobbyRoster, 3000);
+
+    // Also listen to Firebase joiners for real-time updates
+    if (db) {
+      db.ref('sessions/' + sessionCode + '/joiners').on('value', function () {
+        renderLobbyRoster();
+      });
+    }
+
     showStep('connected');
+  }
+
+  // ---- Live lobby roster ----
+  function renderLobbyRoster() {
+    var listEl = document.getElementById('lobby-list');
+    var countEl = document.getElementById('lobby-count');
+    if (!listEl) return;
+
+    var people = [];
+    var seen = {};
+
+    // Source 1: Engine.listPresence() (works for localStorage mode + any synced presence)
+    if (Engine.listPresence) {
+      var entries = Engine.listPresence(15000);
+      entries.forEach(function (e) {
+        var key = e.clientId || e.identity || '';
+        if (seen[key]) return;
+        seen[key] = true;
+        people.push({
+          id: key,
+          name: e.name || key,
+          role: e.role || 'player',
+          online: true
+        });
+      });
+    }
+
+    // Source 2: Firebase joiners (if available — catches people who joined via firebase but
+    // whose presence isn't in localStorage because they're on a different machine)
+    if (db && window._firebaseJoiners) {
+      var joiners = window._firebaseJoiners;
+      Object.keys(joiners).forEach(function (k) {
+        var j = joiners[k];
+        if (seen[j.id]) return;
+        seen[j.id] = true;
+        people.push({
+          id: j.id,
+          name: j.name || k,
+          role: j.role || 'player',
+          online: j.online !== false
+        });
+      });
+    }
+
+    // Sort: trainers first, then white cell, players, observers
+    var order = { trainer: 0, whitecell: 1, player: 2, observer: 3, student: 2 };
+    people.sort(function (a, b) {
+      return (order[a.role] || 9) - (order[b.role] || 9);
+    });
+
+    countEl.textContent = people.length + ' joined';
+
+    if (people.length === 0) {
+      listEl.innerHTML = '<div class="lobby-empty">Waiting for players to join…</div>';
+      return;
+    }
+
+    listEl.innerHTML = people.map(function (p) {
+      var isMe = (myPresenceId && p.id === myPresenceId);
+      var dotColor = p.online ? '#7B8F5C' : '#4A3D28';
+      var roleLabel = p.role === 'whitecell' ? 'White Cell' :
+                      p.role === 'student' ? 'Player' :
+                      (p.role || 'player').charAt(0).toUpperCase() + (p.role || 'player').slice(1);
+      return '<div class="lobby-item">' +
+        '<div class="lobby-dot" style="background:' + dotColor + ';"></div>' +
+        '<span class="lobby-name">' + esc(p.name) + (isMe ? '<span class="lobby-you">you</span>' : '') + '</span>' +
+        '<span class="lobby-role">' + esc(roleLabel) + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  // Stash Firebase joiners for the roster to read
+  window._firebaseJoiners = {};
+  function watchFirebaseJoiners() {
+    if (!db) return;
+    db.ref('sessions/' + sessionCode + '/joiners').on('value', function (snap) {
+      window._firebaseJoiners = snap.val() || {};
+    });
   }
 
   // "Open my workstation" button
