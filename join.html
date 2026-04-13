@@ -659,6 +659,8 @@
       var entries = Engine.listPresence(15000);
       entries.forEach(function (e) {
         var cid = e.clientId || e.identity || '';
+        // Skip our own presence so our old seat shows as open when changing
+        if (myPresenceId && cid === myPresenceId) return;
         // Presence IDs like "student:s-ra" → extract the student ID
         var m = cid.match(/^student:(.+)$/);
         if (m) {
@@ -672,6 +674,8 @@
       var joiners = window._firebaseJoiners;
       Object.keys(joiners).forEach(function (k) {
         var j = joiners[k];
+        // Skip our own entry
+        if (myPresenceId && j.id === myPresenceId) return;
         if (j.seatId && j.online !== false) {
           claimed[j.seatId] = j.name || 'Someone';
         }
@@ -974,10 +978,21 @@
 
   // "Change seat" button
   document.getElementById('change-seat-btn').addEventListener('click', function () {
-    // Release current seat presence
+    // Release current seat — stop presence heartbeat + remove Firebase joiner
+    if (Engine.stopPresence) Engine.stopPresence();
+    if (db && myPresenceId) {
+      db.ref('sessions/' + sessionCode + '/joiners/' + myPresenceId).remove().catch(function () {});
+    }
+    var prevSeatId = selectedSeatId;
     selectedSeatId = null;
     selectedSeat = null;
+    myPresenceId = null;
+    // Stop lobby poll while on seat picker
+    if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
+    // Re-start seat grid poll
     renderSeatGrid();
+    if (seatPollTimer) clearInterval(seatPollTimer);
+    seatPollTimer = setInterval(renderSeatGrid, 3000);
     showStep('seat');
   });
 

@@ -1525,6 +1525,18 @@ const Engine = (function () {
     return _presenceClientId;
   }
 
+  function stopPresence() {
+    if (_presenceTimer) { clearInterval(_presenceTimer); _presenceTimer = null; }
+    if (_presenceClientId) {
+      try { localStorage.removeItem(presenceKey(_presenceClientId)); } catch (e) {}
+      if (_netHooks && _netHooks.onPresenceStop) {
+        try { _netHooks.onPresenceStop(currentSession, _presenceClientId); } catch (e) {}
+      }
+      _presenceClientId = null;
+    }
+    _presenceInfo = null;
+  }
+
   function updatePresenceInfo(info) {
     _presenceInfo = Object.assign({}, _presenceInfo || {}, info || {});
   }
@@ -1657,7 +1669,7 @@ const Engine = (function () {
     writeActiveSessionPointer, readActiveSessionPointer, clearActiveSessionPointer,
     getRawStateString, getStateKeyName,
     getPhase, setPhase, markLaunched,
-    startPresence, updatePresenceInfo, listPresence,
+    startPresence, stopPresence, updatePresenceInfo, listPresence,
     // v0.2.13 network relay hooks (firebase-storage.js)
     setNetworkHooks, isNetworked,
     applyRemoteState, applyRemoteOutbox,
