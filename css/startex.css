@@ -578,3 +578,36 @@
   padding-top: 20px;
   border-top: 1px solid var(--line-faint);
 }
+
+/* ==========================================================================
+   MOBILE RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .startex-container {
+    padding: 20px 12px 40px;
+  }
+  .startex-header {
+    margin-bottom: 24px;
+  }
+  .startex-lede {
+    font-size: 14px;
+  }
+  .spec-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .roster-card {
+    padding: 10px;
+  }
+  .roster-card .roster-input-name {
+    font-size: 13px;
+  }
+  .launch-complete-foot {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .launch-links-grid {
+    grid-template-columns: 1fr;
+  }
+}

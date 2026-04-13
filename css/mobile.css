@@ -902,12 +902,40 @@
   .phone-wrap { padding: 0; }
   .phone-frame {
     width: 100vw;
+    /* Use dvh (dynamic viewport height) for Safari iOS, fallback to vh */
     height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
     border-radius: 0;
     border: none;
     box-shadow: none;
   }
   .phone-notch, .phone-homebar { display: none; }
+
+  /* Hide the desktop chrome header on actual phones */
+  .desk-chrome { display: none; }
+  .phone-frame {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* App icons: slightly smaller on very small screens */
+  .app-icon-img { width: 52px; height: 52px; }
+  .app-icon-label { font-size: 10px; }
+
+  /* Notifications: full-width */
+  .notif-card { max-width: 100%; }
+
+  /* SMS bubbles: wider on phone */
+  .sms-bubble { max-width: 85%; }
+
+  /* Debug FAB: smaller, bottom-left */
+  .debug-fab {
+    bottom: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
 }
 
 /* ==========================================================================

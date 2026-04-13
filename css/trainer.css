@@ -1540,3 +1540,223 @@ body.trainer-body .inbox-mirror-item .routing-tag-mini.needs {
 .kia-action-btn.kia-revive:hover {
   background: rgba(76, 175, 80, 0.15);
 }
+
+/* ==========================================================================
+   MOBILE RESPONSIVE — iPhone (375px) + tablets (768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .command-bar {
+    padding: 12px 0;
+    top: 0;
+    position: relative;
+  }
+
+  .command-bar-inner {
+    gap: 12px;
+    padding: 0 12px;
+  }
+
+  .clock-block {
+    padding-right: 12px;
+    border-right: none;
+  }
+  .clock-value {
+    font-size: 28px;
+  }
+
+  .command-stats {
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .stat-value {
+    font-size: 14px;
+  }
+  .stat .micro {
+    font-size: 8px;
+  }
+
+  .command-actions {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .command-actions .btn {
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+
+  .trainer-main {
+    padding: 12px 0 48px;
+  }
+
+  .container-wide {
+    padding: 0 8px;
+  }
+
+  .trainer-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .trainer-right-col {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Timeline panel: scrollable */
+  .timeline-panel {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  /* Panels */
+  .panel {
+    border-radius: 6px;
+  }
+  .panel-header {
+    padding: 8px 10px;
+  }
+  .panel-body {
+    padding: 8px;
+  }
+  .panel-body-tight {
+    padding: 0;
+  }
+
+  /* Bomb button: smaller on mobile */
+  .bomb-btn {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  .bomb-btn .bomb-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Bomb confirm modal */
+  .bomb-confirm-card {
+    width: 90vw;
+    max-width: 90vw;
+    padding: 20px;
+  }
+
+  /* KIA panel: tighter layout */
+  .kia-player-row {
+    padding: 6px 8px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .kia-player-info {
+    min-width: 90px;
+  }
+  .kia-player-name {
+    font-size: 11px;
+  }
+  .kia-status-text {
+    font-size: 10px;
+  }
+  .kia-action-btn {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  /* Observer strip */
+  .observer-strip {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Role assignments: compact */
+  .role-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .role-row select {
+    font-size: 11px;
+  }
+
+  /* Reply composer modal */
+  .reply-composer {
+    padding: 12px;
+  }
+  .reply-composer textarea {
+    font-size: 13px;
+  }
+
+  /* Active feed items */
+  .active-feed-item {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  /* Timeline items */
+  .tl-item {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  /* Modals: full-width on phone */
+  .modal-card {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .command-bar-inner {
+    gap: 8px;
+    padding: 0 8px;
+  }
+
+  .clock-block {
+    gap: 2px;
+  }
+  .clock-value {
+    font-size: 22px;
+  }
+  .clock-block .micro {
+    font-size: 8px;
+  }
+
+  /* Hide some stats on tiny screens */
+  .command-stats {
+    gap: 10px;
+  }
+  .stat-value {
+    font-size: 12px;
+  }
+
+  .command-actions .btn {
+    padding: 5px 8px;
+    font-size: 9px;
+  }
+  .bomb-btn .bomb-label {
+    display: none;
+  }
+
+  .trainer-grid {
+    gap: 8px;
+  }
+
+  /* Kickoff overlay: compact */
+  .kickoff-overlay-card {
+    width: 95vw;
+    max-width: 95vw;
+    padding: 16px;
+  }
+  .kickoff-roster-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* KIA panel: stack status below name */
+  .kia-player-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .kia-player-actions {
+    align-self: flex-end;
+  }
+}

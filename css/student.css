@@ -3108,3 +3108,181 @@ body.student-body .outlook-reading .micro {
   width: 4px;
   background: linear-gradient(270deg, #FF1744, transparent);
 }
+
+/* ==========================================================================
+   MOBILE RESPONSIVE — iPhone (375px) + tablets (768px)
+   ========================================================================== */
+
+/* ---- Tablet (768px and below) ---- */
+@media (max-width: 768px) {
+  .student-main {
+    padding: 12px 12px 48px;
+  }
+
+  .ambient-strip {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .student-grid-v2 {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    min-height: auto;
+  }
+
+  .student-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Stack left column panels vertically */
+  .student-left-col .inbox-panel { min-height: 200px; }
+  .student-left-col .texts-panel { min-height: 160px; }
+
+  /* Hide the phone column on tablet — they'll use mobile.html */
+  .student-phone-col { display: none; }
+
+  /* Mail layout single column */
+  .mail-layout {
+    grid-template-columns: 1fr;
+  }
+  .mail-col-list {
+    max-height: 300px;
+  }
+  .mail-col-detail {
+    display: none;
+  }
+
+  .persona-bar {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .persona-bar-clock {
+    min-width: auto;
+    padding: 0 10px;
+  }
+}
+
+/* ---- Phone (480px and below) ---- */
+@media (max-width: 480px) {
+  .student-main {
+    padding: 8px 8px 40px;
+  }
+
+  .ambient-strip {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .ambient-card {
+    padding: 10px;
+  }
+  .ambient-card .ambient-value {
+    font-size: 18px;
+  }
+  .ambient-card .ambient-label {
+    font-size: 9px;
+  }
+
+  .student-grid-v2 {
+    gap: 8px;
+  }
+
+  /* Persona bar: compact on phone */
+  .persona-bar {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .persona-bar-clock {
+    min-width: auto;
+    padding: 0 8px;
+    border: none;
+  }
+  .persona-bar-clock .ambient-clock-compact {
+    font-size: 14px;
+  }
+  .persona-bar-right {
+    display: none;
+  }
+  #persona-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+  #persona-bar-name {
+    font-size: 12px;
+  }
+
+  /* Panels: tighter on phone */
+  .panel {
+    border-radius: 6px;
+  }
+  .panel-header {
+    padding: 8px 10px;
+  }
+  .panel-body {
+    padding: 0;
+  }
+  .panel-body-tight {
+    padding: 0;
+  }
+
+  /* Inbox list items: compact */
+  .mail-row {
+    padding: 8px 10px;
+  }
+  .mail-row .mail-from { font-size: 12px; }
+  .mail-row .mail-subject { font-size: 11px; }
+  .mail-row .mail-preview { font-size: 10px; }
+  .mail-row .mail-time { font-size: 9px; }
+
+  /* SMS thread: compact */
+  .sms-bubble {
+    max-width: 90%;
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  /* Notes textarea */
+  .notes-panel .notes-textarea {
+    min-height: 120px;
+    font-size: 13px;
+  }
+
+  /* Persona overlay: full-screen on phone */
+  .persona-overlay-card {
+    max-width: 100%;
+    margin: 8px;
+    border-radius: 10px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* K-drive modal: full-screen on phone */
+  .kdrive-modal {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 85vh;
+  }
+
+  /* Unclaimed tray */
+  .unclaimed-tray {
+    font-size: 11px;
+  }
+  .unclaimed-tray-head {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  /* Reading pane: scrollable */
+  .reading-pane {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  /* Student left column panels: reasonable heights */
+  .student-left-col .inbox-panel { min-height: 180px; max-height: 50vh; }
+  .student-left-col .texts-panel { min-height: 140px; max-height: 40vh; }
+  .mail-col-list { max-height: 40vh; }
+}

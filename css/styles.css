@@ -1218,3 +1218,66 @@ input[type="radio"] {
 }
 .mobile-kickoff-pulse span:nth-child(1) { animation-delay: -0.32s; }
 .mobile-kickoff-pulse span:nth-child(2) { animation-delay: -0.16s; }
+
+/* ==========================================================================
+   MOBILE RESPONSIVE — shared components
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 12px;
+  }
+  .container-wide {
+    padding: 0 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 8px;
+  }
+  .container-wide {
+    padding: 0 6px;
+  }
+
+  /* Global nav: compact */
+  .global-nav {
+    padding: 0 8px;
+    height: 48px;
+  }
+  .global-nav .nav-title {
+    font-size: 12px;
+  }
+  .global-nav .nav-links {
+    gap: 8px;
+  }
+  .global-nav .nav-links a {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  /* Buttons: touch-friendly minimum size */
+  .btn {
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+  .btn-sm {
+    min-height: 30px;
+  }
+
+  /* Modal: full-screen on phone */
+  .modal-overlay .modal-card,
+  .modal-card {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    margin: 20px auto;
+  }
+
+  /* Toast: wider */
+  .toast-container .toast {
+    max-width: 90vw;
+    font-size: 12px;
+  }
+}
