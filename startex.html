@@ -995,8 +995,10 @@ document.getElementById('beta-test-btn').addEventListener('click', async () => {
     }
   }
 
-  // Go straight to trainer dashboard (with net=1 so Firebase syncs)
-  window.location.href = 'trainer.html#session=' + encodeURIComponent(sessionCode) + '&net=1';
+  // Show the launch panel with join link, session code, and all role links
+  showLaunchCompletePanel(sessionCode, config);
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;margin-right:6px;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor"/></svg> BETA TEST';
 });
 
 document.getElementById('startex-btn').addEventListener('click', async () => {
