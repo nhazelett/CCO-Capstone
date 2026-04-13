@@ -37,6 +37,10 @@
     max-width: 480px;
     position: relative;
     z-index: 1;
+    transition: max-width 0.3s ease;
+  }
+  .join-card.wide {
+    max-width: 720px;
   }
 
   .join-logo {
@@ -331,78 +335,101 @@
   }
   .go-btn:hover { background: #106EBE; }
 
-  /* ---- Lobby roster ---- */
-  .lobby-roster {
-    background: #1A150D;
-    border: 1px solid rgba(220, 190, 140, 0.08);
-    border-radius: 10px;
-    padding: 14px 16px;
+  /* ---- Lobby board (startex-style columns) ---- */
+  .lobby-board {
     margin-bottom: 18px;
   }
-  .lobby-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+  .lobby-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
   }
-  .lobby-head-title {
+  .lobby-group {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(220, 190, 140, 0.06);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .lobby-group-title {
     font-size: 10px;
-    font-weight: 700;
-    color: #72634B;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
+    color: #72634B;
+    margin-bottom: 10px;
+    font-weight: 700;
   }
-  .lobby-count {
-    font-size: 11px;
-    font-weight: 600;
-    color: #4FC3D7;
-    font-family: 'Segoe UI Mono', monospace;
+  .lobby-group-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
-  .lobby-item {
+  .lobby-role-card {
+    --role-accent: #4FC3D7;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 7px 0;
-    border-bottom: 1px solid rgba(220, 190, 140, 0.05);
+    padding: 10px 12px;
+    border-radius: 6px;
+    border-left: 3px solid var(--role-accent);
+    background: rgba(255,255,255,0.02);
     font-size: 13px;
+    color: #EDE4D0;
+    transition: background 0.15s;
   }
-  .lobby-item:last-child { border-bottom: none; }
-  .lobby-dot {
+  .lobby-role-card.empty {
+    opacity: 0.35;
+  }
+  .lobby-role-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
+    background: var(--role-accent);
     flex-shrink: 0;
+  }
+  .lobby-role-card.empty .lobby-role-dot {
+    background: #4A3D28;
+    box-shadow: none;
+  }
+  .lobby-role-card:not(.empty) .lobby-role-dot {
+    box-shadow: 0 0 8px var(--role-accent);
     animation: pulse-green 2s ease-in-out infinite;
   }
-  .lobby-name {
-    color: #EDE4D0;
-    font-weight: 600;
+  .lobby-role-label {
     flex: 1;
-    min-width: 0;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .lobby-you {
+  .lobby-you-badge {
     font-size: 9px;
     font-weight: 700;
     color: #0078D4;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin-left: 4px;
-  }
-  .lobby-role {
-    font-size: 10px;
-    color: #72634B;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
     flex-shrink: 0;
   }
-  .lobby-empty {
-    text-align: center;
-    padding: 12px;
+  .lobby-count-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .lobby-count-label {
+    font-size: 11px;
+    color: #72634B;
+    font-weight: 600;
+  }
+  .lobby-count-num {
     font-size: 12px;
-    color: #4A3D28;
+    font-weight: 700;
+    color: #4FC3D7;
+    font-family: 'Segoe UI Mono', monospace;
+  }
+  @media (max-width: 500px) {
+    .lobby-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .change-seat-btn {
@@ -505,14 +532,12 @@
       <div class="session-status" id="connected-status">Connected — waiting for exercise to start</div>
     </div>
     <div class="connected-identity" id="connected-identity"></div>
-    <div class="lobby-roster" id="lobby-roster">
-      <div class="lobby-head">
-        <span class="lobby-head-title">Who's in</span>
-        <span class="lobby-count" id="lobby-count">0</span>
+    <div class="lobby-board" id="lobby-board">
+      <div class="lobby-count-bar">
+        <span class="lobby-count-label">Ready room</span>
+        <span class="lobby-count-num" id="lobby-count">0 joined</span>
       </div>
-      <div id="lobby-list">
-        <div class="lobby-empty">Waiting for players to join…</div>
-      </div>
+      <div class="lobby-grid" id="lobby-grid"></div>
     </div>
     <div class="phone-pair-section" id="phone-pair" style="display:none;">
       <div class="phone-pair-title">Pair your phone</div>
@@ -532,7 +557,10 @@
 <script src="content/content-bundle.js"></script>
 <script src="js/scenario-loader.js"></script>
 <script src="js/engine.js"></script>
-<script src="js/net-loader.js"></script>
+<!-- Join page always needs Firebase — load directly instead of gating on net=1 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="js/firebase-config.js"></script>
 <script>
 (function () {
   'use strict';
@@ -592,12 +620,18 @@
         db.ref('sessions/' + code + '/state').once('value').then(function (snap) {
           if (snap.exists()) {
             exerciseState = snap.val();
+            codeError.textContent = '';
+          } else {
+            codeError.textContent = 'Session not synced to cloud yet. Make sure the Trainer dashboard is open with network mode.';
+            codeError.style.color = '#FFC107';
           }
           watchFirebaseJoiners();
           codeBtn.textContent = 'Join';
           codeBtn.disabled = false;
           showStep('role');
-        }).catch(function () {
+        }).catch(function (err) {
+          codeError.textContent = 'Could not reach server — check your connection.';
+          codeError.style.color = '#D9552A';
           watchFirebaseJoiners();
           codeBtn.textContent = 'Join';
           codeBtn.disabled = false;
@@ -863,6 +897,9 @@
       });
     }
 
+    // Widen the card for the column layout
+    document.querySelector('.join-card').classList.add('wide');
+
     // Start live lobby roster
     renderLobbyRoster();
     if (lobbyTimer) clearInterval(lobbyTimer);
@@ -878,79 +915,168 @@
     showStep('connected');
   }
 
-  // ---- Live lobby roster ----
-  function renderLobbyRoster() {
-    var listEl = document.getElementById('lobby-list');
-    var countEl = document.getElementById('lobby-count');
-    if (!listEl) return;
+  // ---- Live lobby roster (startex-style column board) ----
+  function getOnlinePresenceIds() {
+    // Build a set of all presence IDs that are currently online
+    var online = {};
 
-    var people = [];
-    var seen = {};
-
-    // Source 1: Engine.listPresence() (works for localStorage mode + any synced presence)
     if (Engine.listPresence) {
       var entries = Engine.listPresence(15000);
       entries.forEach(function (e) {
-        var key = e.clientId || e.identity || '';
-        if (seen[key]) return;
-        seen[key] = true;
-        people.push({
-          id: key,
-          name: e.name || key,
-          role: e.role || 'player',
-          online: true
-        });
+        var cid = e.clientId || e.identity || '';
+        online[cid] = { name: e.name || cid, role: e.role || 'student' };
       });
     }
 
-    // Source 2: Firebase joiners (if available — catches people who joined via firebase but
-    // whose presence isn't in localStorage because they're on a different machine)
-    if (db && window._firebaseJoiners) {
+    if (window._firebaseJoiners) {
       var joiners = window._firebaseJoiners;
       Object.keys(joiners).forEach(function (k) {
         var j = joiners[k];
-        if (seen[j.id]) return;
-        seen[j.id] = true;
-        people.push({
-          id: j.id,
-          name: j.name || k,
-          role: j.role || 'player',
-          online: j.online !== false
-        });
+        if (j.online !== false && j.id && !online[j.id]) {
+          online[j.id] = { name: j.name || k, role: j.role || 'player', seatId: j.seatId };
+        }
       });
     }
 
-    // Sort: trainers first, then white cell, players, observers
-    var order = { trainer: 0, whitecell: 1, player: 2, observer: 3, student: 2 };
-    people.sort(function (a, b) {
-      return (order[a.role] || 9) - (order[b.role] || 9);
+    return online;
+  }
+
+  function renderLobbyRoster() {
+    var gridEl = document.getElementById('lobby-grid');
+    var countEl = document.getElementById('lobby-count');
+    if (!gridEl) return;
+
+    var online = getOnlinePresenceIds();
+    var students = getStudents();
+    var cfg = exerciseState ? (exerciseState.config || exerciseState) : {};
+    var whiteCellRoster = cfg.whitecell || cfg.whiteCell || [];
+
+    // Determine who's online
+    var totalOnline = 0;
+
+    // ---- Build groups ----
+    var groups = [];
+
+    // 1. TRAINER column
+    var trainerOnline = false;
+    Object.keys(online).forEach(function (k) {
+      if (online[k].role === 'trainer') trainerOnline = true;
     });
+    groups.push({
+      title: 'Trainer',
+      items: [{
+        label: 'Trainer Dashboard',
+        color: '#4FC3D7',
+        isOnline: trainerOnline,
+        isMe: selectedRole === 'trainer'
+      }]
+    });
+    if (trainerOnline) totalOnline++;
 
-    countEl.textContent = people.length + ' joined';
-
-    if (people.length === 0) {
-      listEl.innerHTML = '<div class="lobby-empty">Waiting for players to join…</div>';
-      return;
+    // 2. STUDENTS column — show full roster from config, mark who's present
+    if (students.length > 0) {
+      var studentItems = students.map(function (st) {
+        var presId = 'student:' + st.id;
+        var isOn = !!online[presId];
+        if (isOn) totalOnline++;
+        return {
+          label: esc(st.name) + ' · ' + esc(st.shop || 'CONS'),
+          color: st.color || '#8A7AB0',
+          isOnline: isOn,
+          isMe: (myPresenceId === presId)
+        };
+      });
+      groups.push({ title: 'Students', items: studentItems });
     }
 
-    listEl.innerHTML = people.map(function (p) {
-      var isMe = (myPresenceId && p.id === myPresenceId);
-      var dotColor = p.online ? '#7B8F5C' : '#4A3D28';
-      var roleLabel = p.role === 'whitecell' ? 'White Cell' :
-                      p.role === 'student' ? 'Player' :
-                      (p.role || 'player').charAt(0).toUpperCase() + (p.role || 'player').slice(1);
-      return '<div class="lobby-item">' +
-        '<div class="lobby-dot" style="background:' + dotColor + ';"></div>' +
-        '<span class="lobby-name">' + esc(p.name) + (isMe ? '<span class="lobby-you">you</span>' : '') + '</span>' +
-        '<span class="lobby-role">' + esc(roleLabel) + '</span>' +
+    // 3. WHITE CELL column
+    if (whiteCellRoster.length > 0) {
+      var wcItems = whiteCellRoster.map(function (w) {
+        var presId = 'whitecell:' + w.id;
+        var isOn = !!online[presId];
+        if (isOn) totalOnline++;
+        return {
+          label: esc(w.name),
+          color: w.color || '#FF6B6B',
+          isOnline: isOn,
+          isMe: false
+        };
+      });
+      groups.push({ title: 'White Cell', items: wcItems });
+    } else {
+      // Check if any whitecell joiners exist even without roster config
+      var wcOnline = false;
+      Object.keys(online).forEach(function (k) {
+        if (online[k].role === 'whitecell') { wcOnline = true; totalOnline++; }
+      });
+      if (wcOnline) {
+        groups.push({
+          title: 'White Cell',
+          items: [{ label: 'White Cell', color: '#FF6B6B', isOnline: true, isMe: selectedRole === 'whitecell' }]
+        });
+      }
+    }
+
+    // 4. OBSERVERS — only show if someone joined as one
+    var obsOnline = [];
+    Object.keys(online).forEach(function (k) {
+      if (online[k].role === 'observer') {
+        obsOnline.push(online[k]);
+        totalOnline++;
+      }
+    });
+    if (obsOnline.length > 0) {
+      groups.push({
+        title: 'Observers',
+        items: obsOnline.map(function (o) {
+          return { label: esc(o.name), color: '#A8B050', isOnline: true, isMe: selectedRole === 'observer' };
+        })
+      });
+    }
+
+    countEl.textContent = totalOnline + ' joined';
+
+    // Render
+    gridEl.innerHTML = groups.map(function (g) {
+      return '<div class="lobby-group">' +
+        '<div class="lobby-group-title">' + esc(g.title) + '</div>' +
+        '<div class="lobby-group-items">' +
+          g.items.map(function (it) {
+            var cls = 'lobby-role-card' + (it.isOnline ? '' : ' empty');
+            return '<div class="' + cls + '" style="--role-accent: ' + it.color + ';">' +
+              '<div class="lobby-role-dot"></div>' +
+              '<span class="lobby-role-label">' + it.label + '</span>' +
+              (it.isMe ? '<span class="lobby-you-badge">you</span>' : '') +
+            '</div>';
+          }).join('') +
+        '</div>' +
       '</div>';
     }).join('');
+  }
+
+  // Watch for exercise state updates (e.g. trainer syncs after we already joined)
+  function watchFirebaseState() {
+    if (!db || !sessionCode) return;
+    db.ref('sessions/' + sessionCode + '/state').on('value', function (snap) {
+      if (snap.exists()) {
+        exerciseState = snap.val();
+        // Re-render seat grid if we're on that step
+        if (document.getElementById('step-seat').classList.contains('active')) {
+          renderSeatGrid();
+        }
+        // Re-render lobby if we're on connected step
+        if (document.getElementById('step-connected').classList.contains('active')) {
+          renderLobbyRoster();
+        }
+      }
+    });
   }
 
   // Stash Firebase joiners for the roster to read
   window._firebaseJoiners = {};
   function watchFirebaseJoiners() {
     if (!db) return;
+    watchFirebaseState();
     db.ref('sessions/' + sessionCode + '/joiners').on('value', function (snap) {
       window._firebaseJoiners = snap.val() || {};
     });
@@ -983,12 +1109,23 @@
     if (db && myPresenceId) {
       db.ref('sessions/' + sessionCode + '/joiners/' + myPresenceId).remove().catch(function () {});
     }
-    var prevSeatId = selectedSeatId;
+    // Also scrub any orphan student:* presence keys from this browser
+    // (leftover from prior picks or old student.html tabs)
+    try {
+      var prefix = 'cco-capstone-presence:' + sessionCode + ':student:';
+      var toRemove = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(prefix) === 0) toRemove.push(k);
+      }
+      toRemove.forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) {}
     selectedSeatId = null;
     selectedSeat = null;
     myPresenceId = null;
-    // Stop lobby poll while on seat picker
+    // Stop lobby poll while on seat picker, narrow card back
     if (lobbyTimer) { clearInterval(lobbyTimer); lobbyTimer = null; }
+    document.querySelector('.join-card').classList.remove('wide');
     // Re-start seat grid poll
     renderSeatGrid();
     if (seatPollTimer) clearInterval(seatPollTimer);

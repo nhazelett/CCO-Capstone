@@ -311,7 +311,11 @@
       <div class="launch-title">Once you hit STARTEX, the exercise clock begins.</div>
       <div class="launch-sub">Injects fire on schedule. Falling behind is part of the training.</div>
     </div>
-    <div class="launch-actions">
+    <div class="launch-actions" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <button class="btn btn-xl" id="beta-test-btn" style="background: linear-gradient(135deg, #F5B845 0%, #E56B3D 100%); color: #1A150D; font-weight: 800; letter-spacing: 0.04em; border: none;">
+        <svg viewBox="0 0 24 24" fill="none" style="width:18px;height:18px;margin-right:6px;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor"/></svg>
+        BETA TEST
+      </button>
       <button class="btn btn-primary btn-xl" id="startex-btn">
         <svg viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>
         STARTEX
@@ -928,6 +932,72 @@ function showLaunchCompletePanel(code, config) {
     });
   }
 }
+
+// ---- BETA TEST: one-click launch with defaults ----
+document.getElementById('beta-test-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('beta-test-btn');
+  btn.disabled = true;
+  btn.textContent = 'Launching…';
+
+  // Generate session code
+  const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let sessionCode = '';
+  for (let i = 0; i < 6; i++) sessionCode += alphabet[Math.floor(Math.random() * alphabet.length)];
+
+  // Build config from ROSTER_DEFAULTS with initials added
+  const students = ROSTER_DEFAULTS.students.map(s => ({
+    ...s, initials: initials(s.name), role: s.shop
+  }));
+  const whitecell = ROSTER_DEFAULTS.whitecell.map(w => ({
+    ...w, initials: initials(w.name)
+  }));
+  const inspectors = (ROSTER_DEFAULTS.inspectors || []).map(ob => ({
+    ...ob, initials: initials(ob.name)
+  }));
+
+  const config = {
+    session_code: sessionCode,
+    scenario: 'iron-meridian',
+    scenario_title: 'Iron Meridian',
+    scenario_mode: 'stock',
+    clock_mode: 'sim',
+    length: '3-day',
+    roster: students,
+    students,
+    whitecell,
+    inspectors,
+    capabilities: { vehicles: 2, radios: 3, generators: 1 },
+    startedAt: new Date().toISOString(),
+    beta_test: true
+  };
+
+  localStorage.setItem('cco-capstone-config', JSON.stringify(config));
+  localStorage.setItem('cco-capstone-config:' + sessionCode, JSON.stringify(config));
+
+  if (window.Engine && Engine.setSession) {
+    Engine.setSession(sessionCode);
+    if (Engine.writeActiveSessionPointer) Engine.writeActiveSessionPointer(sessionCode);
+    try { localStorage.removeItem('cco-capstone-state:' + sessionCode); } catch (e) {}
+    try { localStorage.removeItem('cco-capstone-student-outbox:' + sessionCode); } catch (e) {}
+
+    try {
+      await Engine.loadContacts();
+      const injectsRaw = (window.__CCO_DATA && window.__CCO_DATA.injects) || {};
+      const ids = Array.isArray(injectsRaw) ? injectsRaw.map(i => i.id) : Object.keys(injectsRaw);
+      await Engine.loadInjects(ids);
+      Engine.prelaunchExercise(config);
+    } catch (e) {
+      console.error('Beta test launch failed:', e);
+      btn.disabled = false;
+      btn.textContent = 'BETA TEST';
+      alert('Launch failed: ' + (e && e.message ? e.message : e));
+      return;
+    }
+  }
+
+  // Go straight to trainer dashboard (with net=1 so Firebase syncs)
+  window.location.href = 'trainer.html#session=' + encodeURIComponent(sessionCode) + '&net=1';
+});
 
 document.getElementById('startex-btn').addEventListener('click', async () => {
   const students   = serializeRoster('students');
