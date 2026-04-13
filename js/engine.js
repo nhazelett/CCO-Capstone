@@ -1590,14 +1590,13 @@ const Engine = (function () {
     saveState();
   }
 
-  // Trainer marks a player as KIA.
-  function markKIA(playerId, alarmId) {
+  // Trainer marks a player as KIA. No reason needed — trainers can kill anyone.
+  function markKIA(playerId) {
     if (state.readOnly) return;
     if (!state.kia_roster) state.kia_roster = {};
     state.kia_roster[playerId] = {
       markedAt: Date.now(),
       markedAtExercise: getExerciseTime().displayString || '',
-      alarmId: alarmId || null,
       replacedBy: null,
       replacedAt: null
     };

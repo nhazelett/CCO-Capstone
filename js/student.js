@@ -462,6 +462,11 @@ function configStudents() {
 }
 
 function showPersonaOverlay() {
+  // Lock persona switching once the exercise clock is running
+  // (unless they have no persona at all — they need to pick one to play)
+  const s = Engine.getState();
+  if (s.clock && s.clock.running && currentPersona) return;
+
   const overlay = document.getElementById('persona-overlay');
   const list = document.getElementById('persona-overlay-list');
   if (!overlay || !list) return;
@@ -540,6 +545,23 @@ function renderPersonaBar() {
   avatar.style.background = currentPersona.color || '#8A7AB0';
   micro.textContent = 'You are';
   name.textContent = `${currentPersona.name} · ${currentPersona.role || 'CCO'}`;
+
+  // Lock the switch button once exercise is running
+  const switchBtn = document.getElementById('persona-switch-btn');
+  if (switchBtn) {
+    const s = Engine.getState();
+    if (s.clock && s.clock.running) {
+      switchBtn.disabled = true;
+      switchBtn.title = 'Persona locked during exercise';
+      switchBtn.style.opacity = '0.4';
+      switchBtn.style.cursor = 'not-allowed';
+    } else {
+      switchBtn.disabled = false;
+      switchBtn.title = 'Switch persona';
+      switchBtn.style.opacity = '';
+      switchBtn.style.cursor = '';
+    }
+  }
 
   const myRole = personaRole();
   const ROLE_LABELS_S = {

@@ -1617,7 +1617,7 @@ function renderKIAPanel() {
       } else {
         statusColor = '#FF1744';
         statusIcon = '&#x1F480;';
-        statusText = 'KIA — awaiting replacement';
+        statusText = 'KIA';
         actions = `
           <button class="kia-action-btn kia-replace" data-player="${esc(st.id)}" title="Assign replacement">Replace</button>
           <button class="kia-action-btn kia-revive" data-player="${esc(st.id)}" title="Undo KIA">Revive</button>
@@ -1629,25 +1629,36 @@ function renderKIAPanel() {
       statusText = `Ack'd alarm${alarmResp.ackedAtExercise ? ' @ ' + alarmResp.ackedAtExercise : ''}`;
       actions = `<button class="kia-action-btn kia-kill" data-player="${esc(st.id)}" title="Kill this player">Kill</button>`;
     } else if (alarmResp && alarmResp.dead) {
-      statusColor = '#FF6B35';
-      statusIcon = '&#x26A0;';
-      statusText = 'Failed alarm response (4min)';
-      actions = `<button class="kia-action-btn kia-mark" data-player="${esc(st.id)}" data-alarm="${esc(latestAlarmId)}" title="Mark as KIA">Mark KIA</button>`;
+      // Auto-KIA: alarm expired with no ack — mark them dead immediately
+      if (!kiaRoster[st.id]) {
+        Engine.markKIA(st.id);
+      }
+      statusColor = '#FF1744';
+      statusIcon = '&#x1F480;';
+      statusText = 'KIA';
+      actions = `
+        <button class="kia-action-btn kia-replace" data-player="${esc(st.id)}" title="Assign replacement">Replace</button>
+        <button class="kia-action-btn kia-revive" data-player="${esc(st.id)}" title="Undo KIA">Revive</button>
+      `;
     } else if (latestAlarmId) {
-      // Alarm active, no response yet
+      // Alarm active, no response yet — show countdown
       const alarm = responses[latestAlarmId];
       const remaining = Math.max(0, DEATH_MS - (nowWall - alarm.firedAtWall));
       if (remaining > 0) {
         const remainStr = formatElapsed(remaining);
         statusColor = remaining < 60000 ? '#FF6B35' : '#FFC107';
         statusIcon = '&#x23F3;';
-        statusText = `No response — ${remainStr} to KIA`;
+        statusText = `Waiting — ${remainStr}`;
       } else {
-        statusColor = '#FF6B35';
-        statusIcon = '&#x26A0;';
-        statusText = 'Failed alarm response (4min)';
+        // Timer expired, auto-KIA
+        if (!kiaRoster[st.id]) {
+          Engine.markKIA(st.id);
+        }
+        statusColor = '#FF1744';
+        statusIcon = '&#x1F480;';
+        statusText = 'KIA';
       }
-      actions = `<button class="kia-action-btn kia-mark" data-player="${esc(st.id)}" data-alarm="${esc(latestAlarmId)}" title="Mark as KIA">Mark KIA</button>`;
+      actions = `<button class="kia-action-btn kia-kill" data-player="${esc(st.id)}" title="Kill this player">Kill</button>`;
     } else {
       // No alarm — normal state, just show a kill button
       statusColor = '#4CAF50';
@@ -1674,20 +1685,13 @@ function renderKIAPanel() {
   body.innerHTML = html;
 
   // Wire event handlers
-  body.querySelectorAll('.kia-mark').forEach(btn => {
-    btn.addEventListener('click', () => {
-      Engine.markKIA(btn.dataset.player, btn.dataset.alarm);
-      renderKIAPanel();
-    });
-  });
-
   body.querySelectorAll('.kia-kill').forEach(btn => {
     btn.addEventListener('click', () => {
       const pid = btn.dataset.player;
       const st = students.find(s => s.id === pid);
       const confirmed = confirm(`Kill ${st ? st.name : pid}? Their screen will go black.`);
       if (confirmed) {
-        Engine.markKIA(pid, null);
+        Engine.markKIA(pid);
         renderKIAPanel();
       }
     });
