@@ -283,6 +283,8 @@
 .timeline-item.past::before { background: var(--good-line); }
 .timeline-item.live::before { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .timeline-item.next::before { background: var(--warn-line); }
+.timeline-item.curveball::before { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+.timeline-item.curveball .timeline-id { color: var(--warn); }
 
 .timeline-time {
   font-family: var(--font-mono);
@@ -1441,6 +1443,27 @@ body.trainer-body .inbox-mirror-item .routing-tag-mini.needs {
    v0.2.14: KIA / Alarm Response Panel
    ========================================================================== */
 
+/* KIA panel theme — dark red, high contrast */
+.kia-panel-header {
+  background: linear-gradient(135deg, #1a0000 0%, #2d0a0a 100%);
+  border-bottom: 1px solid #4a1a1a;
+}
+.kia-micro {
+  color: #FF6B6B;
+}
+.kia-title {
+  color: #FFF;
+}
+.kia-panel-body {
+  background: #0d0000;
+}
+.kia-empty-text {
+  padding: 16px 8px;
+  font-size: 11px;
+  color: #996666;
+  text-align: center;
+}
+
 .kia-player-row {
   display: flex;
   align-items: center;
@@ -1488,6 +1511,17 @@ body.trainer-body .inbox-mirror-item .routing-tag-mini.needs {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* KIA status semantic colors */
+.kia-st-ok       { color: #4CAF50; }
+.kia-st-dead     { color: #FF1744; }
+.kia-st-replaced { color: #999; }
+.kia-st-warn     { color: #FFC107; }
+.kia-st-urgent   { color: #FF6B35; }
+
+.kia-player-row {
+  border-bottom: 1px solid #1a0808;
 }
 
 .kia-player-actions {
@@ -1603,6 +1637,32 @@ body.trainer-body .inbox-mirror-item .routing-tag-mini.needs {
     gap: 12px;
   }
 
+  /* Mobile reorder: action panels up top, timeline + feed below.
+     The grid children are: [timeline] [active-feed] [right-col].
+     On mobile we want: right-col (actions) → active-feed → timeline. */
+  .trainer-grid > .panel:first-child {
+    /* timeline panel → send to bottom */
+    order: 3;
+  }
+  .trainer-grid > .panel:nth-child(2) {
+    /* active feed → middle */
+    order: 2;
+  }
+  .trainer-right-col {
+    /* action panels → top */
+    order: 1 !important;
+  }
+
+  /* Within right-col: reorder so action-oriented panels come first.
+     Default order: WC controls(1), Action queue(2), Inject focus(3),
+     Roles(4), KIA(5), Inbox(6), TLOs(7).
+     Desired: WC controls, KIA, Action queue, Roles, Inject focus, Inbox, TLOs. */
+  .trainer-right-col > .panel { order: 5; }                     /* default: push down */
+  .trainer-right-col > .panel:nth-child(1) { order: 1; }        /* WC controls: stays top */
+  .trainer-right-col > #kia-panel { order: 2; }                  /* KIA: pull up to 2nd */
+  .trainer-right-col > .panel:nth-child(2) { order: 3; }        /* Action queue */
+  .trainer-right-col > .panel:nth-child(4) { order: 4; }        /* Role assignments */
+
   /* Timeline panel: scrollable */
   .timeline-panel {
     max-height: 50vh;
@@ -1673,6 +1733,20 @@ body.trainer-body .inbox-mirror-item .routing-tag-mini.needs {
   }
   .role-row select {
     font-size: 11px;
+  }
+
+  /* WC controls: horizontal scroll-friendly 2-col on mobile */
+  .wc-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .wc-btn {
+    padding: 12px 6px;
+    gap: 6px;
+    min-height: 70px;
+  }
+  .wc-label {
+    font-size: 9px;
   }
 
   /* Reply composer modal */
@@ -1748,6 +1822,11 @@ body.trainer-body .inbox-mirror-item .routing-tag-mini.needs {
   }
   .kickoff-roster-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* WC controls: 2-col on tiny screens */
+  .wc-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   /* KIA panel: stack status below name */

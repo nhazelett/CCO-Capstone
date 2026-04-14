@@ -590,7 +590,7 @@ function renderTeamRoles() {
     .join('');
 
   const rowHtml = students.length === 0
-    ? `<div class="muted text-center" style="padding: 14px 8px; font-size: 11px;">
+    ? `<div class="panel-empty">
          No roster loaded. Run STARTEX first.
        </div>`
     : students.map(st => {
@@ -688,11 +688,13 @@ function renderTimeline() {
     const dispMin = tMinForDisplay % 1440;
     const dispHour = Math.floor(dispMin / 60);
     const dispMinute = dispMin % 60;
+    const cbTag = inj.is_curveball ? ' curveball' : '';
+    const cbLabel = inj.is_curveball ? `<span style="color:var(--warn);font-weight:700;">&#x26A1;</span> ` : '';
     return `
-      <div class="timeline-item ${cls}" data-id="${inj.id}">
+      <div class="timeline-item ${cls}${cbTag}" data-id="${inj.id}">
         <div class="timeline-time">${pad(dispHour)}:${pad(dispMinute)}</div>
         <div class="timeline-content">
-          <div class="timeline-id">${inj.id} · D${dispDay}</div>
+          <div class="timeline-id">${cbLabel}${inj.id} · D${dispDay}</div>
           <div class="timeline-title">${esc(inj.title)}</div>
         </div>
       </div>
@@ -842,7 +844,7 @@ function renderInboxMirror() {
   document.getElementById('inbox-count').textContent = s.inbox.length;
 
   if (s.inbox.length === 0) {
-    container.innerHTML = '<div class="muted text-center" style="padding: 20px; font-size: 11px;">Empty</div>';
+    container.innerHTML = '<div class="panel-empty">Empty</div>';
     return;
   }
 
@@ -877,7 +879,7 @@ function handleWhiteCellAction(action) {
       showCustomSmsModal();
       break;
     case 'email':
-      showModal('Send email', '<p class="muted">Custom email composer coming in v0.3. For now, emails fire from scheduled injects.</p>');
+      showCustomEmailModal();
       break;
     case 'call':
       showModal('Place customer call', '<p class="muted">Placeholder. In the full version this fires a scripted phone call inject.</p>');
@@ -886,7 +888,7 @@ function handleWhiteCellAction(action) {
       showModal('Push supporting document', '<p class="muted">Supporting document library coming in v0.3.</p>');
       break;
     case 'curveball':
-      showModal('Fire curveball', '<p class="muted">Curveball inject library coming in v0.3.</p>');
+      showCurveballModal();
       break;
     case 'flag':
       showModal('Flag for hotwash', '<p class="muted">Use the Flag button on an active inject card. This general flag is for atmospheric moments not tied to an inject.</p>');
@@ -896,12 +898,36 @@ function handleWhiteCellAction(action) {
 
 function showCustomSmsModal() {
   const contacts = Engine.getContacts().filter(c => !c.is_group);
+  const cfg = Engine.getState().config || {};
+  const students = cfg.students || [];
   const html = `
     <h4>Send a custom SMS to the student phone</h4>
-    <p>Tap a contact below, type your message, hit Send. The message lands on the phone immediately.</p>
+    <p>Pick who sees it, pick who it's from, type your message, hit Send.</p>
 
     <div style="margin-top: 18px;">
-      <label class="field-label" style="margin-bottom: 10px; display: block;">From — tap to select</label>
+      <label class="field-label" style="margin-bottom: 8px; display: block;">To \u2014 which player sees this?</label>
+      <div class="contact-picker" id="student-target-picker">
+        <button type="button" class="contact-card selected" data-target="">
+          <div class="contact-card-avatar" style="background: var(--text-tertiary);">&#x1F4E2;</div>
+          <div class="contact-card-text">
+            <div class="contact-card-name">All players</div>
+            <div class="contact-card-title">Broadcast</div>
+          </div>
+        </button>
+        ${students.map(s => `
+          <button type="button" class="contact-card" data-target="${esc(s.id)}">
+            <div class="contact-card-avatar" style="background: ${s.color || 'var(--text-tertiary)'};">${esc(s.initials || (s.name || '??').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase())}</div>
+            <div class="contact-card-text">
+              <div class="contact-card-name">${esc(s.name)}</div>
+              <div class="contact-card-title">${esc(s.shop || 'Student')}</div>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div style="margin-top: 18px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">From \u2014 tap to select sender</label>
       <div class="contact-picker" id="contact-picker">
         ${contacts.map(c => `
           <button type="button" class="contact-card" data-value="${esc(c.id)}">
@@ -917,7 +943,7 @@ function showCustomSmsModal() {
 
     <div style="margin-top: 18px;">
       <label class="field-label" style="margin-bottom: 8px; display: block;">Message</label>
-      <textarea id="sms-text" rows="3" placeholder="Type the message..." style="height: auto; padding: 12px;"></textarea>
+      <textarea id="sms-text" rows="3" placeholder="Type the message..." style="height: auto;"></textarea>
     </div>
 
     <div style="display: flex; gap: 8px; margin-top: 20px; justify-content: space-between; align-items: center;">
@@ -934,10 +960,21 @@ function showCustomSmsModal() {
 
   setTimeout(() => {
     let selectedContactId = null;
+    let selectedTargetId = null; // null = broadcast to all
 
-    document.querySelectorAll('.contact-card').forEach((card) => {
+    // Student target picker
+    document.querySelectorAll('#student-target-picker .contact-card').forEach((card) => {
       card.addEventListener('click', () => {
-        document.querySelectorAll('.contact-card').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('#student-target-picker .contact-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedTargetId = card.dataset.target || null;
+      });
+    });
+
+    // Contact (sender) picker
+    document.querySelectorAll('#contact-picker .contact-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('#contact-picker .contact-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         selectedContactId = card.dataset.value;
       });
@@ -945,7 +982,7 @@ function showCustomSmsModal() {
 
     document.getElementById('send-sms-btn').addEventListener('click', () => {
       if (!selectedContactId) {
-        showToast('Pick a contact first');
+        showToast('Pick a sender contact first');
         return;
       }
       const msg = document.getElementById('sms-text').value.trim();
@@ -953,9 +990,12 @@ function showCustomSmsModal() {
         showToast('Type a message first');
         return;
       }
-      Engine.sendCustomSms(selectedContactId, msg);
+      Engine.sendCustomSms(selectedContactId, msg, selectedTargetId);
       closeModal();
-      showToast('SMS sent to student phone');
+      const targetLabel = selectedTargetId
+        ? (students.find(s => s.id === selectedTargetId) || {}).name || selectedTargetId
+        : 'all players';
+      showToast(`SMS sent to ${targetLabel}`);
     });
 
     document.getElementById('sms-quick-test').addEventListener('click', () => {
@@ -1027,6 +1067,246 @@ function clearActionQueueUnread() {
   }
 }
 
+// v0.3: Custom email composer — white cell sends an email to the student inbox.
+function showCustomEmailModal() {
+  const cfg = Engine.getState().config || {};
+  const students = cfg.students || [];
+  const html = `
+    <h4>Compose a custom email</h4>
+    <p>This email lands in the student inbox immediately — indistinguishable from a scheduled inject email.</p>
+
+    <div style="margin-top: 18px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">To \u2014 which player sees this?</label>
+      <div class="contact-picker" id="email-target-picker">
+        <button type="button" class="contact-card selected" data-target="">
+          <div class="contact-card-avatar" style="background: var(--text-tertiary);">&#x1F4E2;</div>
+          <div class="contact-card-text">
+            <div class="contact-card-name">All players</div>
+            <div class="contact-card-title">Broadcast</div>
+          </div>
+        </button>
+        ${students.map(s => `
+          <button type="button" class="contact-card" data-target="${esc(s.id)}">
+            <div class="contact-card-avatar" style="background: ${s.color || 'var(--text-tertiary)'};">${esc(s.initials || (s.name || '??').split(/\\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase())}</div>
+            <div class="contact-card-text">
+              <div class="contact-card-name">${esc(s.name)}</div>
+              <div class="contact-card-title">${esc(s.shop || 'Student')}</div>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div style="margin-top: 18px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">From name</label>
+      <input type="text" id="email-from" placeholder="e.g. Col Ramsey, AFICC/JA, local vendor" style="width:100%;" />
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">From email (optional)</label>
+      <input type="text" id="email-from-addr" placeholder="e.g. ramsey@mail.mil" style="width:100%;" />
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">Subject</label>
+      <input type="text" id="email-subject" placeholder="Subject line" style="width:100%;" />
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">Body</label>
+      <textarea id="email-body" rows="6" placeholder="Email body text..." style="height: auto;"></textarea>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end;">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="send-email-btn">Send email</button>
+    </div>
+  `;
+  showModal('White cell \u00b7 Custom email', html);
+
+  setTimeout(() => {
+    let selectedTargetId = null;
+
+    // Student target picker
+    document.querySelectorAll('#email-target-picker .contact-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('#email-target-picker .contact-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedTargetId = card.dataset.target || null;
+      });
+    });
+
+    document.getElementById('send-email-btn').addEventListener('click', () => {
+      const from = document.getElementById('email-from').value.trim();
+      if (!from) { showToast('Enter a sender name'); return; }
+      const subject = document.getElementById('email-subject').value.trim();
+      if (!subject) { showToast('Enter a subject line'); return; }
+      const body = document.getElementById('email-body').value.trim();
+      if (!body) { showToast('Enter the email body'); return; }
+      const fromEmail = document.getElementById('email-from-addr').value.trim();
+
+      Engine.sendCustomEmail({
+        from,
+        fromEmail,
+        subject,
+        body,
+        targetStudentId: selectedTargetId
+      });
+
+      closeModal();
+      const targetLabel = selectedTargetId
+        ? (students.find(s => s.id === selectedTargetId) || {}).name || selectedTargetId
+        : 'all players';
+      showToast(`Email sent to ${targetLabel}`);
+    });
+  }, 50);
+}
+
+// v0.3: Curveball inject modal — fire an ad-hoc event with optional email/SMS.
+function showCurveballModal() {
+  const contacts = Engine.getContacts().filter(c => !c.is_group);
+  const html = `
+    <h4>Fire a curveball</h4>
+    <p>Create an ad-hoc inject that fires immediately. Optionally send an email and/or SMS to students along with it.</p>
+
+    <div style="margin-top: 18px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">Curveball title</label>
+      <input type="text" id="cb-title" placeholder="e.g. Vendor protest, power outage, VIP arrival" style="width:100%;" />
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">Description (trainer notes)</label>
+      <textarea id="cb-desc" rows="3" placeholder="What's happening and why — this shows in the active feed and inject focus panel." style="height: auto;"></textarea>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">Category</label>
+      <select id="cb-category" style="width:100%;">
+        <option value="atmospheric">Atmospheric (background event)</option>
+        <option value="operational">Operational (requires student action)</option>
+        <option value="emergency">Emergency (time-critical)</option>
+        <option value="admin">Admin / logistics</option>
+      </select>
+    </div>
+
+    <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-soft);">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">
+        <input type="checkbox" id="cb-send-email" style="margin-right: 6px; accent-color: var(--accent);" />
+        Also send an email to inbox
+      </label>
+      <div id="cb-email-fields" style="display:none; padding-left: 4px;">
+        <div style="margin-top: 8px;">
+          <input type="text" id="cb-email-from" placeholder="From name (e.g. AFICC/JA)" style="width:100%;" />
+        </div>
+        <div style="margin-top: 8px;">
+          <input type="text" id="cb-email-from-addr" placeholder="From email (optional)" style="width:100%;" />
+        </div>
+        <div style="margin-top: 8px;">
+          <input type="text" id="cb-email-subject" placeholder="Subject line" style="width:100%;" />
+        </div>
+        <div style="margin-top: 8px;">
+          <textarea id="cb-email-body" rows="3" placeholder="Email body..." style="height: auto;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line-soft);">
+      <label class="field-label" style="margin-bottom: 8px; display: block;">
+        <input type="checkbox" id="cb-send-sms" style="margin-right: 6px; accent-color: var(--accent);" />
+        Also send an SMS to phones
+      </label>
+      <div id="cb-sms-fields" style="display:none; padding-left: 4px;">
+        <div style="margin-top: 8px;">
+          <label class="field-label" style="margin-bottom: 6px; display: block;">From contact</label>
+          <div class="contact-picker" id="cb-contact-picker">
+            ${contacts.map(c => `
+              <button type="button" class="contact-card" data-value="${esc(c.id)}">
+                <div class="contact-card-avatar" style="background: ${c.color};">${esc(c.initials)}</div>
+                <div class="contact-card-text">
+                  <div class="contact-card-name">${esc(c.name)}</div>
+                  <div class="contact-card-title">${esc(c.title)}</div>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <div style="margin-top: 8px;">
+          <textarea id="cb-sms-text" rows="2" placeholder="SMS message text..." style="height: auto;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end;">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="fire-cb-btn">Fire curveball</button>
+    </div>
+  `;
+  showModal('White cell \u00b7 Curveball inject', html);
+
+  setTimeout(() => {
+    let selectedSmsContactId = null;
+
+    // Toggle email fields
+    document.getElementById('cb-send-email').addEventListener('change', (e) => {
+      document.getElementById('cb-email-fields').style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    // Toggle SMS fields
+    document.getElementById('cb-send-sms').addEventListener('change', (e) => {
+      document.getElementById('cb-sms-fields').style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    // SMS contact picker
+    document.querySelectorAll('#cb-contact-picker .contact-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('#cb-contact-picker .contact-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedSmsContactId = card.dataset.value;
+      });
+    });
+
+    document.getElementById('fire-cb-btn').addEventListener('click', () => {
+      const title = document.getElementById('cb-title').value.trim();
+      if (!title) { showToast('Give the curveball a title'); return; }
+
+      const opts = {
+        title,
+        description: document.getElementById('cb-desc').value.trim(),
+        category: document.getElementById('cb-category').value
+      };
+
+      // Email attachment
+      if (document.getElementById('cb-send-email').checked) {
+        const emailFrom = document.getElementById('cb-email-from').value.trim();
+        const emailSubject = document.getElementById('cb-email-subject').value.trim();
+        const emailBody = document.getElementById('cb-email-body').value.trim();
+        if (!emailFrom || !emailSubject || !emailBody) {
+          showToast('Fill in all email fields or uncheck the email option');
+          return;
+        }
+        opts.emailFrom = emailFrom;
+        opts.emailFromAddr = document.getElementById('cb-email-from-addr').value.trim();
+        opts.emailSubject = emailSubject;
+        opts.emailBody = emailBody;
+      }
+
+      // SMS attachment
+      if (document.getElementById('cb-send-sms').checked) {
+        if (!selectedSmsContactId) { showToast('Pick an SMS contact or uncheck the SMS option'); return; }
+        const smsText = document.getElementById('cb-sms-text').value.trim();
+        if (!smsText) { showToast('Type the SMS text or uncheck the SMS option'); return; }
+        opts.smsContactId = selectedSmsContactId;
+        opts.smsText = smsText;
+      }
+
+      const inj = Engine.fireCurveball(opts);
+      closeModal();
+      showToast(`Curveball fired: ${inj.id} — ${title}`);
+      renderAll();
+    });
+  }, 50);
+}
+
 function renderActionQueue() {
   const container = document.getElementById('action-queue');
   if (!container) return;
@@ -1037,7 +1317,7 @@ function renderActionQueue() {
   if (countEl) countEl.textContent = pending.length;
 
   if (queue.length === 0) {
-    container.innerHTML = '<div class="muted text-center" style="padding: 16px 8px; font-size: 11px;">Quiet. Student questions will land here.</div>';
+    container.innerHTML = '<div class="panel-empty">Quiet. Student questions will land here.</div>';
     return;
   }
 
@@ -1100,22 +1380,21 @@ function openReplyComposer(queueEntryId) {
     const threadHtml = recent.map(m => {
       const isOut = m.direction === 'out';
       const align = isOut ? 'right' : 'left';
-      const bg = isOut ? '#DCF8C6' : '#e8e8e8';
-      const color = '#222';
+      const bg = isOut ? 'rgba(79, 195, 215, 0.15)' : 'var(--bg-raised)';
       return `<div style="text-align:${align};margin:4px 0;">
-        <span style="display:inline-block;max-width:85%;padding:6px 10px;border-radius:12px;background:${bg};color:${color};font-size:12px;line-height:1.4;">${esc(m.text)}</span>
-        <div style="font-size:9px;color:#999;margin-top:1px;">${m.time || ''}</div>
+        <span style="display:inline-block;max-width:85%;padding:6px 10px;border-radius:12px;background:${bg};color:var(--text-primary);font-size:12px;line-height:1.4;">${esc(m.text)}</span>
+        <div style="font-size:9px;color:var(--text-tertiary);margin-top:1px;">${m.time || ''}</div>
       </div>`;
     }).join('');
 
     const html = `
       <div class="reply-composer">
         <div class="reply-ctx">
-          <div style="font-size:11px;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">SMS thread with ${esc(contactName)}</div>
-          <div style="background:#f5f5f5;border-radius:8px;padding:10px;max-height:200px;overflow-y:auto;margin-bottom:12px;">
-            ${threadHtml || '<div style="color:#999;font-size:11px;text-align:center;">No messages yet</div>'}
+          <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">SMS thread with ${esc(contactName)}</div>
+          <div style="background:var(--bg-sunken);border-radius:8px;padding:10px;max-height:200px;overflow-y:auto;margin-bottom:12px;">
+            ${threadHtml || '<div style="color:var(--text-tertiary);font-size:11px;text-align:center;">No messages yet</div>'}
           </div>
-          <div style="font-size:11px;color:#888;margin-bottom:8px;"><strong>${esc(entry.personaName)}</strong> texted: "${esc(entry.body)}"</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;"><strong>${esc(entry.personaName)}</strong> texted: "${esc(entry.body)}"</div>
         </div>
         <div class="reply-field">
           <label class="field-label">Reply as</label>
@@ -1246,7 +1525,7 @@ function renderInjectFocus() {
 
   if (!focusedInjectId) {
     title.textContent = 'Pick an inject';
-    body.innerHTML = '<div class="muted text-center" style="padding: 16px 8px; font-size: 11px;">Click an inject in the timeline or active feed to load its quick-fire options here.</div>';
+    body.innerHTML = '<div class="panel-empty">Click an inject in the timeline or active feed to load its quick-fire options here.</div>';
     return;
   }
   const s = Engine.getState();
@@ -1514,6 +1793,8 @@ function showToast(msg) {
 // absolute trigger for injects that don't have a resolved slot yet, and to
 // the window's earliest edge for un-resolved window triggers.
 function triggerMin(inj) {
+  // Curveballs store their fire time directly
+  if (inj.fire_at_minutes != null) return inj.fire_at_minutes;
   const resolved = Engine.getResolvedTriggerMinutes
     ? Engine.getResolvedTriggerMinutes(inj.id)
     : null;
@@ -1606,16 +1887,16 @@ function renderKIAPanel() {
       ? responses[latestAlarmId].responses[st.id]
       : null;
 
-    let statusColor, statusText, statusIcon, actions;
+    let statusClass, statusText, statusIcon, actions;
 
     if (isKIA) {
       if (kiaInfo.replacedBy) {
-        statusColor = '#666';
+        statusClass = 'kia-st-replaced';
         statusIcon = '&#x1F480;';
         statusText = `KIA — replaced by ${esc(kiaInfo.replacedBy)}`;
         actions = `<button class="kia-action-btn kia-revive" data-player="${esc(st.id)}" title="Undo KIA">Revive</button>`;
       } else {
-        statusColor = '#FF1744';
+        statusClass = 'kia-st-dead';
         statusIcon = '&#x1F480;';
         statusText = 'KIA';
         actions = `
@@ -1624,7 +1905,7 @@ function renderKIAPanel() {
         `;
       }
     } else if (alarmResp && alarmResp.acked) {
-      statusColor = '#4CAF50';
+      statusClass = 'kia-st-ok';
       statusIcon = '&#x2713;';
       statusText = `Ack'd alarm${alarmResp.ackedAtExercise ? ' @ ' + alarmResp.ackedAtExercise : ''}`;
       actions = `<button class="kia-action-btn kia-kill" data-player="${esc(st.id)}" title="Kill this player">Kill</button>`;
@@ -1633,7 +1914,7 @@ function renderKIAPanel() {
       if (!kiaRoster[st.id]) {
         Engine.markKIA(st.id);
       }
-      statusColor = '#FF1744';
+      statusClass = 'kia-st-dead';
       statusIcon = '&#x1F480;';
       statusText = 'KIA';
       actions = `
@@ -1646,7 +1927,7 @@ function renderKIAPanel() {
       const remaining = Math.max(0, DEATH_MS - (nowWall - alarm.firedAtWall));
       if (remaining > 0) {
         const remainStr = formatElapsed(remaining);
-        statusColor = remaining < 60000 ? '#FF6B35' : '#FFC107';
+        statusClass = remaining < 60000 ? 'kia-st-urgent' : 'kia-st-warn';
         statusIcon = '&#x23F3;';
         statusText = `Waiting — ${remainStr}`;
       } else {
@@ -1654,26 +1935,26 @@ function renderKIAPanel() {
         if (!kiaRoster[st.id]) {
           Engine.markKIA(st.id);
         }
-        statusColor = '#FF1744';
+        statusClass = 'kia-st-dead';
         statusIcon = '&#x1F480;';
         statusText = 'KIA';
       }
       actions = `<button class="kia-action-btn kia-kill" data-player="${esc(st.id)}" title="Kill this player">Kill</button>`;
     } else {
       // No alarm — normal state, just show a kill button
-      statusColor = '#4CAF50';
+      statusClass = 'kia-st-ok';
       statusIcon = '&#x25CF;';
       statusText = 'Active';
       actions = `<button class="kia-action-btn kia-kill" data-player="${esc(st.id)}" title="Kill this player">Kill</button>`;
     }
 
     html += `
-      <div class="kia-player-row" style="border-bottom:1px solid #1a0808;">
+      <div class="kia-player-row">
         <div class="kia-player-info">
-          <span class="kia-player-dot" style="background:${st.color || '#888'};"></span>
+          <span class="kia-player-dot" style="background:${st.color || 'var(--text-tertiary)'};"></span>
           <span class="kia-player-name">${esc(st.name)}</span>
         </div>
-        <div class="kia-player-status" style="color:${statusColor};">
+        <div class="kia-player-status ${statusClass}">
           <span class="kia-status-icon">${statusIcon}</span>
           <span class="kia-status-text">${statusText}</span>
         </div>

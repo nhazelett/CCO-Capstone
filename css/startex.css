@@ -611,3 +611,29 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Beta test button */
+#beta-test-btn {
+  background: linear-gradient(135deg, #F5B845 0%, #E56B3D 100%);
+  color: #1A150D;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: none;
+}
+#beta-test-btn:hover {
+  filter: brightness(1.08);
+}
+#beta-test-btn:active {
+  filter: brightness(0.92);
+  transform: scale(0.98);
+}
+#beta-test-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+  transform: none;
+}
+#beta-test-btn:focus-visible {
+  outline: 2px solid #F5B845;
+  outline-offset: 3px;
+}

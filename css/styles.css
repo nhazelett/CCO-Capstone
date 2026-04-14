@@ -292,6 +292,11 @@ a:hover { color: var(--accent-bright); }
   color: var(--accent);
   background: var(--accent-bg);
 }
+.topbar-nav a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--r-sm);
+}
 
 .topbar-right {
   display: flex;
@@ -333,6 +338,15 @@ a:hover { color: var(--accent-bright); }
 }
 
 .btn:active { transform: translateY(0); }
+
+/* Focus ring for keyboard navigation — all interactive elements */
+.btn:focus-visible,
+.wc-btn:focus-visible,
+.contact-card:focus-visible,
+.option-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .btn-primary {
   background: var(--accent);
@@ -445,6 +459,14 @@ a:hover { color: var(--accent-bright); }
 }
 
 .panel-body-none { padding: 0; }
+
+/* Standardized empty state for panels */
+.panel-empty {
+  padding: 20px 12px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
 
 .card {
   background: var(--bg-raised);

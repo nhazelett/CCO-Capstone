@@ -1058,17 +1058,114 @@ const Engine = (function () {
     }
   }
 
-  function sendCustomSms(contactId, text) {
+  function sendCustomSms(contactId, text, targetStudentId) {
     if (!state.smsThreads[contactId]) state.smsThreads[contactId] = [];
-    state.smsThreads[contactId].push({
+    const msg = {
       id: `custom-${Date.now()}`,
       direction: 'in',
       text: text,
       time: getExerciseTime().displayString,
       unread: true
-    });
+    };
+    // Optional: target a specific student. null/undefined = broadcast to all.
+    if (targetStudentId) msg.targetStudentId = targetStudentId;
+    state.smsThreads[contactId].push(msg);
     saveState();
-    dispatch('engine:sms-received', { contactId, text });
+    dispatch('engine:sms-received', { contactId, text, targetStudentId });
+  }
+
+  // v0.3: White-cell custom email — lands in the student inbox immediately.
+  // targetStudentId is optional: null = broadcast, otherwise only that persona sees it.
+  function sendCustomEmail(opts) {
+    const id = `wc-email-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const item = {
+      id,
+      injectId: null,
+      from: opts.from || 'White Cell',
+      fromEmail: opts.fromEmail || '',
+      subject: opts.subject || '(no subject)',
+      body: opts.body || '',
+      time: getExerciseTime().displayString,
+      unread: true,
+      role_tag: null,
+      assigned_to: null,
+      is_whitecell: true
+    };
+    // Optional per-student targeting
+    if (opts.targetStudentId) item.targetStudentId = opts.targetStudentId;
+    state.inbox.unshift(item);
+    saveState();
+    dispatch('engine:inbox-updated');
+    return item;
+  }
+
+  // v0.3: Curveball — ad-hoc inject that fires immediately.
+  // Creates a synthetic inject entry, marks it fired, optionally pushes
+  // inbox items and/or SMS to students.
+  function fireCurveball(opts) {
+    const cbId = `CB-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+    const inj = {
+      id: cbId,
+      title: opts.title || 'Curveball',
+      description: opts.description || '',
+      type: 'curveball',
+      category: opts.category || 'atmospheric',
+      // No scheduled time — fires immediately
+      fire_at_minutes: getExerciseTime().totalMinutes,
+      duration_minutes: opts.duration || 30,
+      tlo: [],
+      difficulty: opts.difficulty || 'amber',
+      expected_actions: opts.expectedActions || [],
+      teaching_points: opts.teachingPoints || [],
+      war_story: opts.warStory || null,
+      inbox_items: [],
+      sms_messages: [],
+      // Mark as curveball for UI differentiation
+      is_curveball: true
+    };
+
+    // Register the inject in the live inject array so timeline/active feed shows it
+    if (!state.curveballInjects) state.curveballInjects = [];
+    state.curveballInjects.push(inj);
+    state.injects.push(inj);
+
+    // Mark it as fired immediately
+    state.fired.add(cbId);
+
+    // Push email to inbox if provided
+    if (opts.emailFrom && opts.emailSubject && opts.emailBody) {
+      const emailId = `${cbId}-email-1`;
+      state.inbox.unshift({
+        id: emailId,
+        injectId: cbId,
+        from: opts.emailFrom,
+        fromEmail: opts.emailFromAddr || '',
+        subject: opts.emailSubject,
+        body: opts.emailBody,
+        time: getExerciseTime().displayString,
+        unread: true,
+        role_tag: null,
+        assigned_to: null,
+        is_curveball: true
+      });
+    }
+
+    // Push SMS if provided
+    if (opts.smsContactId && opts.smsText) {
+      if (!state.smsThreads[opts.smsContactId]) state.smsThreads[opts.smsContactId] = [];
+      state.smsThreads[opts.smsContactId].push({
+        id: `${cbId}-sms-1`,
+        direction: 'in',
+        text: opts.smsText,
+        time: getExerciseTime().displayString,
+        unread: true
+      });
+    }
+
+    saveState();
+    dispatch('engine:inject-fired', { inject: inj });
+    dispatch('engine:inbox-updated');
+    return inj;
   }
 
   // ----- Persistence -----
@@ -1107,6 +1204,7 @@ const Engine = (function () {
         unclaimedInjects: state.unclaimedInjects || [],
         alarm_responses: state.alarm_responses || {},
         kia_roster: state.kia_roster || {},
+        curveballInjects: state.curveballInjects || [],
         _lastUpdate: Date.now()
       };
       localStorage.setItem(stateKey(), JSON.stringify(snap));
@@ -1163,6 +1261,14 @@ const Engine = (function () {
       // v0.2.14: alarm response tracking + KIA roster
       state.alarm_responses = (s.alarm_responses && typeof s.alarm_responses === 'object') ? s.alarm_responses : {};
       state.kia_roster = (s.kia_roster && typeof s.kia_roster === 'object') ? s.kia_roster : {};
+      // v0.3: curveball injects — merge back into state.injects so
+      // timeline/active feed renders them after a page reload.
+      state.curveballInjects = Array.isArray(s.curveballInjects) ? s.curveballInjects : [];
+      state.curveballInjects.forEach(cb => {
+        if (!state.injects.find(i => i.id === cb.id)) {
+          state.injects.push(cb);
+        }
+      });
 
       // Only start a local tick interval if NOT in read-only mode.
       // Read-only consumers (phone, student) should never run the clock
@@ -1496,7 +1602,15 @@ const Engine = (function () {
   let _presenceInfo = null;
 
   function startPresence(clientId, info) {
-    _presenceClientId = clientId || ('c-' + Math.random().toString(36).slice(2, 8));
+    const newId = clientId || ('c-' + Math.random().toString(36).slice(2, 8));
+    // If switching to a different identity, clean up the old key first
+    if (_presenceClientId && _presenceClientId !== newId) {
+      try { localStorage.removeItem(presenceKey(_presenceClientId)); } catch (e) {}
+      if (_netHooks && _netHooks.onPresenceStop) {
+        try { _netHooks.onPresenceStop(currentSession, _presenceClientId); } catch (e) {}
+      }
+    }
+    _presenceClientId = newId;
     _presenceInfo = info || {};
     const write = () => {
       try {
@@ -1646,7 +1760,8 @@ const Engine = (function () {
     startExercise, prelaunchExercise, beginExerciseNow,
     pause, resume, endExercise,
     flagForHotwash, fireNextInject, fireInjectById,
-    markInboxRead, markSmsRead, sendCustomSms,
+    markInboxRead, markSmsRead, sendCustomSms, sendCustomEmail,
+    fireCurveball,
     getExerciseTime, loadState, resetState, enableSync,
     setReadOnly,
     // v0.2.8 role-based routing

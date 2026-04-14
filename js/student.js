@@ -118,6 +118,17 @@ function undismissMail(id) {
 const PERSONA_KEY = 'cco-capstone-student-persona';
 let currentPersona = loadPersona(); // { id, name, role, color, initials } or 'observer' or null
 
+// Track which SMS threads the student has read locally (engine can't persist in read-only mode).
+// Stores { contactId: messageCountAtTimeOfRead } so we only badge truly new messages.
+const SMS_READ_KEY = 'cco-capstone-sms-read-counts';
+let _smsReadCounts = _loadSmsReadCounts();
+function _loadSmsReadCounts() {
+  try { return JSON.parse(localStorage.getItem(SMS_READ_KEY)) || {}; } catch (e) { return {}; }
+}
+function _saveSmsReadCounts() {
+  try { localStorage.setItem(SMS_READ_KEY, JSON.stringify(_smsReadCounts)); } catch (e) {}
+}
+
 function loadPersona() {
   try {
     const raw = localStorage.getItem(PERSONA_KEY);
@@ -172,6 +183,10 @@ function itemVisibleToMe(item) {
   if (isObserver()) return true;
   if (!currentPersona) return true; // fail-open in dev
   const me = currentPersona.id;
+
+  // v0.3: per-student targeting (white cell custom emails / curveballs).
+  // If an item has targetStudentId set, only that student sees it.
+  if (item.targetStudentId && item.targetStudentId !== me) return false;
 
   // v0.2.9: trainer replies (and other private items) are visible ONLY to
   // the delegated target. Leaders can also see them — they need visibility
@@ -719,15 +734,25 @@ function renderTextsList() {
   const contacts = Engine.getContacts ? Engine.getContacts() : [];
   const threads = s.smsThreads || {};
 
-  // Only show contacts that have at least one message
+  // Only show contacts that have at least one message visible to this student.
+  // Messages with targetStudentId only appear for that student; null = broadcast.
+  // Because students run in read-only mode, Engine.markSmsRead can't persist.
+  // Track the last-seen message count per thread locally so we know what's new.
+  const myId = personaId(); // null for observer
   const withMessages = contacts
     .filter(c => Array.isArray(threads[c.id]) && threads[c.id].length > 0)
     .map(c => {
-      const msgs = threads[c.id];
+      // Filter to messages this student should see
+      const allMsgs = threads[c.id];
+      const msgs = allMsgs.filter(m => !m.targetStudentId || m.targetStudentId === myId || isObserver());
+      if (msgs.length === 0) return null;
       const last = msgs[msgs.length - 1];
-      const unread = msgs.filter(m => m.unread && m.direction === 'in').length;
+      const readUpTo = _smsReadCounts[c.id] || 0;
+      // Unread = incoming messages arriving after the count we last read to
+      const unread = msgs.filter((m, i) => i >= readUpTo && m.unread && m.direction === 'in').length;
       return { contact: c, last, unread, count: msgs.length };
     })
+    .filter(Boolean)
     // Rough ordering: unread first, then by count (no wall-clock timestamps on SMS entries)
     .sort((a, b) => {
       if (a.unread !== b.unread) return b.unread - a.unread;
@@ -766,7 +791,12 @@ function renderTextsList() {
     el.addEventListener('click', () => {
       selectedTextsContactId = el.dataset.id;
       selectedMailId = null; // clear email selection when opening a thread
-      if (Engine.markSmsRead) Engine.markSmsRead(selectedTextsContactId);
+      // Mark as read locally (read-only mode blocks engine persistence)
+      const cid = el.dataset.id;
+      const threadMsgs = (s.smsThreads || {})[cid];
+      if (threadMsgs) _smsReadCounts[cid] = threadMsgs.length;
+      _saveSmsReadCounts();
+      if (Engine.markSmsRead) Engine.markSmsRead(cid);
       renderAll();
     });
   });
@@ -787,9 +817,9 @@ function renderReadingPane() {
     return;
   }
   container.innerHTML = `
-    <div class="reading-empty outlook-empty-reading">
-      <svg viewBox="0 0 56 56" fill="none" style="width:48px;height:48px;margin-bottom:12px;opacity:0.35;"><rect x="6" y="10" width="44" height="36" rx="3" stroke="#0078D4" stroke-width="1.5"/><path d="M6 14l22 14L50 14" stroke="#0078D4" stroke-width="1.5"/></svg>
-      <p style="color:#605E5C;font-size:13px;font-family:'Segoe UI',-apple-system,sans-serif;">Select an item to read</p>
+    <div class="reading-empty">
+      <svg viewBox="0 0 56 56" fill="none" style="width:48px;height:48px;margin-bottom:12px;opacity:0.35;"><rect x="6" y="10" width="44" height="36" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M6 14l22 14L50 14" stroke="currentColor" stroke-width="1.5"/></svg>
+      <p class="micro" style="font-size:13px;">Click an email or message to begin</p>
     </div>
   `;
 }
@@ -1013,7 +1043,10 @@ function renderThreadDetail(container) {
     container.innerHTML = `<div class="reading-empty"><div class="micro">Thread not found</div></div>`;
     return;
   }
-  const msgs = (s.smsThreads && s.smsThreads[contact.id]) || [];
+  const allMsgs = (s.smsThreads && s.smsThreads[contact.id]) || [];
+  // Filter: only show broadcast messages + messages targeted at this student
+  const myId = personaId();
+  const msgs = allMsgs.filter(m => !m.targetStudentId || m.targetStudentId === myId || isObserver());
 
   container.innerHTML = `
     <div class="s-thread-head">
